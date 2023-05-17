@@ -1,6 +1,6 @@
 file(GLOB_RECURSE SANDBOX_SRCFILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/include/*.h" "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp")
 
-add_executable(Sandbox "${SANDBOX_SRCFILES}")
+add_executable(Sandbox WIN32 "${SANDBOX_SRCFILES}")
 
 target_link_libraries(Sandbox PUBLIC Toy)
 

@@ -28,6 +28,8 @@ namespace toy
         virtual void draw_scene() = 0;                                                          // Draw per-frame
         virtual LRESULT msg_proc(HWND hwnd, uint32_t msg, uint64_t w_param, int64_t l_param);   // Message callback function for window
 
+        int32_t run();                                                                              // Run application, and game-loop
+
     protected:
         void init_main_window();        // Initialize window
         void init_d3d();                // Initialize Direct3D

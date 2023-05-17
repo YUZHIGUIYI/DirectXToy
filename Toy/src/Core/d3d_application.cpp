@@ -126,8 +126,121 @@ namespace toy
     LRESULT d3d_application_c::msg_proc(HWND hwnd, uint32_t msg, uint64_t w_param, int64_t l_param)
     {
         // TODO: finish
+        switch (msg) {
+            // WM_ACTIVATE is sent when the window is activated or deactivated.
+            // We pause the game when the window is deactivated and unpause it
+            // when it becomes active.
+            case WM_ACTIVATE: {
+                if (LOWORD(w_param) == WA_INACTIVE) {
+                    class_app_paused_ = true;
+                } else {
+                    class_app_paused_ = false;
+                }
+                return 0;
+            }
+                // WM_SIZE is sent when the user resizes the window
+            case WM_SIZE: {
+                // Save the new client area dimensions
+                class_client_width_ = LOWORD(l_param);
+                class_client_height_ = HIWORD(l_param);
+                if (class_d3d_device_) {
+                    if (w_param == SIZE_MINIMIZED) {
+                        class_app_paused_ = true;
+                        class_minimized_ = true;
+                        class_maximized_ = false;
+                    } else if (w_param == SIZE_MAXIMIZED) {
+                        class_app_paused_ = false;
+                        class_minimized_ = false;
+                        class_maximized_ = true;
+                        on_resize();
+                    } else if (w_param == SIZE_RESTORED) {
+                        if (class_minimized_) {
+                            class_app_paused_ = false;
+                            class_minimized_ = false;
+                            on_resize();
+                        } else if (class_maximized_) {
+                            class_app_paused_ = false;
+                            class_maximized_ = false;
+                            on_resize();
+                        } else if (class_resizing_) {
+                            // If user is dragging the resize bars, we do not resize
+                            // the buffers here because as the user continuously
+                            // drags the resize bars, a stream of WM_SIZE messages are
+                            // sent to the window, and it would be pointless (and slow)
+                            // to resize for each WM_SIZE message received from dragging
+                            // the resize bars.  So instead, we reset after the user is
+                            // done resizing the window and releases the resize bars, which
+                            // sends a WM_EXITSIZEMOVE message.
+                        } else {
+                            on_resize();
+                        }
+                    }
+                }
+
+                return 0;
+            }
+            case WM_ENTERSIZEMOVE: {
+                class_app_paused_ = true;
+                class_resizing_ = true;
+                return 0;
+            }
+            case WM_EXITSIZEMOVE: {
+                class_app_paused_ = false;
+                class_resizing_ = false;
+                on_resize();
+            }
+            case WM_DESTROY: {
+                PostQuitMessage(0);
+                return 0;
+            }
+            case WM_MENUCHAR: {
+                return MAKELRESULT(0, MNC_CLOSE);
+            }
+            case WM_GETMINMAXINFO:
+            {
+                ((MINMAXINFO*)l_param)->ptMinTrackSize.x = 200;
+                ((MINMAXINFO*)l_param)->ptMinTrackSize.y = 200;
+                return 0;
+            }
+            case WM_LBUTTONDOWN:
+            case WM_MBUTTONDOWN:
+            case WM_RBUTTONDOWN:
+                return 0;
+            case WM_LBUTTONUP:
+            case WM_MBUTTONUP:
+            case WM_RBUTTONUP:
+                return 0;
+            case WM_MOUSEMOVE:
+                return 0;
+        }
 
         return DefWindowProc(hwnd, msg, w_param, l_param);
+    }
+
+    int32_t d3d_application_c::run()
+    {
+        MSG msg = { nullptr };
+
+        while (msg.message != WM_QUIT)
+        {
+            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            } else
+            {
+                if (!class_app_paused_)
+                {
+                    update_scene(1.0f);
+                    draw_scene();
+                } else
+                {
+                    Sleep(100);
+                }
+            }
+        }
+
+        return static_cast<int32_t>(msg.wParam);
     }
 
     // Initialize main window
@@ -162,6 +275,8 @@ namespace toy
         {
             throw std::runtime_error("CreateWindow failed");
         }
+
+        std::cout << "tick\n";
 
         ShowWindow(class_main_wnd_, SW_SHOW);
         UpdateWindow(class_main_wnd_);
