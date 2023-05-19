@@ -5,18 +5,16 @@
 #pragma once
 
 #include <Toy/Core/base.h>
-#include <Toy/Core/disable_copyable.h>
 
 namespace toy
 {
     class d3d_application_c : public disable_copyable_c
     {
     public:
-        d3d_application_c(HINSTANCE hinstance, const std::string& window_name, int32_t init_width, int32_t init_height);
+        d3d_application_c(GLFWwindow* window, const std::string& window_name, int32_t init_width, int32_t init_height);
         virtual ~d3d_application_c();
 
     public:
-        [[nodiscard]] HINSTANCE get_app_inst() const { return class_app_inst_; }
         [[nodiscard]] HWND get_main_wnd() const { return class_main_wnd_; }
         [[nodiscard]] float get_aspect_ratio() const { return static_cast<float>(class_client_width_) / static_cast<float>(class_client_height_); }
 
@@ -26,16 +24,14 @@ namespace toy
         virtual void on_resize();                                                               // Call when resized window
         virtual void update_scene(float dt) = 0;                                                // Update per-frame
         virtual void draw_scene() = 0;                                                          // Draw per-frame
-        virtual LRESULT msg_proc(HWND hwnd, uint32_t msg, uint64_t w_param, int64_t l_param);   // Message callback function for window
 
-        int32_t run();                                                                              // Run application, and game-loop
+        void tick();                                                                            // Run application, and game-loop
 
     protected:
-        void init_main_window();        // Initialize window
         void init_d3d();                // Initialize Direct3D
 
     protected:
-        HINSTANCE class_app_inst_;      // Application instance handle
+        GLFWwindow* class_glfw_window;  // GLFW window
         HWND class_main_wnd_;           // Main window handle
 
         template<typename T>

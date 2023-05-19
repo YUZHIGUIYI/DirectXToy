@@ -7,3 +7,4 @@ cmake-build-release
 .idea
 
 # Ignore these files
+*.cso

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <pch.h>
+#include <Toy/Core/disable_copyable.h>
 
 // Enable graphics debug
 #ifndef GRAPHICS_DEBUGGER_OBJECT_NAME

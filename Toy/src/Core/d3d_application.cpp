@@ -6,24 +6,12 @@
 
 namespace toy
 {
-    // This is just used to forward Windows messages from a global window
-    // procedure to our member function window procedure because we cannot
-    // assign a member function to WNDCLASS::lpfnWndProc.
-    d3d_application_c* g_app_ptr = nullptr;
-
-    // Forward hwnd on because we can get messages (e.g., WM_CREATE) before create window returns, and thus before class_main_wnd_ is valid
-    LRESULT CALLBACK main_wnd_proc(HWND hwnd, uint32_t msg, uint64_t w_param, int64_t l_param)
-    {
-        return g_app_ptr->msg_proc(hwnd, msg, w_param, l_param);
-    }
-
-    d3d_application_c::d3d_application_c(HINSTANCE hinstance, const std::string &window_name, int32_t init_width,
-                                            int32_t init_height)
-    : class_app_inst_(hinstance),
+    d3d_application_c::d3d_application_c(GLFWwindow* window, const std::string &window_name,
+                                            int32_t init_width, int32_t init_height)
+    : class_glfw_window(window),
     class_main_wnd_title_(window_name),
     class_client_width_(init_width),
     class_client_height_(init_height),
-    class_main_wnd_(nullptr),
     class_app_paused_(false),
     class_minimized_(false),
     class_maximized_(false),
@@ -37,10 +25,8 @@ namespace toy
     class_render_target_view_(nullptr),
     class_depth_stencil_view_(nullptr)
     {
+        class_main_wnd_ = glfwGetWin32Window(class_glfw_window);
         class_screen_viewport_ = {};
-
-        // Get "this" pointer in order to handle class member function
-        g_app_ptr = this;
     }
 
     d3d_application_c::~d3d_application_c()
@@ -51,12 +37,13 @@ namespace toy
 
     void d3d_application_c::init()
     {
-        init_main_window();
         init_d3d();
     }
 
     void d3d_application_c::on_resize()
     {
+        std::cout << "Resize window\n";
+
         assert(class_d3d_device_);
         assert(class_d3d_immediate_context_);
         assert(class_swap_chain_);
@@ -113,8 +100,8 @@ namespace toy
         class_d3d_immediate_context_->OMSetRenderTargets(1, class_render_target_view_.GetAddressOf(), class_depth_stencil_view_.Get());
 
         // Set viewport transform
-        class_screen_viewport_.TopLeftX = 0;
-        class_screen_viewport_.TopLeftY = 0;
+        class_screen_viewport_.TopLeftX = 0.0;
+        class_screen_viewport_.TopLeftY = 0.0;
         class_screen_viewport_.Width = static_cast<float>(class_client_width_);
         class_screen_viewport_.Height = static_cast<float>(class_client_height_);
         class_screen_viewport_.MinDepth = 0.0f;
@@ -123,163 +110,14 @@ namespace toy
         class_d3d_immediate_context_->RSSetViewports(1, &class_screen_viewport_);
     }
 
-    LRESULT d3d_application_c::msg_proc(HWND hwnd, uint32_t msg, uint64_t w_param, int64_t l_param)
+    void d3d_application_c::tick()
     {
-        // TODO: finish
-        switch (msg) {
-            // WM_ACTIVATE is sent when the window is activated or deactivated.
-            // We pause the game when the window is deactivated and unpause it
-            // when it becomes active.
-            case WM_ACTIVATE: {
-                if (LOWORD(w_param) == WA_INACTIVE) {
-                    class_app_paused_ = true;
-                } else {
-                    class_app_paused_ = false;
-                }
-                return 0;
-            }
-                // WM_SIZE is sent when the user resizes the window
-            case WM_SIZE: {
-                // Save the new client area dimensions
-                class_client_width_ = LOWORD(l_param);
-                class_client_height_ = HIWORD(l_param);
-                if (class_d3d_device_) {
-                    if (w_param == SIZE_MINIMIZED) {
-                        class_app_paused_ = true;
-                        class_minimized_ = true;
-                        class_maximized_ = false;
-                    } else if (w_param == SIZE_MAXIMIZED) {
-                        class_app_paused_ = false;
-                        class_minimized_ = false;
-                        class_maximized_ = true;
-                        on_resize();
-                    } else if (w_param == SIZE_RESTORED) {
-                        if (class_minimized_) {
-                            class_app_paused_ = false;
-                            class_minimized_ = false;
-                            on_resize();
-                        } else if (class_maximized_) {
-                            class_app_paused_ = false;
-                            class_maximized_ = false;
-                            on_resize();
-                        } else if (class_resizing_) {
-                            // If user is dragging the resize bars, we do not resize
-                            // the buffers here because as the user continuously
-                            // drags the resize bars, a stream of WM_SIZE messages are
-                            // sent to the window, and it would be pointless (and slow)
-                            // to resize for each WM_SIZE message received from dragging
-                            // the resize bars.  So instead, we reset after the user is
-                            // done resizing the window and releases the resize bars, which
-                            // sends a WM_EXITSIZEMOVE message.
-                        } else {
-                            on_resize();
-                        }
-                    }
-                }
-
-                return 0;
-            }
-            case WM_ENTERSIZEMOVE: {
-                class_app_paused_ = true;
-                class_resizing_ = true;
-                return 0;
-            }
-            case WM_EXITSIZEMOVE: {
-                class_app_paused_ = false;
-                class_resizing_ = false;
-                on_resize();
-            }
-            case WM_DESTROY: {
-                PostQuitMessage(0);
-                return 0;
-            }
-            case WM_MENUCHAR: {
-                return MAKELRESULT(0, MNC_CLOSE);
-            }
-            case WM_GETMINMAXINFO:
-            {
-                ((MINMAXINFO*)l_param)->ptMinTrackSize.x = 200;
-                ((MINMAXINFO*)l_param)->ptMinTrackSize.y = 200;
-                return 0;
-            }
-            case WM_LBUTTONDOWN:
-            case WM_MBUTTONDOWN:
-            case WM_RBUTTONDOWN:
-                return 0;
-            case WM_LBUTTONUP:
-            case WM_MBUTTONUP:
-            case WM_RBUTTONUP:
-                return 0;
-            case WM_MOUSEMOVE:
-                return 0;
-        }
-
-        return DefWindowProc(hwnd, msg, w_param, l_param);
-    }
-
-    int32_t d3d_application_c::run()
-    {
-        MSG msg = { nullptr };
-
-        while (msg.message != WM_QUIT)
+        while (!glfwWindowShouldClose(class_glfw_window))
         {
-            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-            {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            } else
-            {
-                if (!class_app_paused_)
-                {
-                    update_scene(1.0f);
-                    draw_scene();
-                } else
-                {
-                    Sleep(100);
-                }
-            }
+            update_scene(1.0f);
+            draw_scene();
+            glfwPollEvents();
         }
-
-        return static_cast<int32_t>(msg.wParam);
-    }
-
-    // Initialize main window
-    void d3d_application_c::init_main_window()
-    {
-        WNDCLASS wc{
-            CS_HREDRAW | CS_VREDRAW,
-            main_wnd_proc,
-            0,
-            0,
-            class_app_inst_,
-            LoadIcon(nullptr, IDI_APPLICATION),
-            LoadCursor(nullptr, IDC_ARROW),
-            (HBRUSH) GetStockObject(NULL_BRUSH),
-            nullptr,
-            "D3DWndClassName"
-        };
-
-        if (!RegisterClass(&wc))
-        {
-            throw std::runtime_error("Register class failed");
-        }
-
-        // Compute window rectangle dimensions based on requested client area dimensions
-        RECT rect{ 0, 0, class_client_width_, class_client_height_ };
-        AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-        auto width = static_cast<int32_t>(rect.right - rect.left);
-        auto height = static_cast<int32_t>(rect.bottom - rect.top);
-        class_main_wnd_ = CreateWindow("D3DWndClassName", class_main_wnd_title_.c_str(),
-                                        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr,nullptr, class_app_inst_, nullptr);
-        if (!class_main_wnd_)
-        {
-            throw std::runtime_error("CreateWindow failed");
-        }
-
-        std::cout << "tick\n";
-
-        ShowWindow(class_main_wnd_, SW_SHOW);
-        UpdateWindow(class_main_wnd_);
     }
 
     // Create directX 3d device and device context
@@ -410,9 +248,6 @@ namespace toy
             sd.Flags = 0;
             dxgi_factory1->CreateSwapChain(class_d3d_device_.Get(), &sd, class_swap_chain_.GetAddressOf());
         }
-
-        // Prohibit "alt+enter" full screen
-        dxgi_factory1->MakeWindowAssociation(class_main_wnd_, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES);
 
         // Set debug object name
         d3d11_set_debug_object_name(class_d3d_immediate_context_.Get(), "ImmediateContext");
