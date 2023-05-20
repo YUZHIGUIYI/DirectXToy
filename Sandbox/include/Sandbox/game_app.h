@@ -18,6 +18,13 @@ namespace toy
         };
     };
 
+    struct mvp_s
+    {
+        DirectX::XMMATRIX model;
+        DirectX::XMMATRIX view;
+        DirectX::XMMATRIX proj;
+    };
+
     class game_app_c : public d3d_application_c
     {
     public:
@@ -36,8 +43,13 @@ namespace toy
     private:
         com_ptr<ID3D11InputLayout> class_vertex_layout;     // Vertex input layout
         com_ptr<ID3D11Buffer> class_vertex_buffer;          // Vertex buffer
+        com_ptr<ID3D11Buffer> class_index_buffer;           // Index buffer
+        com_ptr<ID3D11Buffer> class_constant_buffer;        // Constant buffer
+
         com_ptr<ID3D11VertexShader> class_vertex_shader;    // Vertex shader
         com_ptr<ID3D11PixelShader> class_pixel_shader;      // Pixel shader
+
+        mvp_s class_mvp;                                   // Variable to modify constant buffer
     };
 }
 

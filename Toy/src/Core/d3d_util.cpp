@@ -14,7 +14,13 @@ namespace toy
         // Find whether there is a compiled shader
         if (cso_file_name && D3DReadFileToBlob(cso_file_name, blob_out_pp) == S_OK)
         {
-            std::wcout << "Has already compiled this shader file: " << hlsl_file_name << std::endl;
+            // TODO: a bad design, fix it
+            // Fuck you, microsoft!!!!!!
+            int32_t len = WideCharToMultiByte(CP_ACP, 0, hlsl_file_name, -1, nullptr, 0, nullptr, nullptr);
+            char* str = new char[len];
+            WideCharToMultiByte(CP_ACP, 0, hlsl_file_name, -1, str, len, nullptr, nullptr);
+            DX_CORE_TRACE("The HLSL file '{0}' has ready compiled", str);
+            delete[] str;
             return hr;
         } else
         {

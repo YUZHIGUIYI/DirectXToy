@@ -37,12 +37,13 @@ namespace toy
 
     void d3d_application_c::init()
     {
+        DX_CORE_INFO("Initialize DXToy engine");
         init_d3d();
     }
 
     void d3d_application_c::on_resize()
     {
-        std::cout << "Resize window\n";
+        DX_CORE_INFO("Resize window");
 
         assert(class_d3d_device_);
         assert(class_d3d_immediate_context_);
@@ -112,11 +113,25 @@ namespace toy
 
     void d3d_application_c::tick()
     {
+        float last_time = 0.0f;
         while (!glfwWindowShouldClose(class_glfw_window))
         {
-            update_scene(1.0f);
+            // TODO: make it a event delegate
+            int32_t framebuffer_width = 0;
+            int32_t framebuffer_height = 0;
+            glfwGetFramebufferSize(class_glfw_window, &framebuffer_width, &framebuffer_height);
+            if (framebuffer_width != class_client_width_ && framebuffer_height != class_client_height_)
+            {
+                class_client_width_ = framebuffer_width;
+                class_client_height_ = framebuffer_height;
+                on_resize();
+            }
+
+            auto current_time = static_cast<float>(glfwGetTime());
+            update_scene(current_time - last_time);
             draw_scene();
             glfwPollEvents();
+            last_time = current_time;
         }
     }
 
@@ -159,13 +174,13 @@ namespace toy
 
         if (FAILED(hr))
         {
-            throw std::runtime_error("D3D11CreateDevice failed");
+            DX_CORE_CRITICAL("Fail to create D3D11Device");
         }
 
         // Check whether it support D3D_FEATURE_LEVEL_11_1 or D3D_FEATURE_LEVEL_11_0
         if (feature_level != D3D_FEATURE_LEVEL_11_1 && feature_level != D3D_FEATURE_LEVEL_11_0)
         {
-            throw std::runtime_error("Direct 3D feature level 11 unsupported");
+            DX_CORE_CRITICAL("D3D11 feature level 11 is unsupported");
         }
 
         // Check MSAA quality supported

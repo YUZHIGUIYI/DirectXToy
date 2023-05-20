@@ -13,5 +13,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 include(cmake/HLSLShaders.cmake)
 
 add_subdirectory(external/glfw)
+add_subdirectory(external/spdlog)
 add_subdirectory(Toy)
 add_subdirectory(Sandbox)
