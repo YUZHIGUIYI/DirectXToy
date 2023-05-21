@@ -33,17 +33,39 @@ namespace toy
     {
         if (class_d3d_immediate_context_)
             class_d3d_immediate_context_->ClearState();
+
+        ImGui_ImplDX11_Shutdown();
+        //ImGui_ImplWin32_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
 
     void d3d_application_c::init()
     {
         DX_CORE_INFO("Initialize DXToy engine");
+
         init_d3d();
+        init_imgui();
+
+        event_manager_c::init(class_glfw_window);
+        event_manager_c::subscribe(event_type_e::WindowClose, [this] (const event_t& event)
+        {
+            on_close(event);
+        });
+        event_manager_c::subscribe(event_type_e::WindowResize, [this] (const event_t& event)
+        {
+            on_resize(event);
+        });
     }
 
-    void d3d_application_c::on_resize()
+    void d3d_application_c::on_resize(const event_t &event)
     {
         DX_CORE_INFO("Resize window");
+
+        auto&& window_resize_event = std::get<window_resize_event_c>(event);
+
+        class_client_width_ = window_resize_event.window_width;
+        class_client_height_ = window_resize_event.window_height;
 
         assert(class_d3d_device_);
         assert(class_d3d_immediate_context_);
@@ -111,28 +133,32 @@ namespace toy
         class_d3d_immediate_context_->RSSetViewports(1, &class_screen_viewport_);
     }
 
+    void d3d_application_c::on_close(const event_t &event)
+    {
+        class_app_paused_ = true;
+    }
+
     void d3d_application_c::tick()
     {
         float last_time = 0.0f;
-        while (!glfwWindowShouldClose(class_glfw_window))
+        while (!class_app_paused_)
         {
-            // TODO: make it a event delegate
-            int32_t framebuffer_width = 0;
-            int32_t framebuffer_height = 0;
-            glfwGetFramebufferSize(class_glfw_window, &framebuffer_width, &framebuffer_height);
-            if (framebuffer_width != class_client_width_ && framebuffer_height != class_client_height_)
-            {
-                class_client_width_ = framebuffer_width;
-                class_client_height_ = framebuffer_height;
-                on_resize();
-            }
+            // ImGui frame
+            ImGui_ImplDX11_NewFrame();
+            //ImGui_ImplWin32_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
             auto current_time = static_cast<float>(glfwGetTime());
             update_scene(current_time - last_time);
             draw_scene();
-            glfwPollEvents();
             last_time = current_time;
+
+            event_manager_c::update();
         }
+
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(100ms);
     }
 
     // Create directX 3d device and device context
@@ -269,9 +295,26 @@ namespace toy
         dxgi_set_debug_object_name(class_swap_chain_.Get(), "SwapChain");
 
         // After window has been resized, call this function
-        on_resize();
+        window_resize_event_c event{ class_client_width_, class_client_height_ };
+        on_resize(event);
     }
 
+    void d3d_application_c::init_imgui()
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable keyboard controls
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable gamepad controls
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable docking
+        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable multi-viewport / platform windows
+
+        ImGui::StyleColorsDark();                                   // Set ImGui style
+
+        //ImGui_ImplWin32_Init(class_main_wnd_);                                                                 // Set window platform
+        ImGui_ImplGlfw_InitForOther(class_glfw_window, true);                               // Set window platform
+        ImGui_ImplDX11_Init(class_d3d_device_.Get(), class_d3d_immediate_context_.Get());     // Set render backend
+    }
 }
 
 

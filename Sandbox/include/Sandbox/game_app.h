@@ -32,7 +32,6 @@ namespace toy
         ~game_app_c() override;
 
         void init() override;
-        void on_resize() override;
         void update_scene(float dt) override;
         void draw_scene() override;
 

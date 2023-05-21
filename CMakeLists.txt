@@ -14,5 +14,6 @@ include(cmake/HLSLShaders.cmake)
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/spdlog)
+add_subdirectory(external/imgui)
 add_subdirectory(Toy)
 add_subdirectory(Sandbox)

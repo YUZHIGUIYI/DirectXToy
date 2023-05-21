@@ -26,20 +26,65 @@ namespace toy
         init_resource();
     }
 
-    void game_app_c::on_resize()
-    {
-        d3d_application_c::on_resize();
-    }
-
     void game_app_c::update_scene(float dt)
     {
         static float phi = 0.0f;
         static float theta = 0.0f;
-        phi += 0.3f * dt;
-        theta += 0.37f * dt;
+        static float tx = 0.0f;
+        static float ty = 0.0f;
+        static float scale = 1.0f;
+
+        // ImGui demo
+        ImGui::ShowAboutWindow();
+        ImGui::ShowDemoWindow();
+        ImGui::ShowUserGuide();
+
+        // ImGui window
+        if (ImGui::Begin("Properties"))
+        {
+            if (ImGui::Button("Reset Params"))
+            {
+                tx = ty = phi = theta = 0.0f;
+                scale = 1.0f;
+            }
+            ImGui::SliderFloat("Scale", &scale, 0.2f, 2.0f);
+            ImGui::SliderFloat("##1", &phi, -DirectX::XM_PI, DirectX::XM_PI);
+            ImGui::SliderFloat("##2", &theta, -DirectX::XM_PI, DirectX::XM_PI);
+
+            ImGui::Text("Position: (%.1f, %.1f, 0.0)", tx, ty);
+        }
+
+        // Prohibit control object while UI is active
+        ImGuiIO& io = ImGui::GetIO();
+        if (!ImGui::IsAnyItemActive())
+        {
+            // Mouse left button control moving
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                tx += io.MouseDelta.x * 0.01f;
+                ty -= io.MouseDelta.y * 0.01f;
+            }
+            // Mouse right button control rotation
+            else if (ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+            {
+                phi -= io.MouseDelta.y * 0.02f;
+                theta -= io.MouseDelta.x * 0.02f;
+                phi = DirectX::XMScalarModAngle(phi);
+                theta = DirectX::XMScalarModAngle(theta);
+            }
+            // Mouse wheel control scaling
+            else if (io.MouseWheel != 0.0f)
+            {
+                scale += 0.02f * io.MouseWheel;
+                scale = std::clamp(scale, 0.2f, 2.0f);
+            }
+        }
+        ImGui::End();
 
         class_mvp.model = DirectX::XMMatrixTranspose(
-            DirectX::XMMatrixRotationX(phi) * DirectX::XMMatrixRotationY(theta)
+            DirectX::XMMatrixScalingFromVector(DirectX::XMVectorReplicate(scale)) *
+            DirectX::XMMatrixRotationX(phi) * DirectX::XMMatrixRotationY(theta) *
+            DirectX::XMMatrixTranslation(tx, ty, 0.0f)
         );
         class_mvp.proj = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, get_aspect_ratio(), 1.0f, 1000.0f)
@@ -63,6 +108,20 @@ namespace toy
                                                                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
         // Draw cube
         class_d3d_immediate_context_->DrawIndexed(36, 0, 0);
+
+        // Render ImGui
+        ImGui::Render();
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+        // Update and render additional platform windows
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
+
+        // Present
         class_swap_chain_->Present(0, 0);
     }
 

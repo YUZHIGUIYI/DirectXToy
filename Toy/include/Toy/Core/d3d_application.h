@@ -5,6 +5,7 @@
 #pragma once
 
 #include <Toy/Core/base.h>
+#include <Toy/Events/event_manager.h>
 
 namespace toy
 {
@@ -20,19 +21,21 @@ namespace toy
 
     public:
         // Client need to override
-        virtual void init();                                                                    // Init window and direct3D
-        virtual void on_resize();                                                               // Call when resized window
-        virtual void update_scene(float dt) = 0;                                                // Update per-frame
-        virtual void draw_scene() = 0;                                                          // Draw per-frame
+        virtual void init();                                         // Init window and direct3D
+        virtual void update_scene(float dt) = 0;                     // Update per-frame
+        virtual void draw_scene() = 0;                               // Draw per-frame
 
-        void tick();                                                                            // Run application, and game-loop
-
-    protected:
-        void init_d3d();                // Initialize Direct3D
+        void on_resize(const event_t& event);                        // Call when resize window
+        void on_close(const event_t& event);                         // Call when close window
+        void tick();                                                 // Run application, and game-loop
 
     protected:
-        GLFWwindow* class_glfw_window;  // GLFW window
-        HWND class_main_wnd_;           // Main window handle
+        void init_d3d();                                             // Initialize Direct3D
+        void init_imgui();                                           // Initialize ImGui
+
+    protected:
+        GLFWwindow* class_glfw_window;                               // GLFW window
+        HWND class_main_wnd_;                                        // Main window handle
 
         template<typename T>
         using com_ptr = Microsoft::WRL::ComPtr<T>;
@@ -57,10 +60,10 @@ namespace toy
         int32_t class_client_height_;                                // Viewport Height
 
         uint32_t class_msaa_quality_;                                // MSAA quality
-        bool class_app_paused_;                                      // Application Pause
-        bool class_minimized_;                                       // Application Minimized
-        bool class_maximized_;                                       // Application Maximized
-        bool class_resizing_;                                        // Application Resize
+        bool class_app_paused_;                                      // Application pause
+        bool class_minimized_;                                       // Application minimized
+        bool class_maximized_;                                       // Application maximized
+        bool class_resizing_;                                        // Application resize
         bool class_enable_msaa_;                                     // Enable MSAA
     };
 }
