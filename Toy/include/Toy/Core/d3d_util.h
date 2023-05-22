@@ -18,4 +18,15 @@ namespace toy
     // [Out]blob_out_pp    Output shader binary information
     HRESULT create_shader_from_file(const wchar_t* cso_file_name, const wchar_t* hlsl_file_name, const char* entry_point,
                                     const char* shader_model, ID3DBlob** blob_out_pp);
+
+    inline DirectX::XMMATRIX XM_CALLCONV inverse_transpose(const DirectX::FXMMATRIX& M)
+    {
+        using namespace DirectX;
+        // Do not need displacement component
+        // Must remove
+        XMMATRIX A = M;
+        A.r[3] = g_XMIdentityR3;
+
+        return XMMatrixTranspose(XMMatrixInverse(nullptr, A));
+    }
 }

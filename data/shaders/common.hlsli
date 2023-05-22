@@ -2,7 +2,8 @@ cbuffer ConstantBuffer : register(b0)
 {
     matrix g_World;     // column-matrix by default, unless it has specificed by "row_major"
     matrix g_View;      // matrix == float4x4
-    matrix g_Proj;      
+    matrix g_Proj;
+    matrix g_WorldInvTranspose;      
 }
 
 struct VertexIn
@@ -14,5 +15,6 @@ struct VertexIn
 struct VertexOut
 {
     float4 posH : SV_POSITION;
+    float3 posW : POSITION;
     float4 color : COLOR;
 };

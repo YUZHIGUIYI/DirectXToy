@@ -8,21 +8,12 @@
 
 namespace toy
 {
-    struct vertex_data_s
-    {
-        DirectX::XMFLOAT3 pos;
-        DirectX::XMFLOAT4 color;
-        inline static const std::array<D3D11_INPUT_ELEMENT_DESC, 2> input_layout{
-            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-        };
-    };
-
     struct mvp_s
     {
         DirectX::XMMATRIX model;
         DirectX::XMMATRIX view;
         DirectX::XMMATRIX proj;
+        DirectX::XMMATRIX world_inv_transpose;
     };
 
     class game_app_c : public d3d_application_c
@@ -38,17 +29,23 @@ namespace toy
     private:
         void init_effect();
         void init_resource();
+        void reset_mesh(const geometry::MeshData<VertexPosColor> &mesh_data);
 
     private:
-        com_ptr<ID3D11InputLayout> class_vertex_layout;     // Vertex input layout
-        com_ptr<ID3D11Buffer> class_vertex_buffer;          // Vertex buffer
-        com_ptr<ID3D11Buffer> class_index_buffer;           // Index buffer
-        com_ptr<ID3D11Buffer> class_constant_buffer;        // Constant buffer
+        com_ptr<ID3D11InputLayout> class_vertex_layout;         // Vertex input layout
+        com_ptr<ID3D11Buffer> class_vertex_buffer;              // Vertex buffer
+        com_ptr<ID3D11Buffer> class_index_buffer;               // Index buffer
+        com_ptr<ID3D11Buffer> class_constant_buffer;            // Constant buffer
 
-        com_ptr<ID3D11VertexShader> class_vertex_shader;    // Vertex shader
-        com_ptr<ID3D11PixelShader> class_pixel_shader;      // Pixel shader
+        com_ptr<ID3D11VertexShader> class_vertex_shader;        // Vertex shader
+        com_ptr<ID3D11PixelShader> class_pixel_shader;          // Pixel shader
 
-        mvp_s class_mvp;                                   // Variable to modify constant buffer
+        mvp_s class_mvp;                                        // Variable to modify constant buffer
+
+        com_ptr<ID3D11RasterizerState> class_rs_wireframe;      // Rasterizer state - wire frame by default
+
+        uint32_t class_index_count;
+        bool class_wireframe_mode;
     };
 }
 

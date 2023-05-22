@@ -8,7 +8,7 @@ namespace toy
 {
 
     game_app_c::game_app_c(GLFWwindow* window, const std::string &window_name, int32_t init_width, int32_t init_height)
-    : d3d_application_c(window, window_name, init_width, init_height)
+    : d3d_application_c(window, window_name, init_width, init_height), class_wireframe_mode(false)
     {
 
     }
@@ -34,12 +34,27 @@ namespace toy
         static float ty = 0.0f;
         static float scale = 1.0f;
 
-        // ImGui demo
-        ImGui::ShowAboutWindow();
-        ImGui::ShowDemoWindow();
-        ImGui::ShowUserGuide();
+        // ImGui window - properties
+        if (ImGui::Begin("Type"))
+        {
+            static int32_t cur_mesh_item = 0;
+            const std::array<const char *, 3> mesh_names{
+                "Box", "Sphere", "Cone"
+            };
+            if (ImGui::Combo("Mesh", &cur_mesh_item, mesh_names.data(), mesh_names.size()))
+            {
+                geometry::MeshData<VertexPosColor, uint32_t> mesh_data;
+                switch (cur_mesh_item)
+                {
+                    case 0 : mesh_data = geometry::create_box<VertexPosColor, uint32_t>(); break;
+                    case 1 : mesh_data = geometry::create_sphere<VertexPosColor, uint32_t>(); break;
+                    case 2 : mesh_data = geometry::create_cone<VertexPosColor, uint32_t>(); break;
+                }
+                reset_mesh(mesh_data);
+            }
+        }
+        ImGui::End();
 
-        // ImGui window
         if (ImGui::Begin("Properties"))
         {
             if (ImGui::Button("Reset Params"))
@@ -48,8 +63,8 @@ namespace toy
                 scale = 1.0f;
             }
             ImGui::SliderFloat("Scale", &scale, 0.2f, 2.0f);
-            ImGui::SliderFloat("##1", &phi, -DirectX::XM_PI, DirectX::XM_PI);
-            ImGui::SliderFloat("##2", &theta, -DirectX::XM_PI, DirectX::XM_PI);
+            ImGui::SliderFloat("Phi", &phi, -DirectX::XM_PI, DirectX::XM_PI);
+            ImGui::SliderFloat("Theta", &theta, -DirectX::XM_PI, DirectX::XM_PI);
 
             ImGui::Text("Position: (%.1f, %.1f, 0.0)", tx, ty);
         }
@@ -81,14 +96,18 @@ namespace toy
         }
         ImGui::End();
 
+        DirectX::XMMATRIX matrix_rotation = DirectX::XMMatrixRotationX(phi) * DirectX::XMMatrixRotationY(theta);
+
         class_mvp.model = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixScalingFromVector(DirectX::XMVectorReplicate(scale)) *
-            DirectX::XMMatrixRotationX(phi) * DirectX::XMMatrixRotationY(theta) *
+            matrix_rotation *
             DirectX::XMMatrixTranslation(tx, ty, 0.0f)
         );
         class_mvp.proj = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, get_aspect_ratio(), 1.0f, 1000.0f)
         );
+
+        class_mvp.world_inv_transpose = DirectX::XMMatrixTranspose(inverse_transpose(matrix_rotation));
 
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mapped_data{};
@@ -106,8 +125,13 @@ namespace toy
         class_d3d_immediate_context_->ClearRenderTargetView(class_render_target_view_.Get(), color);
         class_d3d_immediate_context_->ClearDepthStencilView(class_depth_stencil_view_.Get(),
                                                                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-        // Draw cube
-        class_d3d_immediate_context_->DrawIndexed(36, 0, 0);
+        // Draw object with solid mode
+//        class_d3d_immediate_context_->RSSetState(nullptr);
+        class_d3d_immediate_context_->DrawIndexed(class_index_count, 0, 0);
+
+        // Draw object with wireframe mode
+//        class_d3d_immediate_context_->RSSetState(class_rs_wireframe.Get());
+//        class_d3d_immediate_context_->DrawIndexed(class_index_count, 0, 0);
 
         // Render ImGui
         ImGui::Render();
@@ -135,8 +159,9 @@ namespace toy
         {
             DX_CRITICAL("Can not compile vertex shader file");
         }
+        auto&& input_layout = VertexPosColor::get_input_layout();
         class_d3d_device_->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, class_vertex_shader.GetAddressOf());
-        class_d3d_device_->CreateInputLayout(vertex_data_s::input_layout.data(), vertex_data_s::input_layout.size(),
+        class_d3d_device_->CreateInputLayout(input_layout.data(), input_layout.size(),
                                                 blob->GetBufferPointer(), blob->GetBufferSize(), class_vertex_layout.GetAddressOf());
 
         if (create_shader_from_file(L"../data/shaders/base_ps.cso", L"../data/shaders/base_ps.hlsl", "PS",
@@ -149,60 +174,9 @@ namespace toy
 
     void game_app_c::init_resource()
     {
-        // Set cube vertices
-        std::vector<vertex_data_s> vertices{
-            { DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-            { DirectX::XMFLOAT3(-1.0f, 1.0f, -1.0f),  DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-            { DirectX::XMFLOAT3(1.0f, 1.0f, -1.0f),   DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-            { DirectX::XMFLOAT3(1.0f, -1.0f, -1.0f),  DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-            { DirectX::XMFLOAT3(-1.0f, -1.0f, 1.0f),  DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-            { DirectX::XMFLOAT3(-1.0f, 1.0f, 1.0f),   DirectX::XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-            { DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f),    DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-            { DirectX::XMFLOAT3(1.0f, -1.0f, 1.0f),   DirectX::XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) }
-        };
-
-        // Set vertex buffer description
-        D3D11_BUFFER_DESC vbd{};
-        vbd.Usage = D3D11_USAGE_IMMUTABLE;
-        vbd.ByteWidth = vertices.size() * sizeof(vertices[0]);
-        vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        vbd.CPUAccessFlags = 0;
-        // Create vertex buffer
-        D3D11_SUBRESOURCE_DATA init_data{};
-        init_data.pSysMem = vertices.data();
-        class_d3d_device_->CreateBuffer(&vbd, &init_data, class_vertex_buffer.GetAddressOf());
-
-        // Set index data
-        std::vector<uint32_t> indices{
-            // front
-            0, 1, 2,
-            2, 3, 0,
-            // left
-            4, 5, 1,
-            1, 0, 4,
-            // top
-            1, 5, 6,
-            6, 2, 1,
-            // back
-            7, 6, 5,
-            5, 4, 7,
-            // right
-            3, 2, 6,
-            6, 7, 3,
-            // bottom
-            4, 0, 3,
-            3, 7, 4
-        };
-
-        // Set index buffer description
-        D3D11_BUFFER_DESC ibd{};
-        ibd.Usage = D3D11_USAGE_IMMUTABLE;
-        ibd.ByteWidth = indices.size() * sizeof(indices[0]);
-        ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        ibd.CPUAccessFlags = 0;
-        // Create index buffer
-        init_data.pSysMem = indices.data();
-        class_d3d_device_->CreateBuffer(&ibd, &init_data, class_index_buffer.GetAddressOf());
+        // Initialize mesh data
+        auto mesh_data = geometry::create_box<VertexPosColor, uint32_t>();
+        reset_mesh(mesh_data);
 
         // Set constant buffer description
         D3D11_BUFFER_DESC cbd{};
@@ -223,19 +197,21 @@ namespace toy
         class_mvp.proj = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, get_aspect_ratio(), 1.0f, 1000.0f)
         );
+        class_mvp.world_inv_transpose = DirectX::XMMatrixIdentity();
 
+        //// Create rasterization state
+        D3D11_RASTERIZER_DESC rasterizer_desc{};
+        rasterizer_desc.FillMode = D3D11_FILL_WIREFRAME;
+        rasterizer_desc.CullMode = D3D11_CULL_NONE;
+        rasterizer_desc.FrontCounterClockwise = false;
+        rasterizer_desc.DepthClipEnable = true;
+        class_d3d_device_->CreateRasterizerState(&rasterizer_desc, class_rs_wireframe.GetAddressOf());
 
         // Set pipeline state
-        //// Input assembly state - vertex buffer setting
-        uint32_t stride = sizeof(vertex_data_s);    // Stride of vertex data
-        uint32_t offset = 0;                        // Initial offset
-        class_d3d_immediate_context_->IASetVertexBuffers(0, 1, class_vertex_buffer.GetAddressOf(), &stride, &offset);
-        //// Input assembly state -  index buffer setting
-        class_d3d_immediate_context_->IASetIndexBuffer(class_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         //// Vertex layout and primitive type
         class_d3d_immediate_context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         class_d3d_immediate_context_->IASetInputLayout(class_vertex_layout.Get());
-        // Bind constant buffer and shaders to pipeline
+        //// Bind constant buffer and shaders to pipeline
         class_d3d_immediate_context_->VSSetShader(class_vertex_shader.Get(), nullptr, 0);
         class_d3d_immediate_context_->VSSetConstantBuffers(0, 1, class_constant_buffer.GetAddressOf());
         class_d3d_immediate_context_->PSSetShader(class_pixel_shader.Get(), nullptr, 0);
@@ -245,6 +221,43 @@ namespace toy
 //        d3d11_set_debug_object_name(class_vertex_buffer.Get(), "VertexBuffer");
 //        d3d11_set_debug_object_name(class_vertex_shader.Get(), "Trangle_VS");
 //        d3d11_set_debug_object_name(class_pixel_shader.Get(), "Trangle_PS");
+    }
+
+    void game_app_c::reset_mesh(const geometry::MeshData<VertexPosColor> &mesh_data)
+    {
+        // Release resources
+        class_vertex_buffer.Reset();
+        class_index_buffer.Reset();
+
+        // Set vertex buffer description
+        D3D11_BUFFER_DESC vertex_buffer_desc{};
+        vertex_buffer_desc.Usage = D3D11_USAGE_IMMUTABLE;
+        vertex_buffer_desc.ByteWidth = static_cast<uint32_t>(mesh_data.vertices.size() * sizeof(VertexPosColor));
+        vertex_buffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        vertex_buffer_desc.CPUAccessFlags = 0;
+        // Create vertex buffer
+        D3D11_SUBRESOURCE_DATA init_data{};
+        init_data.pSysMem = mesh_data.vertices.data();
+        class_d3d_device_->CreateBuffer(&vertex_buffer_desc, &init_data, class_vertex_buffer.GetAddressOf());
+        // Set vertex buffer in input assembly stage
+        uint32_t stride = sizeof(VertexPosColor);
+        uint32_t offset = 0;
+        class_d3d_immediate_context_->IASetVertexBuffers(0, 1, class_vertex_buffer.GetAddressOf(), &stride, &offset);
+
+        // Set index buffer
+        class_index_count = mesh_data.indices.size();
+        D3D11_BUFFER_DESC index_buffer_desc{};
+        index_buffer_desc.Usage = D3D11_USAGE_IMMUTABLE;
+        index_buffer_desc.ByteWidth = static_cast<uint32_t>(class_index_count * sizeof(uint32_t));
+        index_buffer_desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        index_buffer_desc.CPUAccessFlags = 0;
+        // Create index buffer
+        init_data.pSysMem = mesh_data.indices.data();
+        class_d3d_device_->CreateBuffer(&index_buffer_desc, &init_data, class_index_buffer.GetAddressOf());
+        // Set index buffer in input assembly stage
+        class_d3d_immediate_context_->IASetIndexBuffer(class_index_buffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+        // Set debug objects
     }
 }
 

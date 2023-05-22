@@ -6,4 +6,5 @@
 
 #include <Toy/Core/d3d_application.h>
 #include <Toy/Core/d3d_util.h>
+#include <Toy/Geometry/geometry.h>
 
