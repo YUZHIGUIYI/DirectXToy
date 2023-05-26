@@ -1,20 +1,45 @@
-cbuffer ConstantBuffer : register(b0)
+cbuffer CBChangeEveryDraw : register(b0)
 {
-    matrix g_World;     // column-matrix by default, unless it has specificed by "row_major"
-    matrix g_View;      // matrix == float4x4
-    matrix g_Proj;
-    matrix g_WorldInvTranspose;      
+    matrix g_World;
+    matrix g_WorldInvTranspose;    
 }
 
-struct VertexIn
+cbuffer CBDrawStates : register(b1)
+{
+    int g_IsReflection;
+    float3 g_Pad1;
+}
+
+cbuffer CBChangeEveryFrame : register(b2)
+{
+    matrix g_View;
+    float3 g_EyePosW;
+}
+
+cbuffer CBChangeOnResize : register(b3)
+{
+    matrix g_Proj;
+}
+
+cbuffer CBChangeRarely : register(b4)
+{
+    matrix g_Reflection;
+}
+
+Texture2D g_Texture : register(t0);
+SamplerState g_SamLinear : register(s0);
+
+struct VertexPosNormalTex
 {
     float3 posL : POSITION;
-    float4 color : COLOR;
+    float3 normalL : NORMAL;
+    float2 tex : TEXCOORD;
 };
 
-struct VertexOut
+struct VertexPosHWNormalTex
 {
     float4 posH : SV_POSITION;
     float3 posW : POSITION;
-    float4 color : COLOR;
+    float3 normalW : NORMAL;
+    float2 tex : TEXCOORD;
 };

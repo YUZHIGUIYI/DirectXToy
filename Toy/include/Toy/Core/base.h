@@ -16,6 +16,9 @@
 
 namespace toy
 {
+    template<typename T>
+    using com_ptr = Microsoft::WRL::ComPtr<T>;
+
     // d3d11_set_debug_object_name function
     // Set object name for object created by d3d device
     // resource - object created by d3d11 device

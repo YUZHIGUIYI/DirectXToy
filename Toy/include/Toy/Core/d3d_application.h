@@ -37,9 +37,6 @@ namespace toy
         GLFWwindow* class_glfw_window;                               // GLFW window
         HWND class_main_wnd_;                                        // Main window handle
 
-        template<typename T>
-        using com_ptr = Microsoft::WRL::ComPtr<T>;
-
         // Direct3D 11
         com_ptr<ID3D11Device> class_d3d_device_;                     // D3D11 Device
         com_ptr<ID3D11DeviceContext> class_d3d_immediate_context_;   // D3D11 Device Context

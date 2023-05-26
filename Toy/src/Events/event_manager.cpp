@@ -59,7 +59,8 @@ namespace toy
 
     void event_manager_c::update()
     {
-        glfwWaitEvents();
+        // glfwWaitEvents();
+        glfwPollEvents();
     }
 
     uint32_t event_manager_c::subscribe(event_type_e event_type, std::function<void(const event_t &)> &&event_callback)

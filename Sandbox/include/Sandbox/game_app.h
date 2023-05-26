@@ -4,18 +4,10 @@
 
 #pragma once
 
-#include <Toy/toy.h>
+#include <Sandbox/game_object.h>
 
 namespace toy
 {
-    struct mvp_s
-    {
-        DirectX::XMMATRIX model;
-        DirectX::XMMATRIX view;
-        DirectX::XMMATRIX proj;
-        DirectX::XMMATRIX world_inv_transpose;
-    };
-
     class game_app_c : public d3d_application_c
     {
     public:
@@ -29,23 +21,26 @@ namespace toy
     private:
         void init_effect();
         void init_resource();
-        void reset_mesh(const geometry::MeshData<VertexPosColor> &mesh_data);
 
     private:
         com_ptr<ID3D11InputLayout> class_vertex_layout;         // Vertex input layout
-        com_ptr<ID3D11Buffer> class_vertex_buffer;              // Vertex buffer
-        com_ptr<ID3D11Buffer> class_index_buffer;               // Index buffer
-        com_ptr<ID3D11Buffer> class_constant_buffer;            // Constant buffer
+        com_ptr<ID3D11Buffer> class_constant_buffers[5];        // Constant buffers
 
         com_ptr<ID3D11VertexShader> class_vertex_shader;        // Vertex shader
         com_ptr<ID3D11PixelShader> class_pixel_shader;          // Pixel shader
 
-        mvp_s class_mvp;                                        // Variable to modify constant buffer
+        std::shared_ptr<camera_c> class_camera;                 // Camera
 
-        com_ptr<ID3D11RasterizerState> class_rs_wireframe;      // Rasterizer state - wire frame by default
+        CBChangeEveryFrame class_cb_every_frame;                // Constant buffer that changes every frame
+        CBDrawStates class_cb_states;                           // Constant buffer that control draw states
+        CBChangeOnResize class_cb_on_resize;                    // Constant buffer that changes when window resizes
+        CBChangeRarely class_cb_rarely;                         // Constant buffer that stores variables that rarely change
 
-        uint32_t class_index_count;
-        bool class_wireframe_mode;
+        game_object_c class_wire_fence;
+        game_object_c class_floor;
+        game_object_c class_water;
+        game_object_c class_mirror;
+        std::vector<game_object_c> class_walls;
     };
 }
 

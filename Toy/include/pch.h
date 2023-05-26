@@ -53,6 +53,10 @@
 //#include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_glfw.h>
 
+// DirectXTex
+#include <DDSTextureLoader/DDSTextureLoader11.h>
+#include <WICTextureLoader/WICTextureLoader11.h>
+
 
 
 

@@ -9,9 +9,12 @@
 namespace toy::geometry
 {
     // Mesh data
-    template<typename VertexType = VertexPosNormalTex, class IndexType = uint32_t>
+    template<typename VertexType = VertexPosNormalTex, typename IndexType = uint32_t>
     struct mesh_data_s
     {
+        using VT = VertexType;
+        using IT = IndexType;
+
         std::vector<VertexType> vertices;   // Vertex vector
         std::vector<IndexType> indices;     // Index vector
 
@@ -22,7 +25,8 @@ namespace toy::geometry
         }
     };
 
-    template<typename VertexType = VertexPosNormalTex, class IndexType = uint32_t>
+    // Alias
+    template<typename VertexType = VertexPosNormalTex, typename IndexType = uint32_t>
     using MeshData = mesh_data_s<VertexType, IndexType>;
 
     // Create sphere mesh data
@@ -426,28 +430,28 @@ namespace toy::geometry
         using namespace DirectX;
 
         MeshData<VertexType, IndexType> meshData;
-        meshData.vertexVec.resize(4);
+        meshData.vertices.resize(4);
 
         internal::VertexData vertexData;
         UINT vIndex = 0;
 
         vertexData = { XMFLOAT3(-width / 2, 0.0f, -depth / 2), XMFLOAT3(0.0f, 1.0f, 0.0f),
                         XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), color, XMFLOAT2(0.0f, texV) };
-        internal::insert_vertex_element(meshData.vertexVec[vIndex++], vertexData);
+        internal::insert_vertex_element(meshData.vertices[vIndex++], vertexData);
 
         vertexData = { XMFLOAT3(-width / 2, 0.0f, depth / 2), XMFLOAT3(0.0f, 1.0f, 0.0f),
                         XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), color, XMFLOAT2(0.0f, 0.0f) };
-        internal::insert_vertex_element(meshData.vertexVec[vIndex++], vertexData);
+        internal::insert_vertex_element(meshData.vertices[vIndex++], vertexData);
 
         vertexData = { XMFLOAT3(width / 2, 0.0f, depth / 2), XMFLOAT3(0.0f, 1.0f, 0.0f),
                         XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), color, XMFLOAT2(texU, 0.0f) };
-        internal::insert_vertex_element(meshData.vertexVec[vIndex++], vertexData);
+        internal::insert_vertex_element(meshData.vertices[vIndex++], vertexData);
 
         vertexData = { XMFLOAT3(width / 2, 0.0f, -depth / 2), XMFLOAT3(0.0f, 1.0f, 0.0f),
                         XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), color, XMFLOAT2(texU, texV) };
-        internal::insert_vertex_element(meshData.vertexVec[vIndex++], vertexData);
+        internal::insert_vertex_element(meshData.vertices[vIndex++], vertexData);
 
-        meshData.indexVec = { 0, 1, 2, 2, 3, 0 };
+        meshData.indices = { 0, 1, 2, 2, 3, 0 };
         return meshData;
     }
 }
