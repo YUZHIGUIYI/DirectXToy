@@ -10,4 +10,5 @@
 #include <Toy/Geometry/geometry.h>
 #include <Toy/Scene/camera.h>
 #include <Toy/Renderer/render_states.h>
+#include <Toy/Renderer/effects.h>
 

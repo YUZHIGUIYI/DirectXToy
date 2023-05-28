@@ -143,18 +143,20 @@ namespace toy
         float last_time = 0.0f;
         while (!class_app_paused_)
         {
+            auto current_time = static_cast<float>(glfwGetTime());
+
             // ImGui frame
             ImGui_ImplDX11_NewFrame();
             //ImGui_ImplWin32_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            auto current_time = static_cast<float>(glfwGetTime());
             update_scene(current_time - last_time);
             draw_scene();
-            last_time = current_time;
 
             event_manager_c::update();
+
+            last_time = current_time;
         }
 
         using namespace std::chrono_literals;

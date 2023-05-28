@@ -2,7 +2,7 @@
 // Created by ZHIKANG on 2023/5/17.
 //
 
-#include <Sandbox/game_app.h>
+#include <Sandbox/sandbox.h>
 
 int main()
 {
@@ -20,9 +20,9 @@ int main()
         DX_CRITICAL("Can not create window");
     }
 
-    toy::game_app_c game_app{ window, "DX11Render", 1280, 720 };
-    game_app.init();
-    game_app.tick();
+    toy::sandbox_c app{ window, "DX11Render", 1280, 720 };
+    app.init();
+    app.tick();
 
     glfwTerminate();
 }

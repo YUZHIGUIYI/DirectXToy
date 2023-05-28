@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <Sandbox/constant_buffer.h>
+#include <Toy/toy.h>
 
 namespace toy
 {
-    class game_object_c
+    class render_object_c
     {
     public:
-        game_object_c();
+        render_object_c();
 
         // Object transform
         transform_c& get_transform();
@@ -23,15 +23,17 @@ namespace toy
         // Set texture
         void set_texture(ID3D11ShaderResourceView *texture);
         // TODO: set material
+        void set_material(const Material& material);
 
         // Draw
-        void draw(ID3D11DeviceContext *device_context);
+        void draw(ID3D11DeviceContext *device_context, basic_effect_c& effect);
 
         // Set debug object name
         void set_debug_object_name(const std::string& name);
 
     public:
         transform_c class_transform;
+        Material class_material;
         com_ptr<ID3D11ShaderResourceView> class_texture;
         com_ptr<ID3D11Buffer> class_vertex_buffer;
         com_ptr<ID3D11Buffer> class_index_buffer;
@@ -40,7 +42,7 @@ namespace toy
     };
 
     template<typename VertexType, typename IndexType>
-    void game_object_c::set_buffer(ID3D11Device *device, const geometry::MeshData<VertexType, IndexType> &mesh_data)
+    void render_object_c::set_buffer(ID3D11Device *device, const geometry::MeshData<VertexType, IndexType> &mesh_data)
     {
         class_vertex_buffer.Reset();
         class_index_buffer.Reset();
