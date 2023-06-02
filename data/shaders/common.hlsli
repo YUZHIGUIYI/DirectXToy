@@ -1,7 +1,7 @@
 #include "light_and_material.hlsli"
 
-Texture2D g_Texture : register(t0);
-SamplerState g_SamLinear : register(s0);
+Texture2D g_DiffuseMap : register(t0);
+SamplerState g_Sam : register(s0);
 
 cbuffer CBChangeEveryDraw : register(b0)
 {
@@ -10,29 +10,14 @@ cbuffer CBChangeEveryDraw : register(b0)
     Material g_Material;
 }
 
-cbuffer CBDrawStates : register(b1)
+cbuffer CBChangeEveryFrame : register(b1)
 {
-    int g_IsReflection;
-    int g_IsShadow;
-    float2 g_Pad1;
-}
-
-cbuffer CBChangeEveryFrame : register(b2)
-{
-    matrix g_View;
+    matrix g_ViewProj;
     float3 g_EyePosW;
 }
 
-cbuffer CBChangeOnResize : register(b3)
+cbuffer CBChangeRarely : register(b2)
 {
-    matrix g_Proj;
-}
-
-cbuffer CBChangeRarely : register(b4)
-{
-    matrix g_Reflection;
-    matrix g_Shadow;
-    matrix g_RefShadow;
     DirectionalLight g_DirLight[2];
     PointLight g_PointLight[2];
 }

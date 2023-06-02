@@ -8,6 +8,8 @@
 
 namespace toy
 {
+    // Attention: The structs as follows have been deprecated
+
     constexpr uint32_t max_lights = 2;
     // Data structure corresponding to constant buffer
     // See HLSL structure, aligned by 16 bytes
@@ -15,8 +17,8 @@ namespace toy
     {
         DirectX::XMMATRIX world;
         DirectX::XMMATRIX world_inv_transpose;
-        // TODO: include material
-        Material material;
+
+        PhongMaterial material;
     };
 
     struct CBDrawStates

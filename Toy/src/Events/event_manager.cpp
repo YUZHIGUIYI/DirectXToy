@@ -10,6 +10,7 @@ namespace toy
 
     void event_manager_c::init(GLFWwindow *glfw_window)
     {
+        event_delegate_factory.reserve(3);
         event_delegate_c<event_t> window_close_event_delegate{};
         event_delegate_c<event_t> window_resize_event_delegate{};
         event_delegate_c<event_t> key_event_delegate{};

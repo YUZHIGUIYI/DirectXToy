@@ -8,66 +8,51 @@
 
 namespace toy
 {
-    class render_object_c
+    class RenderObject
     {
     public:
-        render_object_c();
+        RenderObject() = default;
+        ~RenderObject() = default;
+
+        RenderObject(const RenderObject&) = default;
+        RenderObject& operator=(const RenderObject&) = default;
+
+        RenderObject(RenderObject&&) = default;
+        RenderObject& operator=(RenderObject&&) = default;
 
         // Object transform
         transform_c& get_transform();
         const transform_c& get_transform() const;
 
-        // Set buffer
-        template<typename VertexType, class IndexType>
-        void set_buffer(ID3D11Device *device, const geometry::MeshData<VertexType, IndexType> &mesh_data);
-        // Set texture
-        void set_texture(ID3D11ShaderResourceView *texture);
-        // TODO: set material
-        void set_material(const Material& material);
+        // Check insertion
+        void frustum_culling(const DirectX::BoundingFrustum& frustum_in_world);
+        void cube_culling(const DirectX::BoundingOrientedBox& obb_in_world);
+        void cube_culling(const DirectX::BoundingBox& aabb_in_world);
+        [[nodiscard]] bool in_frustum() const { return m_in_frustum; }
+
+        // Model
+        void set_model(const model::Model* model_);
+        const model::Model* get_model() const;
+
+        DirectX::BoundingBox get_local_bounding_box() const;
+        DirectX::BoundingBox get_local_bounding_box(size_t idx) const;
+        DirectX::BoundingBox get_bounding_box() const;
+        DirectX::BoundingBox get_bounding_box(size_t idx) const;
+        DirectX::BoundingOrientedBox get_bounding_oriented_box() const;
+        DirectX::BoundingOrientedBox get_bounding_oriented_box(size_t idx) const;
 
         // Draw
-        void draw(ID3D11DeviceContext *device_context, basic_effect_c& effect);
+        void set_visible(bool is_visible);
+
+        void draw(ID3D11DeviceContext *device_context, IEffect& effect);
 
         // Set debug object name
         void set_debug_object_name(const std::string& name);
 
     public:
-        transform_c class_transform;
-        Material class_material;
-        com_ptr<ID3D11ShaderResourceView> class_texture;
-        com_ptr<ID3D11Buffer> class_vertex_buffer;
-        com_ptr<ID3D11Buffer> class_index_buffer;
-        uint32_t class_vertex_stride;
-        uint32_t class_index_count;
+        std::vector<bool> m_submodel_in_frustum;
+        transform_c m_transform = {};
+        const model::Model* m_model = nullptr;
+        bool m_in_frustum = true;
     };
-
-    template<typename VertexType, typename IndexType>
-    void render_object_c::set_buffer(ID3D11Device *device, const geometry::MeshData<VertexType, IndexType> &mesh_data)
-    {
-        class_vertex_buffer.Reset();
-        class_index_buffer.Reset();
-
-        // Set vertex buffer description
-        class_vertex_stride = sizeof(VertexType);
-        D3D11_BUFFER_DESC vertex_desc{};
-        vertex_desc.Usage = D3D11_USAGE_IMMUTABLE;
-        vertex_desc.ByteWidth = static_cast<uint32_t>(mesh_data.vertices.size() * class_vertex_stride);
-        vertex_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        vertex_desc.CPUAccessFlags = 0;
-        // Create vertex buffer
-        D3D11_SUBRESOURCE_DATA init_data{};
-        init_data.pSysMem = mesh_data.vertices.data();
-        device->CreateBuffer(&vertex_desc, &init_data, class_vertex_buffer.GetAddressOf());
-
-        // Set index buffer description
-        class_index_count = mesh_data.indices.size();
-        D3D11_BUFFER_DESC index_desc{};
-        index_desc.Usage = D3D11_USAGE_IMMUTABLE;
-        index_desc.ByteWidth = static_cast<uint32_t>(class_index_count * sizeof(IndexType));
-        index_desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        index_desc.CPUAccessFlags = 0;
-        // Create index buffer
-        init_data.pSysMem = mesh_data.indices.data();
-        device->CreateBuffer(&index_desc, &init_data, class_index_buffer.GetAddressOf());
-    }
 }

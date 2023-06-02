@@ -28,7 +28,7 @@ namespace toy
 
         // (position, range)
         DirectX::XMFLOAT3 position;
-        float range;
+        float range = 1.0f;
 
         // (A0, A1, A2, pad)
         DirectX::XMFLOAT3 att;
@@ -37,15 +37,13 @@ namespace toy
 
     using PointLight = point_light_s;
 
-    struct material_s
+    struct PhongMaterial
     {
         DirectX::XMFLOAT4 ambient;
         DirectX::XMFLOAT4 diffuse;
         DirectX::XMFLOAT4 specular; // w = Specular Power
         DirectX::XMFLOAT4 reflect;
     };
-
-    using Material = material_s;
 }
 
 

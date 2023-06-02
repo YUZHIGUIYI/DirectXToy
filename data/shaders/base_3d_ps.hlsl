@@ -4,7 +4,7 @@
 float4 PS(VertexPosHWNormalTex pIn) : SV_Target
 {
     // Perform alpha clip in advance
-    float4 texColor = g_Texture.Sample(g_SamLinear, pIn.tex);
+    float4 texColor = g_DiffuseMap.Sample(g_Sam, pIn.tex);
     clip(texColor.a - 0.1f);
 
     // Initialize normal vector
@@ -22,16 +22,9 @@ float4 PS(VertexPosHWNormalTex pIn) : SV_Target
     int i;
 
     // Directional lights
-    DirectionalLight dirLight;
     [unroll]
     for (i = 0; i < 2; ++i)
     {
-        dirLight = g_DirLight[i];
-        [flatten]
-        if (g_IsReflection)
-        {
-            dirLight.direction = mul(dirLight.direction, (float3x3) (g_Reflection));
-        }
         ComputeDirectionalLight(g_Material, g_DirLight[i], pIn.normalW, toEyeW, A, D, S);
         ambient += A;
         diffuse += D;
@@ -39,17 +32,10 @@ float4 PS(VertexPosHWNormalTex pIn) : SV_Target
     }
 
     // Point lights
-    PointLight pointLight;
     [unroll]
     for (i = 0; i < 2; ++i)
     {
-        pointLight = g_PointLight[i];
-        [flatten]
-        if (g_IsReflection)
-        {
-            pointLight.position = (float3) mul(float4(pointLight.position, 1.0f), g_Reflection);
-        }
-        ComputePointLight(g_Material, pointLight, pIn.posW, pIn.normalW, toEyeW, A, D, S);
+        ComputePointLight(g_Material, g_PointLight[i], pIn.posW, pIn.normalW, toEyeW, A, D, S);
         ambient += A;
         diffuse += D;
         spec += S;

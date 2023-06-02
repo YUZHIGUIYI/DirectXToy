@@ -3,365 +3,159 @@
 //
 
 #include <Toy/Renderer/effects.h>
-#include <Toy/Renderer/effect_helper.h>
+#include <Toy/Renderer/render_states.h>
 #include <Toy/Core/d3d_util.h>
 #include <Toy/Geometry/vertex.h>
+#include <Toy/Model/mesh_data.h>
+#include <Toy/Model/texture_manager.h>
+#include <Toy/Model/material.h>
 
 namespace toy
 {
-    basic_effect_c::basic_effect_c()
+    BasicEffect::BasicEffect()
     {
-        p_impl_ = std::make_unique<basic_effect_c::impl_s>();
+        m_effect_impl = std::make_unique<effect_impl>();
     }
 
-    basic_effect_c::basic_effect_c(toy::basic_effect_c &&other) noexcept
+    BasicEffect::BasicEffect(toy::BasicEffect &&other) noexcept
     {
-        p_impl_.swap(other.p_impl_);
+        m_effect_impl.swap(other.m_effect_impl);
     }
 
-    basic_effect_c& basic_effect_c::operator=(toy::basic_effect_c &&other) noexcept
+    BasicEffect& BasicEffect::operator=(toy::BasicEffect &&other) noexcept
     {
-        p_impl_.swap(other.p_impl_);
+        m_effect_impl.swap(other.m_effect_impl);
         return *this;
     }
 
-    void basic_effect_c::init(ID3D11Device *device)
+    void BasicEffect::init(ID3D11Device *device)
     {
-        if (!device)
-        {
-            DX_CORE_CRITICAL("Direct3D device is nullptr, can not initialize base effect");
-        }
-
-        if (!p_impl_->cb_objects_.empty())
-        {
-            DX_CORE_WARN("Basic effect has already initialized");
-            return;
-        }
-
-        // Initialize render states
+        m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
 
         com_ptr<ID3DBlob> blob = nullptr;
+        // Create vertex shader, requires a compiled vertex shader file
+        m_effect_impl->m_effect_helper->create_shader_from_file("base_3d_vs", L"../data/shaders/base_3d_vs.cso", device,
+                                                        nullptr, nullptr, nullptr, blob.GetAddressOf());
+        // Create vertex layout
+        auto&& input_layout = VertexPosNormalTex::get_input_layout();
+        device->CreateInputLayout(input_layout.data(), (uint32_t)input_layout.size(),
+                                        blob->GetBufferPointer(), blob->GetBufferSize(),
+                                        m_effect_impl->m_vertex_pos_normal_tex_layout.GetAddressOf());
 
-        // Create vertex shader 2d
-        if (create_shader_from_file(L"../data/shaders/base_2d_vs.cso", L"../data/shaders/base_2d_vs.hlsl", "VS",
-                                    "vs_5_0", blob.ReleaseAndGetAddressOf()) != S_OK)
+        // Create pixel shader, requires a compiled pixel shader file
+        m_effect_impl->m_effect_helper->create_shader_from_file("base_3d_ps", L"../data/shaders/base_3d_ps.cso", device);
+
+        // Create render pass
+        EffectPassDesc pass_desc{};
+        pass_desc.nameVS = "base_3d_vs";
+        pass_desc.namePS = "base_3d_ps";
+        m_effect_impl->m_effect_helper->add_effect_pass("base", device, &pass_desc);
+        m_effect_impl->m_effect_helper->set_sampler_state_by_name("g_Sam", RenderStates::ss_linear_wrap.Get());
+
+        // TODO: Set debug object name
+
+    }
+
+    void XM_CALLCONV BasicEffect::set_world_matrix(DirectX::FXMMATRIX world)
+    {
+        DirectX::XMStoreFloat4x4(&m_effect_impl->m_world, world);
+    }
+
+    void XM_CALLCONV BasicEffect::set_view_matrix(DirectX::FXMMATRIX view)
+    {
+        DirectX::XMStoreFloat4x4(&m_effect_impl->m_view, view);
+    }
+
+    void XM_CALLCONV BasicEffect::set_proj_matrix(DirectX::FXMMATRIX proj)
+    {
+        DirectX::XMStoreFloat4x4(&m_effect_impl->m_proj, proj);
+    }
+
+    void BasicEffect::set_material(const model::Material &material)
+    {
+        auto&& texture_manager = model::TextureManagerHandle::get();
+
+        // Color value
+        PhongMaterial phong_mat{};
+        phong_mat.ambient = material.get<DirectX::XMFLOAT4>("$AmbientColor");
+        phong_mat.diffuse = material.get<DirectX::XMFLOAT4>("$DiffuseColor");
+        phong_mat.diffuse.w = material.get<float>("$Opacity");
+        phong_mat.specular = material.get<DirectX::XMFLOAT4>("$SpecularColor");
+        phong_mat.specular.w = material.has<float>("$SpecularFactor") ? material.get<float>("$SpecularFactor") : 1.0f;
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_Material")->set_raw(&phong_mat);
+        // Texture
+        auto texture_str_id = material.try_get<std::string>("$Diffuse");
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_DiffuseMap", texture_str_id ? texture_manager.get_texture(*texture_str_id) : texture_manager.get_null_texture());
+    }
+
+    MeshDataInput BasicEffect::get_input_data(const model::MeshData &mesh_data)
+    {
+        // Attention: as we have used multiple vertex buffers, such as position buffer, normal buffer and etc.
+        // A stride array and offset array must be specified
+        MeshDataInput input;
+        input.input_layout = m_effect_impl->m_curr_input_layout.Get();
+        input.topology = m_effect_impl->m_curr_topology;
+
+        input.vertex_buffers = {
+            mesh_data.vertices.Get(),
+            mesh_data.normals.Get(),
+            mesh_data.texcoord_arrays.empty() ? nullptr : mesh_data.texcoord_arrays[0].Get()
+        };
+        input.strides = { 12, 12, 8 };
+        input.offsets = { 0, 0, 0 };
+
+        input.index_buffer = mesh_data.indices.Get();
+        input.index_count = mesh_data.index_count;
+
+        return input;
+    }
+
+    void BasicEffect::set_dir_light(uint32_t pos, const toy::DirectionalLight &dir_light)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_DirLight")->set_raw(&dir_light,
+                                                                                        sizeof(dir_light) * pos, sizeof(dir_light));
+    }
+
+    void BasicEffect::set_point_light(uint32_t pos, const toy::PointLight &point_light)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_PointLight")->set_raw(&point_light,
+                                                                                            sizeof(point_light) * pos, sizeof(point_light));
+    }
+
+    void BasicEffect::set_eye_pos(const DirectX::XMFLOAT3 &eye_pos)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_EyePosW")->set_float_vector(3, reinterpret_cast<const float *>(&eye_pos));
+    }
+
+    void BasicEffect::set_default_render()
+    {
+        m_effect_impl->m_curr_effect_pass = m_effect_impl->m_effect_helper->get_effect_pass("base");
+        m_effect_impl->m_curr_input_layout = m_effect_impl->m_vertex_pos_normal_tex_layout;
+        m_effect_impl->m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    }
+
+    void BasicEffect::apply(ID3D11DeviceContext *device_context)
+    {
+        using namespace DirectX;
+
+        XMMATRIX world = XMLoadFloat4x4(&m_effect_impl->m_world);
+        XMMATRIX view = XMLoadFloat4x4(&m_effect_impl->m_view);
+        XMMATRIX proj = XMLoadFloat4x4(&m_effect_impl->m_proj);
+
+        XMMATRIX view_proj = view * proj;
+        XMMATRIX world_inv_tran = XMath::inverse_transpose(world);
+
+        world = XMMatrixTranspose(world);
+        view_proj = XMMatrixTranspose(view_proj);
+        world_inv_tran = XMMatrixTranspose(world_inv_tran);
+
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_WorldInvTranspose")->set_float_matrix(4, 4, (float*)&world_inv_tran);
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_ViewProj")->set_float_matrix(4, 4, (float*)&view_proj);
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_World")->set_float_matrix(4, 4, (float*)&world);
+
+        if (m_effect_impl->m_curr_effect_pass)
         {
-            DX_CRITICAL("Can not compile 2d vertex shader file");
-        }
-        device->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, p_impl_->vertex_shader_2d_.GetAddressOf());
-        // Create vertex input layout 2d
-        auto&& input_layout_2d = VertexPosTex::get_input_layout();
-        device->CreateInputLayout(input_layout_2d.data(), (uint32_t)input_layout_2d.size(),
-                                    blob->GetBufferPointer(), blob->GetBufferSize(), p_impl_->vertex_layout_2d_.GetAddressOf());
-
-        // Create pixel shader 2d
-        if (create_shader_from_file(L"../data/shaders/base_2d_ps.cso", L"../data/shaders/base_2d_ps.hlsl", "PS",
-                                    "ps_5_0", blob.ReleaseAndGetAddressOf()) != S_OK)
-        {
-            DX_CRITICAL("Can not compile 2d pixel shader file");
-        }
-        device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, p_impl_->pixel_shader_2d_.GetAddressOf());
-
-        // Create vertex shader 3d
-        if (create_shader_from_file(L"../data/shaders/base_3d_vs.cso", L"../data/shaders/base_3d_vs.hlsl", "VS",
-                                    "vs_5_0", blob.ReleaseAndGetAddressOf()) != S_OK)
-        {
-            DX_CRITICAL("Can not compile 3d vertex shader file");
-        }
-        device->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, p_impl_->vertex_shader_3d_.GetAddressOf());
-        // Create vertex input layout 3d
-        auto&& input_layout_3d = VertexPosNormalTex::get_input_layout();
-        device->CreateInputLayout(input_layout_3d.data(), (uint32_t)input_layout_3d.size(), blob->GetBufferPointer(),
-                                    blob->GetBufferSize(), p_impl_->vertex_layout_3d_.GetAddressOf());
-
-        // Create pixel shader 3d
-        if (create_shader_from_file(L"../data/shaders/base_3d_ps.cso", L"../data/shaders/base_3d_ps.hlsl", "PS",
-                                    "ps_5_0", blob.ReleaseAndGetAddressOf()) != S_OK)
-        {
-            DX_CRITICAL("Can not compile 3d pixel shader file");
-        }
-        device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, p_impl_->pixel_shader_3d_.GetAddressOf());
-
-        // Manage all constant buffer objects
-        p_impl_->cb_objects_.assign({
-            &p_impl_->cb_drawing_,
-            &p_impl_->cb_frame_,
-            &p_impl_->cb_states_,
-            &p_impl_->cb_on_resize_,
-            &p_impl_->cb_rarely_
-        });
-
-        // Create constant buffers
-        for (auto&& buffer_object : p_impl_->cb_objects_)
-        {
-            buffer_object->create_buffer(device);
-        }
-
-        // Set debug object name
-
-        // Finish
-    }
-
-    void basic_effect_c::set_default_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(nullptr);
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(nullptr, 0);
-        device_context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_alpha_blend_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(nullptr, 0);
-        device_context->OMSetBlendState(RenderStates::bs_transparent.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_no_depth_test_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_no_depth_test.Get(), 0);
-        device_context->OMSetBlendState(RenderStates::bs_additive.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_no_depth_write_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_no_depth_write.Get(), 0);
-        device_context->OMSetBlendState(RenderStates::bs_additive.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_no_double_blend_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_no_double_blend.Get(), stencil_ref);
-        device_context->OMSetBlendState(RenderStates::bs_transparent.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_write_stencil_only_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(nullptr);
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_write_stencil.Get(), stencil_ref);
-        device_context->OMSetBlendState(RenderStates::bs_no_color_write.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_default_with_stencil_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_cull_clock_wise.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_draw_with_stencil.Get(), stencil_ref);
-        device_context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_alpha_blend_with_stencil_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_draw_with_stencil.Get(), stencil_ref);
-        device_context->OMSetBlendState(RenderStates::bs_transparent.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_no_depth_test_with_stencil_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_no_depth_test_with_stencil.Get(), stencil_ref);
-        device_context->OMSetBlendState(RenderStates::bs_additive.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_no_depth_write_with_stencil_render(ID3D11DeviceContext *device_context, uint32_t stencil_ref)
-    {
-        device_context->IASetInputLayout(p_impl_->vertex_layout_3d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_3d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_3d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(RenderStates::ds_no_depth_write_with_stencil.Get(), stencil_ref);
-        device_context->OMSetBlendState(RenderStates::bs_additive.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_2d_default_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_2d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_2d_.Get(), nullptr, 0);
-        device_context->RSSetState(nullptr);
-        device_context->PSSetShader(p_impl_->pixel_shader_2d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(nullptr, 0);
-        device_context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-    }
-
-    void basic_effect_c::set_2d_alpha_blend_render(ID3D11DeviceContext *device_context)
-    {
-        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        device_context->IASetInputLayout(p_impl_->vertex_layout_2d_.Get());
-        device_context->VSSetShader(p_impl_->vertex_shader_2d_.Get(), nullptr, 0);
-        device_context->RSSetState(RenderStates::rs_no_cull.Get());
-        device_context->PSSetShader(p_impl_->pixel_shader_2d_.Get(), nullptr, 0);
-        device_context->PSSetSamplers(0, 1, RenderStates::ss_linear_wrap.GetAddressOf());
-        device_context->OMSetDepthStencilState(nullptr, 0);
-        device_context->OMSetBlendState(RenderStates::bs_transparent.Get(), nullptr, 0xFFFFFFFF);
-    }
-
-    void XM_CALLCONV basic_effect_c::set_world_matrix(DirectX::FXMMATRIX world)
-    {
-        auto& buffer_object = p_impl_->cb_drawing_;
-        buffer_object.data.world = DirectX::XMMatrixTranspose(world);
-        buffer_object.data.world_inv_transpose = DirectX::XMMatrixTranspose(inverse_transpose(world));
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void XM_CALLCONV basic_effect_c::set_view_matrix(DirectX::FXMMATRIX view)
-    {
-        auto& buffer_object = p_impl_->cb_frame_;
-        buffer_object.data.view = DirectX::XMMatrixTranspose(view);
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void XM_CALLCONV basic_effect_c::set_proj_matrix(DirectX::FXMMATRIX proj)
-    {
-        auto& buffer_object = p_impl_->cb_on_resize_;
-        buffer_object.data.proj = DirectX::XMMatrixTranspose(proj);
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void XM_CALLCONV basic_effect_c::set_reflection_matrix(DirectX::FXMMATRIX reflection)
-    {
-        auto& buffer_object = p_impl_->cb_rarely_;
-        buffer_object.data.reflection = DirectX::XMMatrixTranspose(reflection);
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void XM_CALLCONV basic_effect_c::set_shadow_matrix(DirectX::FXMMATRIX shadow)
-    {
-        auto& buffer_object = p_impl_->cb_rarely_;
-        buffer_object.data.shadow = DirectX::XMMatrixTranspose(shadow);
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void XM_CALLCONV basic_effect_c::set_ref_shadow_matrix(DirectX::FXMMATRIX ref_shadow)
-    {
-        auto& buffer_object = p_impl_->cb_rarely_;
-        buffer_object.data.ref_shadow = DirectX::XMMatrixTranspose(ref_shadow);
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_dir_light(size_t pos, const toy::DirectionalLight &dir_light)
-    {
-        assert(pos < max_lights);
-        auto& buffer_object = p_impl_->cb_rarely_;
-        buffer_object.data.dir_light[pos] = dir_light;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_point_light(size_t pos, const toy::PointLight &point_light)
-    {
-        assert(pos < max_lights);
-        auto& buffer_object = p_impl_->cb_rarely_;
-        buffer_object.data.point_light[pos] = point_light;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_material(const toy::Material &material)
-    {
-        auto& buffer_object = p_impl_->cb_drawing_;
-        buffer_object.data.material = material;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_texture(ID3D11ShaderResourceView *texture)
-    {
-        p_impl_->texture_ = texture;
-    }
-
-    void basic_effect_c::set_eye_pos(const DirectX::XMFLOAT3 &eye_pos)
-    {
-        auto& buffer_object = p_impl_->cb_frame_;
-        buffer_object.data.eye_pos = eye_pos;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_reflection_state(bool state)
-    {
-        auto& buffer_object = p_impl_->cb_states_;
-        buffer_object.data.is_reflection = state;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::set_shadow_state(bool state)
-    {
-        auto& buffer_object = p_impl_->cb_states_;
-        buffer_object.data.is_shadow = state;
-        p_impl_->is_dirty_ = buffer_object.is_dirty = true;
-    }
-
-    void basic_effect_c::apply(ID3D11DeviceContext *device_context)
-    {
-        auto&& buffer_objects = p_impl_->cb_objects_;
-        // Bind
-        buffer_objects[0]->bind_vs(device_context);
-        buffer_objects[1]->bind_vs(device_context);
-        buffer_objects[2]->bind_vs(device_context);
-        buffer_objects[3]->bind_vs(device_context);
-        buffer_objects[4]->bind_vs(device_context);
-
-        buffer_objects[0]->bind_ps(device_context);
-        buffer_objects[1]->bind_ps(device_context);
-        buffer_objects[2]->bind_ps(device_context);
-        buffer_objects[4]->bind_ps(device_context);
-
-        // Set texture
-        device_context->PSSetShaderResources(0, 1, p_impl_->texture_.GetAddressOf());
-
-        // Update constant buffer
-        if (p_impl_->is_dirty_)
-        {
-            p_impl_->is_dirty_ = false;
-            for (auto& buffer_object : p_impl_->cb_objects_)
-            {
-                buffer_object->update_buffer(device_context);
-            }
+            m_effect_impl->m_curr_effect_pass->apply(device_context);
         }
     }
 }

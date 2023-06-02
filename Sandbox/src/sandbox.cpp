@@ -25,47 +25,64 @@ namespace toy
     {
         d3d_application_c::init();
 
+        // Initialize depth texture
+        m_depth_texture = std::make_unique<Depth2D>(m_d3d_device.Get(), m_client_width, m_client_height);
+        m_depth_texture->set_debug_object_name("DepthTexture");
+
+        // Initialize texture manager and model manager
+        model::TextureManagerHandle::get().init(m_d3d_device.Get());
+        model::ModelManagerHandle::get().init(m_d3d_device.Get());
+
         // Initialize render states
-        RenderStates::init(class_d3d_device_.Get());
-        // Initialize basic effect
-        class_basic_effect.init(class_d3d_device_.Get());
+        RenderStates::init(m_d3d_device.Get());
+        // Initialize effect
+        m_basic_effect.init(m_d3d_device.Get());
         // Initialize resource
         init_resource();
 
         // Change projection matrix when window resizes
         event_manager_c::subscribe(event_type_e::WindowResize, [this] (const event_t& event)
         {
-            if (class_camera != nullptr)
+            auto&& window_resize_event = std::get<window_resize_event_c>(event);
+            // Check whether the window has been minimized
+            if (window_resize_event.window_width == 0 || window_resize_event.window_height == 0)
             {
-                class_camera->set_frustum(DirectX::XM_PI / 3.0f, get_aspect_ratio(), 0.5f, 1600.0f);
-                class_camera->set_viewport(0.0f, 0.0f, (float)class_client_width_, (float)class_client_height_);
-                class_basic_effect.set_proj_matrix(class_camera->get_proj_xm());
+                return;
+            }
+
+            m_depth_texture.reset();
+            m_depth_texture = std::make_unique<Depth2D>(m_d3d_device.Get(), window_resize_event.window_width, window_resize_event.window_height);
+            m_depth_texture->set_debug_object_name("DepthTexture");
+
+            if (m_camera != nullptr)
+            {
+                m_camera->set_frustum(DirectX::XM_PI / 3.0f, get_aspect_ratio(), 0.5f, 1600.0f);
+                m_camera->set_viewport(0.0f, 0.0f, (float)m_client_width, (float)m_client_height);
+                m_basic_effect.set_proj_matrix(m_camera->get_proj_xm());
             }
         });
     }
 
     void sandbox_c::update_scene(float dt)
     {
-        auto cam_third = std::dynamic_pointer_cast<third_person_camera_c>(class_camera);
+        auto cam_third = std::dynamic_pointer_cast<third_person_camera_c>(m_camera);
 
         ImGuiIO& io = ImGui::GetIO();
         float d1 = 0.0f, d2 = 0.0f;
-        if (DX_INPUT::is_key_pressed(class_glfw_window, key::W))
+        if (DX_INPUT::is_key_pressed(m_glfw_window, key::W))
         {
             d1 += dt;
-        } else if (DX_INPUT::is_key_pressed(class_glfw_window, key::S))
+        } else if (DX_INPUT::is_key_pressed(m_glfw_window, key::S))
         {
             d1 -= dt;
-        } else if (DX_INPUT::is_key_pressed(class_glfw_window, key::A))
+        } else if (DX_INPUT::is_key_pressed(m_glfw_window, key::A))
         {
             d2 -= dt;
-        } else if (DX_INPUT::is_key_pressed(class_glfw_window, key::D))
+        } else if (DX_INPUT::is_key_pressed(m_glfw_window, key::D))
         {
             d2 += dt;
         }
 
-        DirectX::XMFLOAT3 target = class_bolt_anim.get_transform().get_position();
-        cam_third->set_target(target);
         // Rotate around specific object
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Right))
         {
@@ -75,88 +92,33 @@ namespace toy
         cam_third->approach(-io.MouseWheel * 1.0f);
 
         // Update view matrix and eye position that change every frame
-        class_basic_effect.set_view_matrix(class_camera->get_view_xm());
-        class_basic_effect.set_eye_pos(class_camera->get_position());
-
-        // Update bolt animation
-        static uint32_t cur_bolt_frame = 0;
-        static float frame_time = 0.0f;
-        static float frame_in_s = 1.0f / 60.0f;
-        class_bolt_anim.set_texture(class_bolt_srvs[cur_bolt_frame].Get());
-        if (frame_time > frame_in_s)
-        {
-            cur_bolt_frame = (cur_bolt_frame + 1) % 60;
-            frame_time -= frame_in_s;
-        }
-        frame_time += dt;
+        m_basic_effect.set_view_matrix(m_camera->get_view_xm());
+        m_basic_effect.set_eye_pos(m_camera->get_position());
     }
 
     void sandbox_c::draw_scene()
     {
-        assert(class_d3d_immediate_context_);
-        assert(class_swap_chain_);
+        // Create render target views of back buffers
+        if (m_frame_count < m_back_buffer_count)
+        {
+            com_ptr<ID3D11Texture2D> back_buffer = nullptr;
+            m_swap_chain->GetBuffer(0, IID_PPV_ARGS(back_buffer.GetAddressOf()));
+            CD3D11_RENDER_TARGET_VIEW_DESC rtv_desc{ D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
+            m_d3d_device->CreateRenderTargetView(back_buffer.Get(), &rtv_desc, m_render_target_views[m_frame_count].ReleaseAndGetAddressOf());
+        }
 
         static float color[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
-        class_d3d_immediate_context_->ClearRenderTargetView(class_render_target_view_.Get(), color);
-        class_d3d_immediate_context_->ClearDepthStencilView(class_depth_stencil_view_.Get(),
+        m_d3d_immediate_context->ClearRenderTargetView(get_back_buffer_rtv(), color);
+        m_d3d_immediate_context->ClearDepthStencilView(m_depth_texture->get_depth_stencil(),
                                                                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+        ID3D11RenderTargetView* render_target_views[1] = { get_back_buffer_rtv() };
+        m_d3d_immediate_context->OMSetRenderTargets(1, render_target_views, m_depth_texture->get_depth_stencil());
+        auto viewport = m_camera->get_viewport();
+        m_d3d_immediate_context->RSSetViewports(1, &viewport);
 
-        // 1. Write a stencil value 1 to the stencil buffer for the specular reflection area
-        class_basic_effect.set_write_stencil_only_render(class_d3d_immediate_context_.Get(), 1);
-        class_mirror.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        // 2. Draw opaque reflection objects
-        class_basic_effect.set_reflection_state(true);      // Enable reflection
-        class_basic_effect.set_default_with_stencil_render(class_d3d_immediate_context_.Get(), 1);
-
-        class_walls[2].draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        class_walls[3].draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        class_walls[4].draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        class_floor.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        class_wood_crate.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        // 3. Draw shadow of opaque reflection object
-        class_wood_crate.set_material(class_shadow_mat);
-        class_basic_effect.set_shadow_state(true);      // Enable shadow
-        class_basic_effect.set_no_double_blend_render(class_d3d_immediate_context_.Get(), 1);
-
-        class_wood_crate.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        // Restore state of opaque reflection object
-        class_basic_effect.set_shadow_state(false);
-        class_wood_crate.set_material(class_wood_mat);
-
-        // 4. Draw blending reflection bolt animation and mirror
-        class_basic_effect.set_no_depth_write_with_stencil_render(class_d3d_immediate_context_.Get(), 1);
-        class_bolt_anim.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        class_basic_effect.set_reflection_state(false);     // Disable reflection
-        class_basic_effect.set_alpha_blend_with_stencil_render(class_d3d_immediate_context_.Get(), 1);
-        class_mirror.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        // 5. Draw normal opaque objects
-        class_basic_effect.set_default_render(class_d3d_immediate_context_.Get());
-
-        for (auto&& wall : class_walls)
-        {
-            wall.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        }
-        class_floor.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-        class_wood_crate.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        // 6. Draw shadow of normal opaque object
-        class_wood_crate.set_material(class_shadow_mat);
-        class_basic_effect.set_shadow_state(true);      // Enable shadow
-        class_basic_effect.set_no_double_blend_render(class_d3d_immediate_context_.Get(), 0);
-
-        class_wood_crate.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
-
-        class_basic_effect.set_shadow_state(false);
-        class_wood_crate.set_material(class_wood_mat);
-
-        // 7. Draw blending bolt animation
-        class_basic_effect.set_no_depth_write_render(class_d3d_immediate_context_.Get());
-        class_bolt_anim.draw(class_d3d_immediate_context_.Get(), class_basic_effect);
+        m_basic_effect.set_default_render();
+        m_ground.draw(m_d3d_immediate_context.Get(), m_basic_effect);
+        m_house.draw(m_d3d_immediate_context.Get(), m_basic_effect);
 
         // Render ImGui
         ImGui::Render();
@@ -171,152 +133,63 @@ namespace toy
         }
 
         // Present
-        class_swap_chain_->Present(0, 0);
+        m_swap_chain->Present(0, m_is_dxgi_flip_model ? DXGI_PRESENT_ALLOW_TEARING : 0);
     }
 
     void sandbox_c::init_resource()
     {
-        // Initialize material
-        Material material{
-            DirectX::XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f),
-            DirectX::XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f),
-            DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 16.0f)
-        };
+        // Initialize ground
+        model::Model* model_ = model::ModelManagerHandle::get().create_from_file("../data/models/ground_19.obj");
+        m_ground.set_model(model_);
+        model_->set_debug_object_name("ground_19");
 
-        class_wood_mat = material;
-        class_shadow_mat = Material{
-            DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-            DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.5f),
-            DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 16.0f)
-        };
+        // Initialize house
+        model_ = model::ModelManagerHandle::get().create_from_file("../data/models/house.obj");
+        m_house.set_model(model_);
+        model_->set_debug_object_name("house");
 
-        // Initialize bolt textures and bolt
-        class_bolt_srvs.assign(60, nullptr);
-        for (uint32_t i = 1; i <= 60; ++i)
-        {
-            std::wstring file_str{};
-            if (i < 10)
-            {
-                file_str = L"../data/textures/BoltAnim/Bolt00" + std::to_wstring(i) + L".bmp";
-            } else
-            {
-                file_str = L"../data/textures/BoltAnim/Bolt0" + std::to_wstring(i) + L".bmp";
-            }
-            DirectX::CreateWICTextureFromFile(class_d3d_device_.Get(), file_str.c_str(), nullptr,
-                                                class_bolt_srvs[static_cast<size_t>(i - 1)].GetAddressOf());
-        }
-        class_bolt_anim.set_buffer(class_d3d_device_.Get(), geometry::create_sphere<VertexPosNormalTex, uint32_t>(4.0f));
-        class_bolt_anim.set_material(material);
-        class_bolt_anim.get_transform().set_position(0.0f, 2.01f, 0.0f);
+        // House bounding box
+        DirectX::XMMATRIX scale = DirectX::XMMatrixScaling(0.15f, 0.015f, 0.015f);
+        DirectX::BoundingBox house_box = m_house.get_model()->bounding_box;
+        house_box.Transform(house_box, scale);
+        // Tie
+        transform_c& house_transform = m_house.get_transform();
+        house_transform.set_scale(0.015f, 0.015f, 0.015f);
+        house_transform.set_position(0.0f, -(house_box.Center.y - house_box.Extents.y + 1.0f), 0.0f);
 
-        // Initialize objects
-        com_ptr<ID3D11ShaderResourceView> texture = nullptr;
-        DirectX::CreateDDSTextureFromFile(class_d3d_device_.Get(), L"../data/textures/WoodCrate.dds", nullptr, texture.GetAddressOf());
-        class_wood_crate.set_buffer(class_d3d_device_.Get(), geometry::create_box<VertexPosNormalTex, uint32_t>());
-        class_wood_crate.set_texture(texture.Get());
-        class_wood_crate.set_material(material);
-        class_wood_crate.get_transform().set_position(0.0f, 0.01f, 0.0f);
-
-        DirectX::CreateDDSTextureFromFile(class_d3d_device_.Get(), L"../data/textures/floor.dds", nullptr, texture.ReleaseAndGetAddressOf());
-        class_floor.set_buffer(class_d3d_device_.Get(),
-                                geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(20.0f, 20.0f), DirectX::XMFLOAT2(5.0f, 5.0f)));
-        class_floor.set_texture(texture.Get());
-        class_floor.set_material(material);
-        class_floor.get_transform().set_position(0.0f, -1.0f, 0.0f);
-
-        class_walls.resize(5);
-        DirectX::CreateDDSTextureFromFile(class_d3d_device_.Get(), L"../data/textures/brick.dds", nullptr, texture.ReleaseAndGetAddressOf());
-        // Control five walls generation, the middle of 0 and 1 is used to place mirror
-        //     ____     ____
-        //    /| 0 |   | 1 |\
-        //   /4|___|___|___|2\
-        //  /_/_ _ _ _ _ _ _\_\
-        // | /       3       \ |
-        // |/_________________\|
-        //
-        for (uint32_t i = 0; i < 5; ++i)
-        {
-            class_walls[i].set_texture(texture.Get());
-            class_walls[i].set_material(material);
-        }
-        class_walls[0].set_buffer(class_d3d_device_.Get(),
-                                    geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(6.0f, 8.0f), DirectX::XMFLOAT2(1.5f, 2.0f)));
-        class_walls[1].set_buffer(class_d3d_device_.Get(),
-                                    geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(6.0f, 8.0f), DirectX::XMFLOAT2(1.5f, 2.0f)));
-        class_walls[2].set_buffer(class_d3d_device_.Get(),
-                                    geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(20.0f, 8.0f), DirectX::XMFLOAT2(5.0f, 2.0f)));
-        class_walls[3].set_buffer(class_d3d_device_.Get(),
-                                    geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(20.0f, 8.0f), DirectX::XMFLOAT2(5.0f, 2.0f)));
-        class_walls[4].set_buffer(class_d3d_device_.Get(),
-                                    geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(20.0f, 8.0f), DirectX::XMFLOAT2(5.0f, 2.0f)));
-
-        class_walls[0].get_transform().set_rotation(-DirectX::XM_PIDIV2, 0.0f, 0.0f);
-        class_walls[0].get_transform().set_position(-7.0f, 3.0f, 10.0f);
-        class_walls[1].get_transform().set_rotation(-DirectX::XM_PIDIV2, 0.0f, 0.0f);
-        class_walls[1].get_transform().set_position(7.0f, 3.0f, 10.0f);
-        class_walls[2].get_transform().set_rotation(-DirectX::XM_PIDIV2, DirectX::XM_PIDIV2, 0.0f);
-        class_walls[2].get_transform().set_position(10.0f, 3.0f, 0.0f);
-        class_walls[3].get_transform().set_rotation(-DirectX::XM_PIDIV2, DirectX::XM_PI, 0.0f);
-        class_walls[3].get_transform().set_position(0.0f, 3.0f, -10.0f);
-        class_walls[4].get_transform().set_rotation(-DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2, 0.0f);
-        class_walls[4].get_transform().set_position(-10.0f, 3.0f, 0.0f);
-
-        material.ambient = DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        material.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
-        material.specular = DirectX::XMFLOAT4(0.4f, 0.4f, 0.4f, 16.0f);
-        DirectX::CreateDDSTextureFromFile(class_d3d_device_.Get(), L"../data/textures/ice.dds", nullptr, texture.ReleaseAndGetAddressOf());
-        class_mirror.set_buffer(class_d3d_device_.Get(),
-                            geometry::create_plane<VertexPosNormalTex, uint32_t>(DirectX::XMFLOAT2(8.0f, 8.0f), DirectX::XMFLOAT2(1.0f, 1.0f)));
-        class_mirror.set_material(material);
-        class_mirror.set_texture(texture.Get());
-        class_mirror.get_transform().set_rotation(-DirectX::XM_PIDIV2, 0.0f, 0.0f);
-        class_mirror.get_transform().set_position(0.0f, 3.0f, 10.0f);
-
-        // Create constant buffer that changes every frame
+        // Initialize camera
         auto camera = std::make_shared<third_person_camera_c>();
-        camera->set_viewport(0.0f, 0.0f, (float)class_client_width_, (float)class_client_height_);
-        camera->set_target(class_bolt_anim.get_transform().get_position());
-        camera->set_distance(5.0f);
-        camera->set_distance_min_max(2.0f, 14.0f);
-        camera->set_rotation_x(DirectX::XM_PIDIV2);
-        class_camera = camera;
+        m_camera = camera;
 
-        class_basic_effect.set_view_matrix(class_camera->get_view_xm());
-        class_basic_effect.set_eye_pos(class_camera->get_position());
+        camera->set_viewport(0.0f, 0.0f, (float)m_client_width, (float)m_client_height);
+        camera->set_target(DirectX::XMFLOAT3(0.0f, 0.5f, 0.0f));
+        camera->set_distance(15.0f);
+        camera->set_distance_min_max(6.0f, 100.0f);
+        camera->set_rotation_x(DirectX::XM_PIDIV4);
+        camera->set_frustum(DirectX::XM_PI / 3, get_aspect_ratio(), 1.0f, 1600.0f);
 
-        // Create constant buffer that changes when window resizes
-        class_camera->set_frustum(DirectX::XM_PI / 3.0f, get_aspect_ratio(), 0.5f, 1600.0f);
-        class_basic_effect.set_proj_matrix(class_camera->get_proj_xm());
+        m_basic_effect.set_world_matrix(DirectX::XMMatrixIdentity());
+        m_basic_effect.set_view_matrix(camera->get_view_xm());
+        m_basic_effect.set_proj_matrix(camera->get_proj_xm());
+        m_basic_effect.set_eye_pos(camera->get_position());
 
-        // Create constant buffer that rarely change
-        class_basic_effect.set_reflection_matrix(DirectX::XMMatrixReflect(DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 10.0f)));
-        //// Shadow matrix
-        class_basic_effect.set_shadow_matrix(DirectX::XMMatrixShadow(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.99f),
-                                                DirectX::XMVectorSet(0.0f, 10.0f, -10.0f, 1.0f)));
-        class_basic_effect.set_ref_shadow_matrix(DirectX::XMMatrixShadow(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.99f),
-                                                DirectX::XMVectorSet(0.0f, 10.0f, 30.0f, 1.0f)));
+        // Never change
+        // Lights
+        DirectionalLight dir_light{};
+        dir_light.ambient = DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        dir_light.diffuse = DirectX::XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+        dir_light.specular = DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        dir_light.direction = DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f);
+        m_basic_effect.set_dir_light(0, dir_light);
 
-        // Create illuminant
-        DirectionalLight dir_light{
-            DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f),
-            DirectX::XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f),
-            DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f),
-            DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f),
-            0.0f
-        };
-        class_basic_effect.set_dir_light(0, dir_light);
-        PointLight point_light{
-            DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f),
-            DirectX::XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f),
-            DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f),
-            DirectX::XMFLOAT3(0.0f, 10.0f, -10.0f),
-            25.0f,
-            DirectX::XMFLOAT3(0.0f, 0.1f, 0.0f),
-            0.0f
-        };
-        class_basic_effect.set_point_light(0, point_light);
-
-        // TODO: set debug object name
+        PointLight point_light{};
+        point_light.position = DirectX::XMFLOAT3(0.0f, 20.0f, 0.0f);
+        point_light.ambient = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+        point_light.diffuse = DirectX::XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+        point_light.specular = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+        point_light.att = DirectX::XMFLOAT3(0.0f, 0.1f, 0.0f);
+        point_light.range = 30.0f;
+        m_basic_effect.set_point_light(0, point_light);
     }
 }
 

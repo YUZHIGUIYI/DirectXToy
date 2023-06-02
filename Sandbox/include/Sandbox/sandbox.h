@@ -22,19 +22,14 @@ namespace toy
         void init_resource();
 
     private:
-        Material class_shadow_mat;
-        Material class_wood_mat;
+        BasicEffect m_basic_effect;                         // Render object effect manage
 
-        render_object_c class_bolt_anim;
-        render_object_c class_wood_crate;
-        render_object_c class_floor;
-        render_object_c class_mirror;
-        std::vector<render_object_c> class_walls;
+        std::unique_ptr<Depth2D> m_depth_texture;           // Depth buffer
 
-        std::vector<com_ptr<ID3D11ShaderResourceView>> class_bolt_srvs;     // Bolt animation textures
+        RenderObject m_house;                               // House
+        RenderObject m_ground;                              // Ground
 
-        std::shared_ptr<camera_c> class_camera;                             // Camera
-        basic_effect_c class_basic_effect;                                  // Basic effect
+        std::shared_ptr<third_person_camera_c> m_camera;    // Camera
     };
 }
 

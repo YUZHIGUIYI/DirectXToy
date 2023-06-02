@@ -10,8 +10,19 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 
+# For assimp library
+set(ASSIMP_BUILD_ZLIB ON)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
+
+# For stb
+set(STB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/external/stb" CACHE PATH "stb header file directory" FORCE)
+
 include(cmake/HLSLShaders.cmake)
 
+add_subdirectory(external/assimp)
 add_subdirectory(external/glfw)
 add_subdirectory(external/spdlog)
 add_subdirectory(external/imgui)
