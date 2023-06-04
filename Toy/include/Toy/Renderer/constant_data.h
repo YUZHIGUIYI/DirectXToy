@@ -10,7 +10,6 @@ namespace toy
 {
     // Attention: The structs as follows have been deprecated
 
-    constexpr uint32_t max_lights = 2;
     // Data structure corresponding to constant buffer
     // See HLSL structure, aligned by 16 bytes
     struct CBChangesEveryDraw

@@ -6,6 +6,15 @@
 
 namespace toy
 {
+    const std::array<D3D11_INPUT_ELEMENT_DESC, 1>& vertex_pos_s::get_input_layout()
+    {
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 1> input_layout{
+            D3D11_INPUT_ELEMENT_DESC{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA,0}
+        };
+
+        return input_layout;
+    }
+
     const std::array<D3D11_INPUT_ELEMENT_DESC, 2>& vertex_pos_tex_s::get_input_layout()
     {
         static const std::array<D3D11_INPUT_ELEMENT_DESC, 2> input_layout{

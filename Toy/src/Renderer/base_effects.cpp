@@ -35,7 +35,7 @@ namespace toy
         com_ptr<ID3DBlob> blob = nullptr;
         // Create vertex shader, requires a compiled vertex shader file
         m_effect_impl->m_effect_helper->create_shader_from_file("base_3d_vs", L"../data/shaders/base_3d_vs.cso", device,
-                                                        nullptr, nullptr, nullptr, blob.GetAddressOf());
+                                                                nullptr, nullptr, nullptr, blob.GetAddressOf());
         // Create vertex layout
         auto&& input_layout = VertexPosNormalTex::get_input_layout();
         device->CreateInputLayout(input_layout.data(), (uint32_t)input_layout.size(),
@@ -53,7 +53,9 @@ namespace toy
         m_effect_impl->m_effect_helper->set_sampler_state_by_name("g_Sam", RenderStates::ss_linear_wrap.Get());
 
         // TODO: Set debug object name
-
+#if defined(GRAPHICS_DEBUGGER_OBJECT_NAME)
+        set_debug_object_name(m_effect_impl->m_vertex_pos_normal_tex_layout.Get(), "BasicEffect.VertexPosNormalTexLayout");
+#endif
     }
 
     void XM_CALLCONV BasicEffect::set_world_matrix(DirectX::FXMMATRIX world)
@@ -82,6 +84,7 @@ namespace toy
         phong_mat.diffuse.w = material.get<float>("$Opacity");
         phong_mat.specular = material.get<DirectX::XMFLOAT4>("$SpecularColor");
         phong_mat.specular.w = material.has<float>("$SpecularFactor") ? material.get<float>("$SpecularFactor") : 1.0f;
+        phong_mat.reflect = material.get<DirectX::XMFLOAT4>("$ReflectColor");
         m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_Material")->set_raw(&phong_mat);
         // Texture
         auto texture_str_id = material.try_get<std::string>("$Diffuse");
@@ -90,7 +93,7 @@ namespace toy
 
     MeshDataInput BasicEffect::get_input_data(const model::MeshData &mesh_data)
     {
-        // Attention: as we have used multiple vertex buffers, such as position buffer, normal buffer and etc.
+        // Attention: as we have used multiple vertex buffers, such as position buffer, normal buffer, etc.
         // A stride array and offset array must be specified
         MeshDataInput input;
         input.input_layout = m_effect_impl->m_curr_input_layout.Get();
@@ -127,11 +130,31 @@ namespace toy
         m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_EyePosW")->set_float_vector(3, reinterpret_cast<const float *>(&eye_pos));
     }
 
+    void BasicEffect::set_reflection_enabled(bool enable)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_ReflectionEnabled")->set_sint(enable);
+    }
+
+    void BasicEffect::set_refraction_enabled(bool enable)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_RefractionEnabled")->set_sint(enable);
+    }
+
+    void BasicEffect::set_refraction_eta(float eta)
+    {
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_Eta")->set_float(eta);
+    }
+
     void BasicEffect::set_default_render()
     {
         m_effect_impl->m_curr_effect_pass = m_effect_impl->m_effect_helper->get_effect_pass("base");
         m_effect_impl->m_curr_input_layout = m_effect_impl->m_vertex_pos_normal_tex_layout;
         m_effect_impl->m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    }
+
+    void BasicEffect::set_texture_cube(ID3D11ShaderResourceView *texture_cube)
+    {
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_TexCube", texture_cube);
     }
 
     void BasicEffect::apply(ID3D11DeviceContext *device_context)

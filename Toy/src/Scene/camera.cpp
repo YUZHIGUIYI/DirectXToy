@@ -8,9 +8,6 @@ namespace toy
 {
     // Camera
     using namespace DirectX;
-    camera_c::~camera_c()
-    {
-    }
 
     XMVECTOR camera_c::get_position_xm() const
     {
@@ -63,25 +60,44 @@ namespace toy
         return class_transform.get_forward_axis();
     }
 
+    DirectX::XMMATRIX camera_c::get_local_to_world_xm() const
+    {
+        return class_transform.get_local_to_world_matrix_xm();
+    }
+
     XMMATRIX camera_c::get_view_xm() const
     {
         return class_transform.get_world_to_local_matrix_xm();
     }
 
-    XMMATRIX camera_c::get_proj_xm() const
+    XMMATRIX camera_c::get_proj_xm(bool reverse_z) const
     {
-        return XMMatrixPerspectiveFovLH(class_fov, class_aspect, class_near_z, class_far_z);
+        if (reverse_z)
+        {
+            return XMMatrixPerspectiveFovLH(class_fov, class_aspect, class_far_z, class_near_z);
+        } else
+        {
+            return XMMatrixPerspectiveFovLH(class_fov, class_aspect, class_near_z, class_far_z);
+        }
     }
 
-    XMMATRIX camera_c::get_view_proj_xm() const
+    XMMATRIX camera_c::get_view_proj_xm(bool reverse_z) const
     {
-        return get_view_xm() * get_proj_xm();
+        return get_view_xm() * get_proj_xm(reverse_z);
     }
 
     D3D11_VIEWPORT camera_c::get_viewport() const
     {
         return class_viewport;
     }
+
+    float camera_c::get_near_z() const { return class_near_z; }
+
+    float camera_c::get_far_z() const { return class_far_z; }
+
+    float camera_c::get_fov_y() const { return class_fov; }
+
+    float camera_c::get_aspect_ratio() const { return class_aspect; }
 
     void camera_c::set_frustum(float fovY, float aspect, float nearZ, float farZ)
     {
@@ -152,15 +168,20 @@ namespace toy
         class_transform.translate(class_transform.get_forward_axis(), d);
     }
 
+    void first_person_camera_c::translate(const DirectX::XMFLOAT3 &dir, float magnitude)
+    {
+        class_transform.translate(dir, magnitude);
+    }
+
     void first_person_camera_c::pitch(float rad)
     {
         XMFLOAT3 rotation = class_transform.get_rotation();
         // 将绕x轴旋转弧度限制在[-7pi/18, 7pi/18]之间
         rotation.x += rad;
-        if (rotation.x > XM_PI * 7 / 18)
-            rotation.x = XM_PI * 7 / 18;
-        else if (rotation.x < -XM_PI * 7 / 18)
-            rotation.x = -XM_PI * 7 / 18;
+        if (rotation.x > XM_PI * 7.0f / 18.0f)
+            rotation.x = XM_PI * 7.0f / 18.0f;
+        else if (rotation.x < -XM_PI * 7.0f / 18.0f)
+            rotation.x = -XM_PI * 7.0f / 18.0f;
 
         class_transform.set_rotation(rotation);
     }

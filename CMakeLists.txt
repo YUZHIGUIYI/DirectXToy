@@ -20,6 +20,10 @@ set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
 # For stb
 set(STB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/external/stb" CACHE PATH "stb header file directory" FORCE)
 
+# For IconFontCppHeaders
+set(ICON_FONT_DIR "${CMAKE_CURRENT_LIST_DIR}/external/IconFontCppHeaders" CACHE PATH "Icon font cpp headers directory" FORCE)
+
+
 include(cmake/HLSLShaders.cmake)
 
 add_subdirectory(external/assimp)

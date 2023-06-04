@@ -28,10 +28,10 @@ namespace toy
         void on_resize(const event_t& event);                        // Call when resize window
         void on_close(const event_t& event);                         // Call when close window
         void tick();                                                 // Run application, and game-loop
+        void present();                                              // Present back buffer view
 
     protected:
         void init_d3d();                                             // Initialize Direct3D
-        void init_imgui();                                           // Initialize ImGui
 
         ID3D11RenderTargetView* get_back_buffer_rtv() { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
 

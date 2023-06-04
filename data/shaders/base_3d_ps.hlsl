@@ -23,7 +23,7 @@ float4 PS(VertexPosHWNormalTex pIn) : SV_Target
 
     // Directional lights
     [unroll]
-    for (i = 0; i < 2; ++i)
+    for (i = 0; i < 5; ++i)
     {
         ComputeDirectionalLight(g_Material, g_DirLight[i], pIn.normalW, toEyeW, A, D, S);
         ambient += A;
@@ -33,7 +33,7 @@ float4 PS(VertexPosHWNormalTex pIn) : SV_Target
 
     // Point lights
     [unroll]
-    for (i = 0; i < 2; ++i)
+    for (i = 0; i < 5; ++i)
     {
         ComputePointLight(g_Material, g_PointLight[i], pIn.posW, pIn.normalW, toEyeW, A, D, S);
         ambient += A;
@@ -42,8 +42,27 @@ float4 PS(VertexPosHWNormalTex pIn) : SV_Target
     }
 
     float4 litColor = texColor * (ambient + diffuse) + spec;
-    litColor.a = texColor.a * g_Material.diffuse.a;
+    // Reflection
+    if (g_ReflectionEnabled)
+    {
+        float3 incident = -toEyeW;
+        float3 reflectionVector = reflect(incident, pIn.normalW);
+        float4 reflectionColor = g_TexCube.Sample(g_Sam, reflectionVector);
+        
+        litColor += g_Material.reflect * reflectionColor;
+    }
+    // Refraction
+    if (g_RefractionEnabled)
+    {
+        float3 incident = -toEyeW;
+        float3 refractionVector = refract(incident, pIn.normalW, g_Eta);
+        float4 refractionColor = g_TexCube.Sample(g_Sam, refractionVector);
 
+        litColor += g_Material.reflect * refractionColor;
+    }
+
+    
+    litColor.a = texColor.a * g_Material.diffuse.a;
     return litColor;
 }
 

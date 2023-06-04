@@ -3,6 +3,7 @@
 //
 
 #include <Toy/Core/d3d_application.h>
+#include <Toy/ImGui/imgui_pass.h>
 
 namespace toy
 {
@@ -22,13 +23,11 @@ namespace toy
 
     d3d_application_c::~d3d_application_c()
     {
+        ImGuiPass::release();
         if (m_d3d_immediate_context)
+        {
             m_d3d_immediate_context->ClearState();
-
-        ImGui_ImplDX11_Shutdown();
-        //ImGui_ImplWin32_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
+        }
     }
 
     void d3d_application_c::init()
@@ -36,8 +35,11 @@ namespace toy
         DX_CORE_INFO("Initialize DXToy engine");
 
         init_d3d();
-        init_imgui();
 
+        // Initialize ImGui pass
+        ImGuiPass::init(m_glfw_window, m_d3d_device.Get(), m_d3d_immediate_context.Get());
+
+        // Initialize event manager, subscribe window-resize event
         event_manager_c::init(m_glfw_window);
         event_manager_c::subscribe(event_type_e::WindowClose, [this] (const event_t& event)
         {
@@ -98,23 +100,28 @@ namespace toy
             {
                 auto current_time = static_cast<float>(glfwGetTime());
 
-                // ImGui frame
-                ImGui_ImplDX11_NewFrame();
-                //ImGui_ImplWin32_NewFrame();
-                ImGui_ImplGlfw_NewFrame();
-                ImGui::NewFrame();
+                ImGuiPass::begin();
 
                 update_scene(current_time - last_time);
                 draw_scene();
 
-                ++m_frame_count;
+                ImGuiPass::end();
+                present();
 
+                ++m_frame_count;
                 last_time = current_time;
             }
         }
 
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(100ms);
+    }
+
+    // Present back buffer view
+    void d3d_application_c::present()
+    {
+        // Present
+        m_swap_chain->Present(0, m_is_dxgi_flip_model ? DXGI_PRESENT_ALLOW_TEARING : 0);
     }
 
     // Create directX 3d device and device context
@@ -244,29 +251,14 @@ namespace toy
         }
 
         // Set debug object name
-        d3d11_set_debug_object_name(m_d3d_immediate_context.Get(), "ImmediateContext");
-        dxgi_set_debug_object_name(m_swap_chain.Get(), "SwapChain");
+#if defined(GRAPHICS_DEBUGGER_OBJECT_NAME)
+        set_debug_object_name(m_d3d_immediate_context.Get(), "ImmediateContext");
+        set_debug_object_name(m_swap_chain.Get(), "SwapChain");
+#endif
 
         // After window has been resized, call this function
         window_resize_event_c event{ m_client_width, m_client_height };
         on_resize(event);
-    }
-
-    void d3d_application_c::init_imgui()
-    {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable keyboard controls
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable gamepad controls
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable docking
-        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable multi-viewport / platform windows
-
-        ImGui::StyleColorsDark();                                   // Set ImGui style
-
-        //ImGui_ImplWin32_Init(class_main_wnd_);                                                                 // Set window platform
-        ImGui_ImplGlfw_InitForOther(m_glfw_window, true);                               // Set window platform
-        ImGui_ImplDX11_Init(m_d3d_device.Get(), m_d3d_immediate_context.Get());     // Set render backend
     }
 }
 

@@ -25,10 +25,115 @@ namespace toy
         virtual void set_debug_object_name(std::string_view name);
 
     protected:
-        com_ptr<ID3D11Texture2D> m_texture;
-        com_ptr<ID3D11ShaderResourceView> m_texture_srv;
+        com_ptr<ID3D11Texture2D> m_texture = nullptr;
+        com_ptr<ID3D11ShaderResourceView> m_texture_srv = nullptr;
         uint32_t m_width{};
         uint32_t m_height{};
+    };
+
+    class Texture2D : public Texture2DBase
+    {
+    public:
+        Texture2D(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                    uint32_t mip_levels = 1,
+                    uint32_t bind_flags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+
+        ~Texture2D() override = default;
+
+        Texture2D(const Texture2D&) = delete;
+        Texture2D& operator=(const Texture2D&) = delete;
+        Texture2D(Texture2D&&) = default;
+        Texture2D& operator=(Texture2D&&) = default;
+
+        ID3D11RenderTargetView* get_render_target() { return m_texture_rtv.Get(); }
+        ID3D11UnorderedAccessView* get_unordered_access() { return m_texture_uav.Get(); }
+
+        [[nodiscard]] uint32_t get_mip_levels() const { return m_mip_levels; }
+
+        void set_debug_object_name(std::string_view name) override;
+
+    protected:
+        uint32_t m_mip_levels = 1;
+        com_ptr<ID3D11RenderTargetView> m_texture_rtv = nullptr;
+        com_ptr<ID3D11UnorderedAccessView> m_texture_uav = nullptr;
+    };
+
+    class Texture2DMS : public Texture2DBase
+    {
+    public:
+        Texture2DMS(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                    const DXGI_SAMPLE_DESC& sample_desc,
+                    uint32_t bind_flags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        ~Texture2DMS() override = default;
+
+        ID3D11RenderTargetView* get_render_target() { return m_texture_rtv.Get(); }
+
+        uint32_t get_msaa_samples() const { return m_msaa_samples; }
+
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_msaa_samples = 1;
+        com_ptr<ID3D11RenderTargetView> m_texture_rtv = nullptr;
+    };
+
+    class TextureCube : public Texture2DBase
+    {
+    public:
+        TextureCube(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                    uint32_t mip_levels = 1,
+                    uint32_t bind_flags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+        ~TextureCube() override = default;
+
+        [[nodiscard]] uint32_t get_mip_levels() const { return m_mip_levels; }
+
+        ID3D11RenderTargetView* get_render_target() { return m_texture_array_rtv.Get(); }
+        ID3D11RenderTargetView* get_render_target(size_t array_idx) { return m_render_target_elements[array_idx].Get(); }
+
+        ID3D11UnorderedAccessView* get_unordered_access(size_t array_idx) { return m_unordered_access_elements[array_idx].Get(); }
+
+        using Texture2DBase::get_shader_resource;
+
+        ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) { return m_shader_resource_elements[array_idx].Get(); }
+
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_mip_levels = 1;
+        com_ptr<ID3D11RenderTargetView> m_texture_array_rtv = nullptr;
+        std::vector<com_ptr<ID3D11RenderTargetView>> m_render_target_elements;
+        std::vector<com_ptr<ID3D11UnorderedAccessView>> m_unordered_access_elements;
+        std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
+    };
+
+    class Texture2DArray : public Texture2DBase
+    {
+    public:
+        Texture2DArray(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                        uint32_t array_size, uint32_t mip_levels = 1,
+                        uint32_t bind_flags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+        ~Texture2DArray() override = default;
+
+        [[nodiscard]] uint32_t get_mip_levels() const { return m_mip_levels; }
+        [[nodiscard]] uint32_t get_array_size() const { return m_array_size; }
+
+        ID3D11RenderTargetView* get_render_target() { return m_texture_array_rtv.Get(); }
+        ID3D11RenderTargetView* get_render_target(size_t array_idx) { return m_render_target_elements[array_idx].Get(); }
+
+        ID3D11UnorderedAccessView* get_unordered_access(size_t array_idx) { return m_unordered_access_elements[array_idx].Get(); }
+
+        using Texture2DBase::get_shader_resource;
+        ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) { return m_shader_resource_elements[array_idx].Get(); }
+
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_mip_levels = 1;
+        uint32_t m_array_size = 1;
+        com_ptr<ID3D11RenderTargetView> m_texture_array_rtv = nullptr;
+        std::vector<com_ptr<ID3D11RenderTargetView>> m_render_target_elements;
+        std::vector<com_ptr<ID3D11UnorderedAccessView>> m_unordered_access_elements;
+        std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
     };
 
     enum class DepthStencilBitsFlag

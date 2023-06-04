@@ -8,6 +8,7 @@
 
 namespace toy
 {
+    static constexpr uint32_t max_lights = 5;
     // Directional light
     struct directional_light_s
     {

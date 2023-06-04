@@ -11,6 +11,7 @@ target_link_libraries(Toy PUBLIC assimp)
 
 target_include_directories(Toy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_include_directories(Toy PUBLIC "${STB_INCLUDE_DIR}")
+target_include_directories(Toy PUBLIC "${ICON_FONT_DIR}")
 
 target_precompile_headers(Toy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include/pch.h")
 

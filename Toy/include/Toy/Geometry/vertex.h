@@ -8,6 +8,23 @@
 
 namespace toy
 {
+    struct vertex_pos_s
+    {
+        vertex_pos_s() = default;
+
+        vertex_pos_s(const vertex_pos_s&) = default;
+        vertex_pos_s& operator=(const vertex_pos_s&) = default;
+
+        vertex_pos_s(vertex_pos_s&&) = default;
+        vertex_pos_s& operator=(vertex_pos_s&&) = default;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 1>& get_input_layout();
+
+        DirectX::XMFLOAT3 pos;
+    };
+
+    using VertexPos = vertex_pos_s;
+
     struct vertex_pos_tex_s
     {
         vertex_pos_tex_s() = default;

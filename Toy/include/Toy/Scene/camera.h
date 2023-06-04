@@ -12,7 +12,7 @@ namespace toy
     {
     public:
         camera_c() = default;
-        virtual ~camera_c() = 0;
+        virtual ~camera_c() = default;
 
         //
         // Get camera position
@@ -41,13 +41,18 @@ namespace toy
         //
         // 获取矩阵
         //
-
+        DirectX::XMMATRIX get_local_to_world_xm() const;
         DirectX::XMMATRIX get_view_xm() const;
-        DirectX::XMMATRIX get_proj_xm() const;
-        DirectX::XMMATRIX get_view_proj_xm() const;
+        DirectX::XMMATRIX get_proj_xm(bool reverse_z = false) const;
+        DirectX::XMMATRIX get_view_proj_xm(bool reverse_z = false) const;
 
         // 获取视口
         D3D11_VIEWPORT get_viewport() const;
+
+        float get_near_z() const;
+        float get_far_z() const;
+        float get_fov_y() const;
+        float get_aspect_ratio() const;
 
         // 设置视锥体
         void set_frustum(float fovY, float aspect, float nearZ, float farZ);
@@ -89,6 +94,8 @@ namespace toy
         void walk(float d);
         // 前进(朝前向移动)
         void move_forward(float d);
+        // Translate
+        void translate(const DirectX::XMFLOAT3& dir, float magnitude);
         // 上下观察
         // 正rad值向上观察
         // 负rad值向下观察
