@@ -136,6 +136,38 @@ namespace toy
         std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
     };
 
+    class Texture2DMSArray : public Texture2DBase
+    {
+    public:
+        Texture2DMSArray(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                            uint32_t array_size, const DXGI_SAMPLE_DESC& sample_desc,
+                            uint32_t bind_flags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
+        ~Texture2DMSArray() override = default;
+
+        [[nodiscard]] uint32_t get_array_size() const { return m_array_size; }
+        [[nodiscard]] uint32_t get_msaa_samples() const { return m_msaa_samples; }
+
+        ID3D11RenderTargetView* get_render_target() { return m_texture_array_rtv.Get(); }
+        ID3D11RenderTargetView* get_render_target(size_t array_idx) { return m_render_target_elements[array_idx].Get(); }
+
+        // Texture2DMSArray
+        using Texture2DBase::get_shader_resource;
+        // Texture2DMS
+        ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) { return m_shader_resource_elements[array_idx].Get(); }
+
+        // Set debug object name
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_msaa_samples = 1;
+        uint32_t m_array_size = 1;
+
+        com_ptr<ID3D11RenderTargetView> m_texture_array_rtv;    // Point to texture array
+        std::vector<com_ptr<ID3D11RenderTargetView>> m_render_target_elements;
+        std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
+    };
+
     enum class DepthStencilBitsFlag
     {
         Depth_16Bits = 0,
@@ -158,6 +190,67 @@ namespace toy
 
     private:
         com_ptr<ID3D11DepthStencilView> m_texture_dsv;
+    };
+
+    class Depth2DArray : public Texture2DBase
+    {
+    public:
+        Depth2DArray(ID3D11Device* device, uint32_t width, uint32_t height, uint32_t array_size,
+                        DepthStencilBitsFlag depth_stencil_bits_flag = DepthStencilBitsFlag::Depth_24Bits_Stencil_8Bits,
+                        uint32_t bind_flags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
+        ~Depth2DArray() override = default;
+
+        uint32_t get_array_size() const { return m_array_size; }
+
+        ID3D11DepthStencilView* get_depth_stencil() { return m_depth_array_dsv.Get(); }
+        ID3D11DepthStencilView* get_depth_stencil(size_t array_idx) { return m_depth_stencil_elements[array_idx].Get(); }
+
+        // Texture array
+        using Texture2DBase::get_shader_resource;
+        // Texture 2D
+        ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) { return m_shader_resource_elements[array_idx].Get(); }
+
+        // Set debug object name
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_array_size = 1;
+        com_ptr<ID3D11DepthStencilView> m_depth_array_dsv;
+        std::vector<com_ptr<ID3D11DepthStencilView>> m_depth_stencil_elements;
+        std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
+    };
+
+    class Depth2DMSArray : public Texture2DBase
+    {
+    public:
+        Depth2DMSArray(ID3D11Device* device, uint32_t width, uint32_t height, uint32_t array_size,
+                        const DXGI_SAMPLE_DESC& sample_desc,
+                        DepthStencilBitsFlag depth_stencil_bits_flag = DepthStencilBitsFlag::Depth_24Bits_Stencil_8Bits,
+                        uint32_t bind_flags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
+
+        ~Depth2DMSArray() override = default;
+
+        uint32_t get_array_size() const { return m_array_size; }
+        uint32_t get_msaa_samples() const { return m_msaa_samples; }
+
+        ID3D11DepthStencilView* get_depth_stencil() { return m_depth_array_dsv.Get(); }
+        ID3D11DepthStencilView* get_depth_stencil(size_t array_idx) { return m_depth_stencil_elements[array_idx].Get(); }
+
+        // Texture 2D MS array
+        using Texture2DBase::get_shader_resource;
+        // Texture 2D MS
+        ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) { return m_shader_resource_elements[array_idx].Get(); }
+
+        // Set debug object name
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_array_size = 1;
+        uint32_t m_msaa_samples = 1;
+
+        com_ptr<ID3D11DepthStencilView> m_depth_array_dsv;
+        std::vector<com_ptr<ID3D11DepthStencilView>> m_depth_stencil_elements;
+        std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
     };
 }
 

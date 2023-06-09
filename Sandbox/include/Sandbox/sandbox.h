@@ -29,11 +29,15 @@ namespace toy
     private:
         BasicEffect m_basic_effect;                                 // Render object effect manage
         SkyboxEffect m_skybox_effect;                               // Skybox effect manage
+        PostProcessEffect m_post_process_effect;                    // PostProcess effect manage
 
         std::unique_ptr<Depth2D> m_depth_texture;                   // Depth buffer
         std::unique_ptr<TextureCube> m_dynamic_texture_cube;        // Dynamic skybox
         std::unique_ptr<Depth2D> m_dynamic_cube_depth_texture;      // Dynamic skybox depth buffer
         std::unique_ptr<Texture2D> m_debug_dynamic_cube_texture;    // Debug dynamic skybox
+
+        std::unique_ptr<Texture2D> m_lit_texture;                   // Scene rendering buffer
+        std::unique_ptr<Texture2D> m_temp_texture;                  // Temporary buffer for blurring operation
 
         RenderObject m_spheres[5];                                  // Spheres
         RenderObject m_center_sphere;                               // Center sphere
@@ -54,6 +58,13 @@ namespace toy
 
         float m_sphere_rad = 0.0f;                                  // Sphere rotate radian
         float m_eta = 1.0f/ 1.5f;                                   // Refractive index of air medium
+
+        int32_t m_blur_mode = 1;                                    // 0 represents Sobel-mode, 1 represents Blur-mode
+        float m_blur_sigma = 2.5f;                                  // Sigma value used for ambiguity
+        int32_t m_blur_radius = 5;                                  // Radius used for ambiguity
+        int32_t m_blur_times = 1;                                   // Ambiguity degree
+
+        bool m_screenshot_started = false;                          // Capture the current screen content
     };
 }
 

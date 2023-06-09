@@ -257,6 +257,64 @@ namespace toy
         // TODO
     }
 
+    // Texture 2D MS array
+    Texture2DMSArray::Texture2DMSArray(ID3D11Device *device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+                                        uint32_t array_size, const DXGI_SAMPLE_DESC &sample_desc, uint32_t bind_flags)
+    : Texture2DBase(device, CD3D11_TEXTURE2D_DESC{ format, width, height, array_size, 1, bind_flags,
+                D3D11_USAGE_DEFAULT, 0, sample_desc.Count, sample_desc.Quality },
+                    CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY, format }),
+    m_array_size(array_size), m_msaa_samples(sample_desc.Count)
+    {
+        if (bind_flags & D3D11_BIND_RENDER_TARGET)
+        {
+            // SubResources of render target views
+            m_render_target_elements.reserve(m_array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_RENDER_TARGET_VIEW_DESC rtv_desc{
+                    D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY,
+                    format,
+                    0,
+                    i, 1
+                };
+
+                com_ptr<ID3D11RenderTargetView> rtv = nullptr;
+                device->CreateRenderTargetView(m_texture.Get(), &rtv_desc, rtv.GetAddressOf());
+                m_render_target_elements.push_back(rtv);
+            }
+
+            // Complete resource
+            CD3D11_RENDER_TARGET_VIEW_DESC rtv_desc{ D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY, format, 0 };
+            device->CreateRenderTargetView(m_texture.Get(), &rtv_desc, m_texture_array_rtv.GetAddressOf());
+        }
+
+        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
+        {
+            // SubResources of shader resource views
+            m_shader_resource_elements.reserve(array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_SHADER_RESOURCE_VIEW_DESC srv_element_desc{
+                    D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY,
+                    format,
+                    0, uint32_t(-1),
+                    i, 1
+                };
+
+                com_ptr<ID3D11ShaderResourceView> srv = nullptr;
+                device->CreateShaderResourceView(m_texture.Get(), &srv_element_desc, srv.GetAddressOf());
+                m_shader_resource_elements.push_back(srv);
+            }
+        }
+    }
+
+    void Texture2DMSArray::set_debug_object_name(std::string_view name)
+    {
+#if (defined(_DEBUG) || GRAPHICS_DEBUGGER_OBJECT_NAME)
+        // TODO
+#endif
+    }
+
     // Depth 2D
     Depth2D::Depth2D(ID3D11Device *device, uint32_t width, uint32_t height,
                         toy::DepthStencilBitsFlag depth_stencil_bits_flag, uint32_t bind_flags)
@@ -272,6 +330,119 @@ namespace toy
     }
 
     void Depth2D::set_debug_object_name(std::string_view name)
+    {
+        // TODO
+    }
+
+    Depth2DArray::Depth2DArray(ID3D11Device *device, uint32_t width, uint32_t height, uint32_t array_size,
+                                toy::DepthStencilBitsFlag depth_stencil_bits_flag, uint32_t bind_flags)
+    : Texture2DBase(device, CD3D11_TEXTURE2D_DESC{get_depth_texture_format(depth_stencil_bits_flag), width, height, array_size,
+                        1, bind_flags },
+                    CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_TEXTURE2DARRAY, get_depth_srv_format(depth_stencil_bits_flag) }),
+    m_array_size(array_size)
+    {
+        if (bind_flags & D3D11_BIND_DEPTH_STENCIL)
+        {
+            // SubResources of depth stencil views
+            m_depth_stencil_elements.reserve(m_array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_DEPTH_STENCIL_VIEW_DESC dsv_element_desc{
+                    D3D11_DSV_DIMENSION_TEXTURE2DARRAY,
+                    get_depth_dsv_format(depth_stencil_bits_flag),
+                    0, i, 1
+                };
+
+                com_ptr<ID3D11DepthStencilView> dsv = nullptr;
+                device->CreateDepthStencilView(m_texture.Get(), &dsv_element_desc, dsv.GetAddressOf());
+                m_depth_stencil_elements.push_back(dsv);
+            }
+
+            // Complete resource
+            CD3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc{ D3D11_DSV_DIMENSION_TEXTURE2DARRAY, get_depth_dsv_format(depth_stencil_bits_flag), 0 };
+            device->CreateDepthStencilView(m_texture.Get(), &dsv_desc, m_depth_array_dsv.GetAddressOf());
+        }
+
+        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
+        {
+            // SubResources of shader resource views
+            m_shader_resource_elements.reserve(array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_SHADER_RESOURCE_VIEW_DESC srv_element_desc{
+                    D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                    get_depth_srv_format(depth_stencil_bits_flag),
+                    0, 1,
+                    i, 1
+                };
+
+                com_ptr<ID3D11ShaderResourceView> srv = nullptr;
+                device->CreateShaderResourceView(m_texture.Get(), &srv_element_desc, srv.GetAddressOf());
+                m_shader_resource_elements.push_back(srv);
+            }
+        }
+    }
+
+    void Depth2DArray::set_debug_object_name(std::string_view name)
+    {
+        // TODO
+    }
+
+    // Depth2DMSArray
+    Depth2DMSArray::Depth2DMSArray(ID3D11Device *device, uint32_t width, uint32_t height, uint32_t array_size,
+                                    const DXGI_SAMPLE_DESC &sample_desc,
+                                    toy::DepthStencilBitsFlag depth_stencil_bits_flag, uint32_t bind_flags)
+    : Texture2DBase(device, CD3D11_TEXTURE2D_DESC{ get_depth_texture_format(depth_stencil_bits_flag), width, height, array_size,
+                        1, bind_flags, D3D11_USAGE_DEFAULT, 0, sample_desc.Count, sample_desc.Quality },
+                    CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY, get_depth_srv_format(depth_stencil_bits_flag) }
+                    ),
+    m_array_size(array_size), m_msaa_samples(sample_desc.Count)
+    {
+        if (bind_flags & D3D11_BIND_DEPTH_STENCIL)
+        {
+            // SubResources of depth stencil views
+            m_depth_stencil_elements.reserve(array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_DEPTH_STENCIL_VIEW_DESC dsv_element_desc{
+                    D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY,
+                    get_depth_dsv_format(depth_stencil_bits_flag),
+                    0, i, 1
+                };
+
+                com_ptr<ID3D11DepthStencilView> dsv = nullptr;
+                device->CreateDepthStencilView(m_texture.Get(), &dsv_element_desc, dsv.GetAddressOf());
+                m_depth_stencil_elements.push_back(dsv);
+            }
+
+            // Complete resource
+            CD3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc{
+                D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY,
+                get_depth_dsv_format(depth_stencil_bits_flag), 0 };
+            device->CreateDepthStencilView(m_texture.Get(), &dsv_desc, m_depth_array_dsv.GetAddressOf());
+        }
+
+        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
+        {
+            // SubResources of shader resource views
+            m_shader_resource_elements.reserve(array_size);
+            for (uint32_t i = 0; i < array_size; ++i)
+            {
+                CD3D11_SHADER_RESOURCE_VIEW_DESC srv_element_desc{
+                    D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY,
+                    get_depth_srv_format(depth_stencil_bits_flag),
+                    0, 1,
+                    i, 1
+                };
+
+                com_ptr<ID3D11ShaderResourceView> srv = nullptr;
+                device->CreateShaderResourceView(m_texture.Get(), &srv_element_desc, srv.GetAddressOf());
+                m_shader_resource_elements.push_back(srv);
+            }
+        }
+    }
+
+    void Depth2DMSArray::set_debug_object_name(std::string_view name)
     {
         // TODO
     }

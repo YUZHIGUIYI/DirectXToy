@@ -6,7 +6,9 @@ file(GLOB_RECURSE TEX_SRC_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_LIST_DIR}/DDSTextureLoader/*.h" 
     "${CMAKE_CURRENT_LIST_DIR}/DDSTextureLoader/*.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/WICTextureLoader/*.h"
-    "${CMAKE_CURRENT_LIST_DIR}/WICTextureLoader/*.cpp")
+    "${CMAKE_CURRENT_LIST_DIR}/WICTextureLoader/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/ScreenGrab/*.h"
+    "${CMAKE_CURRENT_LIST_DIR}/ScreenGrab/*.cpp")
 
 add_library(DirectXTex STATIC ${TEX_SRC_FILES})
 

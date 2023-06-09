@@ -3,7 +3,10 @@
 //
 
 #include <Sandbox/sandbox.h>
+#include <wincodec.h>
 #include <IconsFontAwesome6.h>
+
+#include <ScreenGrab/ScreenGrab11.h>
 
 namespace toy
 {
@@ -26,6 +29,14 @@ namespace toy
         // Initialize depth texture
         m_depth_texture = std::make_unique<Depth2D>(m_d3d_device.Get(), m_client_width, m_client_height);
         m_depth_texture->set_debug_object_name("DepthTexture");
+        // Initialize scene rendering texture
+        m_lit_texture = std::make_unique<Texture2D>(m_d3d_device.Get(), m_client_width, m_client_height,
+                    DXGI_FORMAT_R8G8B8A8_UNORM,1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS);
+        m_lit_texture->set_debug_object_name("LitTexture");
+        // Initialize temporary texture
+        m_temp_texture = std::make_unique<Texture2D>(m_d3d_device.Get(), m_client_width, m_client_height,
+                    DXGI_FORMAT_R8G8B8A8_UNORM, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS);
+        m_temp_texture->set_debug_object_name("TempTexture");
 
         // Initialize texture manager and model manager
         model::TextureManagerHandle::get().init(m_d3d_device.Get());
@@ -36,6 +47,7 @@ namespace toy
         // Initialize effect
         m_basic_effect.init(m_d3d_device.Get());
         m_skybox_effect.init(m_d3d_device.Get());
+        m_post_process_effect.init(m_d3d_device.Get());
         // Initialize resource
         init_resource();
 
@@ -52,6 +64,16 @@ namespace toy
             m_depth_texture.reset();
             m_depth_texture = std::make_unique<Depth2D>(m_d3d_device.Get(), window_resize_event.window_width, window_resize_event.window_height);
             m_depth_texture->set_debug_object_name("DepthTexture");
+
+            m_lit_texture.reset();
+            m_lit_texture = std::make_unique<Texture2D>(m_d3d_device.Get(), m_client_width, m_client_height,
+                            DXGI_FORMAT_R8G8B8A8_UNORM,1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS);
+            m_lit_texture->set_debug_object_name("LitTexture");
+
+            m_temp_texture.reset();
+            m_temp_texture = std::make_unique<Texture2D>(m_d3d_device.Get(), window_resize_event.window_width, window_resize_event.window_height,
+                            DXGI_FORMAT_R8G8B8A8_UNORM, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS);
+            m_temp_texture->set_debug_object_name("TempTexture");
 
             if (m_camera != nullptr)
             {
@@ -123,6 +145,41 @@ namespace toy
         }
         ImGui::End();
 
+        if (ImGui::Begin("Gaussian-Sobel Filter"))
+        {
+            static int32_t mode = m_blur_mode;
+            static const char* blur_modes[2] = {
+                "Sobel Mode",
+                "Gaussian Mode"
+            };
+            if (ImGui::Combo("Mode", &mode, blur_modes, ARRAYSIZE(blur_modes)))
+            {
+                m_blur_mode = mode;
+            }
+            if (m_blur_mode)
+            {
+                if (ImGui::SliderInt(ICON_FA_SLIDERS " Blur Radius", &m_blur_radius, 1, 15))
+                {
+                    m_post_process_effect.set_blur_kernel_size(m_blur_radius * 2 + 1);
+                }
+                if (ImGui::SliderFloat(ICON_FA_SLIDERS " Blur Sigma", &m_blur_sigma, 1.0f, 20.0f))
+                {
+                    m_post_process_effect.set_blur_sigma(m_blur_sigma);
+                }
+                ImGui::SliderInt(ICON_FA_SLIDERS " Blur Times", &m_blur_times, 0, 5);
+            }
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("Screenshot"))
+        {
+            if (ImGui::Button(ICON_FA_TABLET_SCREEN_BUTTON))
+            {
+                m_screenshot_started = true;
+            }
+        }
+        ImGui::End();
+
         // Set sphere animations
         m_sphere_rad += 2.0f * dt;
         for (size_t i = 0; i < 4; ++i)
@@ -184,16 +241,49 @@ namespace toy
             }
         }
 
-        // Draw scene
-        draw(true, *m_camera, get_back_buffer_rtv(), m_depth_texture->get_depth_stencil());
+        // Draw scene to scene rendering buffer
+        draw(true, *m_camera, m_lit_texture->get_render_target(), m_depth_texture->get_depth_stencil());
+        // Note: clear render target view and depth stencil view
+        m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
 
-//        static float color_[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
-//        auto viewport_ = m_camera->get_viewport();
-//        auto rtv = get_back_buffer_rtv();
-//        m_d3d_immediate_context->ClearRenderTargetView(rtv, color_);
-//        m_d3d_immediate_context->ClearDepthStencilView(m_depth_texture->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-//        m_d3d_immediate_context->RSSetViewports(1, &viewport_);
-//        m_d3d_immediate_context->OMSetRenderTargets(1, &rtv, m_depth_texture->get_depth_stencil());
+        // Filter operation
+        //// Gaussian filter
+        if (m_blur_mode == 1)
+        {
+            for (int32_t i = 0; i < m_blur_times; ++i)
+            {
+                m_post_process_effect.compute_gaussian_blur_x(m_d3d_immediate_context.Get(),
+                                    m_lit_texture->get_shader_resource(),
+                                    m_temp_texture->get_unordered_access(),
+                                    m_client_width, m_client_height);
+                m_post_process_effect.compute_gaussian_blur_y(m_d3d_immediate_context.Get(),
+                                    m_temp_texture->get_shader_resource(),
+                                    m_lit_texture->get_unordered_access(),
+                                    m_client_width, m_client_height);
+            }
+            // RGB to sRGB
+            m_post_process_effect.render_composite(m_d3d_immediate_context.Get(),
+                                    m_lit_texture->get_shader_resource(), nullptr,
+                                    get_back_buffer_rtv(),
+                                    m_camera->get_viewport());
+        }
+        //// Sobel filter
+        else
+        {
+            m_post_process_effect.compute_sobel(m_d3d_immediate_context.Get(),
+                                                m_lit_texture->get_shader_resource(),
+                                                m_temp_texture->get_unordered_access(),
+                                                m_client_width, m_client_height);
+            m_post_process_effect.render_composite(m_d3d_immediate_context.Get(),
+                                                m_lit_texture->get_shader_resource(),
+                                                m_temp_texture->get_shader_resource(),
+                                                get_back_buffer_rtv(),
+                                                m_camera->get_viewport());
+        }
+
+        // Note: bind to back buffer rtv to present
+        auto rtv = get_back_buffer_rtv();
+        m_d3d_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
 
         // Draw skybox
         static bool debug_cube = false;
@@ -235,7 +325,18 @@ namespace toy
             ImGui::End();
         }
 
-        // Present function is called in application
+        // Screenshot
+        if (m_screenshot_started)
+        {
+            com_ptr<ID3D11Texture2D> back_buffer = nullptr;
+            get_back_buffer_rtv()->GetResource(reinterpret_cast<ID3D11Resource**>(back_buffer.GetAddressOf()));
+            // Output screenshot
+            DirectX::SaveWICTextureToFile(m_d3d_immediate_context.Get(), back_buffer.Get(), GUID_ContainerFormatJpeg,
+                                            L"./output.jpg", &GUID_WICPixelFormat24bppBGR);
+            m_screenshot_started = false;
+        }
+
+        // Note: present function is called in application
     }
 
     void sandbox_c::init_resource()
@@ -399,6 +500,10 @@ namespace toy
         {
             m_basic_effect.set_dir_light(i, dir_lights[i]);
         }
+
+        // Initialize post process effect
+        m_post_process_effect.set_blur_kernel_size(m_blur_radius * 2 + 1);
+        m_post_process_effect.set_blur_sigma(m_blur_sigma);
     }
 
     void sandbox_c::draw(bool draw_center_sphere, const toy::camera_c &camera,
