@@ -31,41 +31,62 @@ namespace toy
     void SkyboxEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
+        m_effect_impl->m_effect_helper->set_binary_cache_directory(L"../data/defer/cache");
 
         com_ptr<ID3DBlob> blob = nullptr;
+        D3D_SHADER_MACRO defines[] = {
+            {"MSAA_SAMPLES", "1"},
+            {nullptr, nullptr}
+        };
         // Create vertex shader
-        m_effect_impl->m_effect_helper->create_shader_from_file("skybox_vs", L"../data/shaders/skybox_vs.cso", device,
-                                                                "VS", "vs_5_0", nullptr, blob.GetAddressOf());
-        auto&& input_layout = VertexPos::get_input_layout();
+        m_effect_impl->m_effect_helper->create_shader_from_file("SkyboxVS", L"../data/defer/skybox.hlsl", device,
+                                                                "SkyboxVS", "vs_5_0", defines, blob.GetAddressOf());
+        auto&& input_layout = VertexPosNormalTex::get_input_layout();
         device->CreateInputLayout(input_layout.data(), (uint32_t)input_layout.size(),
                                     blob->GetBufferPointer(), blob->GetBufferSize(),
-                                    m_effect_impl->m_vertex_pos_layout.GetAddressOf());
+                                    m_effect_impl->m_vertex_pos_normal_tex_layout.ReleaseAndGetAddressOf());
 
-        // Create pixel shader
-        m_effect_impl->m_effect_helper->create_shader_from_file("skybox_ps", L"../data/shaders/skybox_ps.cso", device);
-
-        // Create pass
-        EffectPassDesc pass_desc{};
-        pass_desc.nameVS = "skybox_vs";
-        pass_desc.namePS = "skybox_ps";
-        m_effect_impl->m_effect_helper->add_effect_pass("skybox", device, &pass_desc);
+        int32_t msaa_samples = 1;
+        while (msaa_samples <= 8)
         {
-            auto pass = m_effect_impl->m_effect_helper->get_effect_pass("skybox");
-            pass->set_rasterizer_state(RenderStates::rs_no_cull.Get());
-            pass->set_depth_stencil_state(RenderStates::dss_less_equal.Get(), 0);
+            // ******************
+            // Create pixel shaders
+            //
+            std::string msaaSamplesStr = std::to_string(msaa_samples);
+            defines[0].Definition = msaaSamplesStr.c_str();
+            std::string shaderName = "Skybox_" + msaaSamplesStr + "xMSAA_PS";
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderName, L"../data/defer/skybox.hlsl",
+                                                            device, "SkyboxPS", "ps_5_0", defines);
+
+            // ******************
+            // Create pass
+            //
+            std::string passName = "Skybox_" + msaaSamplesStr + "xMSAA";
+            EffectPassDesc passDesc;
+            passDesc.nameVS = "SkyboxVS";
+            passDesc.namePS = shaderName;
+            m_effect_impl->m_effect_helper->add_effect_pass(passName, device, &passDesc);
+            {
+                auto pPass = m_effect_impl->m_effect_helper->get_effect_pass(passName);
+                pPass->set_rasterizer_state(RenderStates::rs_no_cull.Get());
+            }
+
+            msaa_samples <<= 1;
         }
+
         m_effect_impl->m_effect_helper->set_sampler_state_by_name("g_Sam", RenderStates::ss_linear_wrap.Get());
 
         // TODO: Set debug object name
 #if defined(GRAPHICS_DEBUGGER_OBJECT_NAME)
-        set_debug_object_name(m_effect_impl->m_vertex_pos_layout.Get(), "SkyboxEffect.VertexPosLayout");
+        set_debug_object_name(m_effect_impl->m_vertex_pos_normal_tex_layout.Get(), "SkyboxEffect.VertexPosNormalTexLayout");
 #endif
     }
 
     void SkyboxEffect::set_default_render()
     {
-        m_effect_impl->m_curr_effect_pass = m_effect_impl->m_effect_helper->get_effect_pass("skybox");
-        m_effect_impl->m_curr_input_layout = m_effect_impl->m_vertex_pos_layout;
+        std::string passName = "Skybox_" + std::to_string(m_effect_impl->m_msaa_levels) + "xMSAA";
+        m_effect_impl->m_curr_effect_pass = m_effect_impl->m_effect_helper->get_effect_pass(passName);
+        m_effect_impl->m_curr_input_layout = m_effect_impl->m_vertex_pos_normal_tex_layout;
         m_effect_impl->m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     }
 
@@ -88,8 +109,9 @@ namespace toy
     {
         auto&& texture_manager = model::TextureManagerHandle::get();
 
-        const std::string& texture_id_str = material.get<std::string>("$Skybox");
-        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_TexCube", texture_manager.get_texture(texture_id_str));
+        auto texture_id_str = material.try_get<std::string>("$Skybox");
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",
+                                                                    texture_id_str ? texture_manager.get_texture(*texture_id_str) : nullptr);
     }
 
     MeshDataInput SkyboxEffect::get_input_data(const model::MeshData &mesh_data)
@@ -98,10 +120,12 @@ namespace toy
         input.input_layout = m_effect_impl->m_curr_input_layout.Get();
         input.topology = m_effect_impl->m_curr_topology;
         input.vertex_buffers = {
-            mesh_data.vertices.Get()
+            mesh_data.vertices.Get(),
+            mesh_data.normals.Get(),
+            mesh_data.texcoord_arrays.empty() ? nullptr : mesh_data.texcoord_arrays[0].Get()
         };
-        input.strides = { 12 };
-        input.offsets = { 0 };
+        input.strides = { 12, 12, 8 };
+        input.offsets = { 0, 0, 0 };
 
         input.index_buffer = mesh_data.indices.Get();
         input.index_count = mesh_data.index_count;
@@ -109,15 +133,35 @@ namespace toy
         return input;
     }
 
+    void SkyboxEffect::set_depth_texture(ID3D11ShaderResourceView *depth_texture)
+    {
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_DepthTexture", depth_texture);
+    }
+
+    void SkyboxEffect::set_lit_texture(ID3D11ShaderResourceView *lit_texture)
+    {
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_LitTexture", lit_texture);
+    }
+
+    void SkyboxEffect::set_flat_lit_texture(ID3D11ShaderResourceView *flat_lit_texture, uint32_t width, uint32_t height)
+    {
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_FlatLitTexture", flat_lit_texture);
+        uint32_t wh[2] = { width, height };
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_FramebufferDimensions")->set_uint_vector(2, wh);
+    }
+
+    void SkyboxEffect::set_msaa_samples(uint32_t msaa_samples)
+    {
+        m_effect_impl->m_msaa_levels = msaa_samples;
+    }
+
     void SkyboxEffect::apply(ID3D11DeviceContext *device_context)
     {
         using namespace DirectX;
-        XMMATRIX view = XMLoadFloat4x4(&m_effect_impl->m_view);
-        view.r[3] = g_XMIdentityR3;
-        XMMATRIX view_proj = view * XMLoadFloat4x4(&m_effect_impl->m_proj);
-
+        XMMATRIX view_proj = XMLoadFloat4x4(&m_effect_impl->m_view) * XMLoadFloat4x4(&m_effect_impl->m_proj);
         view_proj = XMMatrixTranspose(view_proj);
-        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_WorldViewProj")->set_float_matrix(4, 4, (const float *)&view_proj);
+        m_effect_impl->m_effect_helper->get_constant_buffer_variable("g_ViewProj")->set_float_matrix(4, 4, (const float *)&view_proj);
+
         m_effect_impl->m_curr_effect_pass->apply(device_context);
     }
 }

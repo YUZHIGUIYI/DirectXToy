@@ -192,6 +192,25 @@ namespace toy
         com_ptr<ID3D11DepthStencilView> m_texture_dsv;
     };
 
+    class Depth2DMS : public Texture2DBase
+    {
+    public:
+        Depth2DMS(ID3D11Device* device, uint32_t width, uint32_t height,
+                    const DXGI_SAMPLE_DESC& sampleDesc,
+                    DepthStencilBitsFlag depthStencilBitsFlag = DepthStencilBitsFlag::Depth_24Bits_Stencil_8Bits,
+                    uint32_t bindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
+        ~Depth2DMS() override = default;
+
+        [[nodiscard]] uint32_t get_msaa_samples() const { return m_msaa_samples; }
+        ID3D11DepthStencilView* get_depth_stencil() { return m_texture_dsv.Get(); }
+
+        void set_debug_object_name(std::string_view name) override;
+
+    private:
+        uint32_t m_msaa_samples = 1;
+        com_ptr<ID3D11DepthStencilView> m_texture_dsv;
+    };
+
     class Depth2DArray : public Texture2DBase
     {
     public:

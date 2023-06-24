@@ -23,6 +23,8 @@ set(STB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/external/stb" CACHE PATH "stb hea
 # For IconFontCppHeaders
 set(ICON_FONT_DIR "${CMAKE_CURRENT_LIST_DIR}/external/IconFontCppHeaders" CACHE PATH "Icon font cpp headers directory" FORCE)
 
+# Copy ImGui setting file
+file(COPY "${CMAKE_CURRENT_LIST_DIR}/data/settings/imgui.ini" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 include(cmake/HLSLShaders.cmake)
 

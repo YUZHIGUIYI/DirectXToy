@@ -334,6 +334,28 @@ namespace toy
         // TODO
     }
 
+    // Depth 2d msaa
+    Depth2DMS::Depth2DMS(ID3D11Device* device, uint32_t width, uint32_t height,
+                            const DXGI_SAMPLE_DESC& sampleDesc, DepthStencilBitsFlag depthStencilBitsFlag, uint32_t bindFlags)
+    : Texture2DBase(device,
+                CD3D11_TEXTURE2D_DESC(get_depth_texture_format(depthStencilBitsFlag), width, height, 1, 1, bindFlags,
+                                        D3D11_USAGE_DEFAULT, 0, sampleDesc.Count, sampleDesc.Quality),
+                CD3D11_SHADER_RESOURCE_VIEW_DESC(D3D11_SRV_DIMENSION_TEXTURE2DMS, get_depth_srv_format(depthStencilBitsFlag))),
+    m_msaa_samples(sampleDesc.Count)
+    {
+        if (bindFlags & D3D11_BIND_DEPTH_STENCIL)
+        {
+            CD3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc(D3D11_DSV_DIMENSION_TEXTURE2DMS, get_depth_dsv_format(depthStencilBitsFlag));
+            device->CreateDepthStencilView(m_texture.Get(), &dsvDesc, m_texture_dsv.GetAddressOf());
+        }
+    }
+
+    void Depth2DMS::set_debug_object_name(std::string_view name)
+    {
+        // TODO
+    }
+
+    // Depth 2d array
     Depth2DArray::Depth2DArray(ID3D11Device *device, uint32_t width, uint32_t height, uint32_t array_size,
                                 toy::DepthStencilBitsFlag depth_stencil_bits_flag, uint32_t bind_flags)
     : Texture2DBase(device, CD3D11_TEXTURE2D_DESC{get_depth_texture_format(depth_stencil_bits_flag), width, height, array_size,

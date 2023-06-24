@@ -13,6 +13,7 @@ int main()
 
     // Create window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     auto window = glfwCreateWindow(1280, 720, "DX11Render", nullptr, nullptr);
     if (!window)
     {
