@@ -8,6 +8,7 @@ target_link_libraries(Toy PUBLIC spdlog_header_only)
 target_link_libraries(Toy PUBLIC ImGui)
 target_link_libraries(Toy PUBLIC DirectXTex)
 target_link_libraries(Toy PUBLIC assimp)
+target_link_libraries(Toy PUBLIC EnTT::EnTT)
 
 target_include_directories(Toy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_include_directories(Toy PUBLIC "${STB_INCLUDE_DIR}")

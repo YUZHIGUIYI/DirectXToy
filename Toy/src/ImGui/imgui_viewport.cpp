@@ -8,7 +8,7 @@ namespace toy
 {
     void Viewport::set_viewport(std::string_view viewport_name, ID3D11ShaderResourceView* srv, int32_t &width, int32_t &height)
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
 
         ImGui::Begin(viewport_name.data());
 

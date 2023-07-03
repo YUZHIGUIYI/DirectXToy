@@ -13,12 +13,15 @@ namespace toy
 
     }
 
+    DirectX::XMFLOAT3& transform_c::get_scale() { return class_scale; }
     DirectX::XMFLOAT3 transform_c::get_scale() const { return class_scale; }
     DirectX::XMVECTOR transform_c::get_scale_xm() const { return DirectX::XMLoadFloat3(&class_scale); }
 
+    DirectX::XMFLOAT3& transform_c::get_rotation() { return class_rotation; }
     DirectX::XMFLOAT3 transform_c::get_rotation() const { return class_rotation; }
     DirectX::XMVECTOR transform_c::get_rotation_xm() const { return DirectX::XMLoadFloat3(&class_rotation); }
 
+    DirectX::XMFLOAT3& transform_c::get_position() { return class_position; }
     DirectX::XMFLOAT3 transform_c::get_position() const { return class_position; }
     DirectX::XMVECTOR transform_c::get_position_xm() const { return DirectX::XMLoadFloat3(&class_position); }
 

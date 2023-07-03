@@ -21,14 +21,17 @@ namespace toy
         transform_c& operator=(transform_c&&) = default;
 
         // Get scaling
+        DirectX::XMFLOAT3& get_scale();
         DirectX::XMFLOAT3 get_scale() const;
         DirectX::XMVECTOR get_scale_xm() const;
 
         // Get euler angle - radian - z->x->y sequential rotation
+        DirectX::XMFLOAT3& get_rotation();
         DirectX::XMFLOAT3 get_rotation() const;
         DirectX::XMVECTOR get_rotation_xm() const;
 
         // Get position
+        DirectX::XMFLOAT3& get_position();
         DirectX::XMFLOAT3 get_position() const;
         DirectX::XMVECTOR get_position_xm() const;
 

@@ -16,8 +16,8 @@ namespace toy
 
     const float s_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
 
-    sandbox_c::sandbox_c(GLFWwindow* window, const std::string &window_name, int32_t init_width, int32_t init_height)
-    : d3d_application_c(window, window_name, init_width, init_height)
+    sandbox_c::sandbox_c(GLFWwindow* window, int32_t init_width, int32_t init_height)
+    : d3d_application_c(window, init_width, init_height)
     {
         m_vpp_size = { 640, 320, 640, 320 };
         m_vpa_size = m_vpp_size;

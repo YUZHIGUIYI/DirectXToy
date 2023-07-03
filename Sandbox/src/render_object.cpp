@@ -84,14 +84,18 @@ namespace toy
     DirectX::BoundingBox RenderObject::get_local_bounding_box(size_t idx) const
     {
         if (!m_model || m_model->meshes.size() >= idx)
+        {
             return DirectX::BoundingBox(DirectX::XMFLOAT3(), DirectX::XMFLOAT3());
+        }
         return m_model->meshes[idx].bounding_box;
     }
 
     DirectX::BoundingBox RenderObject::get_bounding_box() const
     {
         if (!m_model)
+        {
             return DirectX::BoundingBox(DirectX::XMFLOAT3(), DirectX::XMFLOAT3());
+        }
         DirectX::BoundingBox box = m_model->bounding_box;
         box.Transform(box, m_transform.get_local_to_world_matrix_xm());
         return box;
@@ -100,7 +104,9 @@ namespace toy
     DirectX::BoundingBox RenderObject::get_bounding_box(size_t idx) const
     {
         if (!m_model || m_model->meshes.size() >= idx)
+        {
             return DirectX::BoundingBox(DirectX::XMFLOAT3(), DirectX::XMFLOAT3());
+        }
         DirectX::BoundingBox box = m_model->meshes[idx].bounding_box;
         box.Transform(box, m_transform.get_local_to_world_matrix_xm());
         return box;
@@ -109,7 +115,9 @@ namespace toy
     DirectX::BoundingOrientedBox RenderObject::get_bounding_oriented_box() const
     {
         if (!m_model)
+        {
             return DirectX::BoundingOrientedBox(DirectX::XMFLOAT3(), DirectX::XMFLOAT3(), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f));
+        }
         DirectX::BoundingOrientedBox obb;
         DirectX::BoundingOrientedBox::CreateFromBoundingBox(obb, m_model->bounding_box);
         obb.Transform(obb, m_transform.get_local_to_world_matrix_xm());
@@ -119,7 +127,9 @@ namespace toy
     DirectX::BoundingOrientedBox RenderObject::get_bounding_oriented_box(size_t idx) const
     {
         if (!m_model || m_model->meshes.size() >= idx)
+        {
             return DirectX::BoundingOrientedBox(DirectX::XMFLOAT3(), DirectX::XMFLOAT3(), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f));
+        }
         DirectX::BoundingOrientedBox obb;
         DirectX::BoundingOrientedBox::CreateFromBoundingBox(obb, m_model->meshes[idx].bounding_box);
         obb.Transform(obb, m_transform.get_local_to_world_matrix_xm());

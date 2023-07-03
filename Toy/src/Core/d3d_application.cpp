@@ -7,10 +7,8 @@
 
 namespace toy
 {
-    d3d_application_c::d3d_application_c(GLFWwindow* window, const std::string &window_name,
-                                            int32_t init_width, int32_t init_height)
+    d3d_application_c::d3d_application_c(GLFWwindow* window, int32_t init_width, int32_t init_height)
     : m_glfw_window(window),
-    m_main_wnd_title(window_name),
     m_client_width(init_width),
     m_client_height(init_height),
     m_app_stopped(false),
@@ -40,6 +38,7 @@ namespace toy
         ImGuiPass::init(m_glfw_window, m_d3d_device.Get(), m_d3d_immediate_context.Get());
 
         // Initialize event manager, subscribe window-resize event
+        glfwSetWindowUserPointer(m_glfw_window, this);
         event_manager_c::init(m_glfw_window);
         event_manager_c::subscribe(event_type_e::WindowClose, [this] (const event_t& event)
         {
@@ -48,6 +47,14 @@ namespace toy
         event_manager_c::subscribe(event_type_e::WindowResize, [this] (const event_t& event)
         {
             on_resize(event);
+        });
+        glfwSetDropCallback(m_glfw_window, [](GLFWwindow* window, int32_t path_count, const char** paths)
+        {
+            auto* app = static_cast<d3d_application_c *>(glfwGetWindowUserPointer(window));
+            for (int32_t i = 0; i < path_count; i++)
+            {
+                app->on_file_drop(paths[i]);
+            }
         });
     }
 
@@ -82,6 +89,15 @@ namespace toy
         m_swap_chain->ResizeBuffers(m_back_buffer_count, m_client_width, m_client_height, DXGI_FORMAT_R8G8B8A8_UNORM,
                                             m_is_dxgi_flip_model ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
         m_frame_count = 0;
+
+        // Create render target views of back buffers
+        for (size_t frame_index = 0; frame_index < m_back_buffer_count; ++frame_index)
+        {
+            com_ptr<ID3D11Texture2D> back_buffer = nullptr;
+            m_swap_chain->GetBuffer(0, IID_PPV_ARGS(back_buffer.GetAddressOf()));
+            CD3D11_RENDER_TARGET_VIEW_DESC rtv_desc{ D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
+            m_d3d_device->CreateRenderTargetView(back_buffer.Get(), &rtv_desc, m_render_target_views[frame_index].ReleaseAndGetAddressOf());
+        }
     }
 
     void d3d_application_c::on_close(const event_t &event)
@@ -101,9 +117,35 @@ namespace toy
                 auto current_time = static_cast<float>(glfwGetTime());
 
                 ImGuiPass::begin();
+                // Menu
+                if (ImGui::BeginMainMenuBar())
+                {
+                    for (auto& layer : m_layer_stack)
+                    {
+                        layer->on_ui_menu();
+                    }
+                    ImGui::EndMainMenuBar();
+                }
 
-                update_scene(current_time - last_time);
-                draw_scene();
+                // Setting up the viewport and getting information
+                for (auto& layer : m_layer_stack)
+                {
+                    layer->on_resize();
+                }
+
+                // UI rendering
+                for (auto& layer : m_layer_stack)
+                {
+                    layer->on_ui_render();
+                }
+
+                for (auto& layer : m_layer_stack)
+                {
+                    layer->on_render(current_time - last_time);
+                }
+
+//                update_scene(current_time - last_time);
+//                draw_scene();
 
                 ImGuiPass::end();
                 present();
@@ -122,6 +164,22 @@ namespace toy
     {
         // Present
         m_swap_chain->Present(0, m_is_dxgi_flip_model ? DXGI_PRESENT_ALLOW_TEARING : 0);
+    }
+
+    // Add layer into engine
+    void d3d_application_c::add_layer(const std::shared_ptr<ILayer> &layer)
+    {
+        m_layer_stack.emplace_back(layer);
+        layer->on_attach(this);
+    }
+
+    // File drop operation
+    void d3d_application_c::on_file_drop(std::string_view filename)
+    {
+        for (auto& layer : m_layer_stack)
+        {
+            layer->on_file_drop(filename);
+        }
     }
 
     // Create directX 3d device and device context

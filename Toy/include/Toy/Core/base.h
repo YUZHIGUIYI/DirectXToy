@@ -9,6 +9,9 @@
 #include <Toy/Core/singleton.h>
 #include <Toy/Core/logger.h>
 
+#undef max
+#undef min
+
 // Enable graphics debug object name
 #if (defined(DEBUG) || defined(_DEBUG)) && !defined(GRAPHICS_DEBUGGER_OBJECT_NAME)
     #define GRAPHICS_DEBUGGER_OBJECT_NAME 1
