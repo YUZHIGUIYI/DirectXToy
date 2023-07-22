@@ -6,6 +6,7 @@ target_link_libraries(Toy PUBLIC d3d11.lib dxgi.lib dxguid.lib D3DCompiler.lib w
 target_link_libraries(Toy PUBLIC glfw)
 target_link_libraries(Toy PUBLIC spdlog_header_only)
 target_link_libraries(Toy PUBLIC ImGui)
+target_link_libraries(Toy PUBLIC ImGuizmo)
 target_link_libraries(Toy PUBLIC DirectXTex)
 target_link_libraries(Toy PUBLIC assimp)
 target_link_libraries(Toy PUBLIC EnTT::EnTT)

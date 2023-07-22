@@ -9,12 +9,12 @@ namespace toy
     using namespace DirectX;
     // Ray
     Ray::Ray()
-            : origin(), direction(0.0f, 0.0f, 1.0f)
+    : origin(), direction(0.0f, 0.0f, 1.0f)
     {
     }
 
     Ray::Ray(const DirectX::XMFLOAT3 &origin, const DirectX::XMFLOAT3 &direction)
-            : origin(origin)
+    : origin(origin)
     {
         XMVECTOR dirVec = XMLoadFloat3(&direction);
         assert(XMVector3NotEqual(dirVec, g_XMZero));
@@ -44,9 +44,9 @@ namespace toy
         Target = XMVector3TransformCoord(Target, Transform);
 
         // 求出射线
-        XMFLOAT3 direction;
+        XMFLOAT3 direction{};
         XMStoreFloat3(&direction, Target - camera.get_position_xm());
-        return Ray(camera.get_position(), direction);
+        return Ray{camera.get_position(), direction };
     }
 
     bool Ray::hit(const DirectX::BoundingBox &box, float *pOutDist, float maxDist)
@@ -55,7 +55,9 @@ namespace toy
         float dist;
         bool res = box.Intersects(XMLoadFloat3(&origin), XMLoadFloat3(&direction), dist);
         if (pOutDist)
+        {
             *pOutDist = dist;
+        }
         return dist > maxDist ? false : res;
     }
 
@@ -64,7 +66,9 @@ namespace toy
         float dist;
         bool res = box.Intersects(XMLoadFloat3(&origin), XMLoadFloat3(&direction), dist);
         if (pOutDist)
+        {
             *pOutDist = dist;
+        }
         return dist > maxDist ? false : res;
     }
 
@@ -105,7 +109,7 @@ namespace toy
     {
         WireFrameData data;
         XMVECTOR center = XMLoadFloat3(&sphere.Center), posVec;
-        XMFLOAT3 pos;
+        XMFLOAT3 pos{};
         float theta = 0.0f;
         for (int i = 0; i < slices; ++i)
         {

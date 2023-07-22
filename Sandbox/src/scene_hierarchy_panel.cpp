@@ -92,25 +92,48 @@ namespace toy
         m_scene_context = scene_context;
     }
 
+    void SceneHierarchyPanel::set_selected_entity(const toy::Entity &selected_entity)
+    {
+        m_selected_entity = selected_entity;
+    }
+
     void SceneHierarchyPanel::on_ui_render()
     {
         ImGui::Begin("Scene Hierarchy");
-
         if (m_scene_context)
         {
-            auto entity_iterator = m_scene_context->registry_handle.storage<entt::entity>().each();
-            for (const auto& it : entity_iterator)
+            for (auto entity_handle : m_scene_context->general_static_mesh_entities)
             {
-                auto entity_handle = std::get<0>(it);
                 Entity entity{ entity_handle, m_scene_context.get() };
-                draw_components(entity);
+                draw_entity_node(entity);
             }
         }
-
         ImGui::End();
+
+        ImGui::Begin("Properties");
+        if (m_selected_entity.is_valid())
+        {
+            draw_components(m_selected_entity);
+        }
+        ImGui::End();
+
     }
 
-    void SceneHierarchyPanel::draw_components(toy::Entity entity)
+    void SceneHierarchyPanel::draw_entity_node(toy::Entity& entity)
+    {
+        auto&& tag_component = entity.get_component<TagComponent>();
+        auto flags = ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
+        if (ImGui::CollapsingHeader(tag_component.tag.c_str(), flags))
+        {
+            ImGui::BulletText("%s", tag_component.tag.c_str());
+        }
+        if (ImGui::IsItemClicked())
+        {
+            m_selected_entity = entity;
+        }
+    }
+
+    void SceneHierarchyPanel::draw_components(toy::Entity& entity)
     {
         if (!entity.has_component<StaticMeshComponent>())
         {
@@ -126,9 +149,9 @@ namespace toy
             char buffer[256];
             std::memset(buffer, 0, sizeof(buffer));
             strncpy_s(buffer, sizeof(buffer), tag.data(), 256);
-            if (ImGui::InputText("##Tag", buffer, sizeof(buffer)))
+            if (ImGui::InputText("##Tag", buffer, sizeof(buffer), ImGuiInputTextFlags_ReadOnly))
             {
-                // TODO
+
             }
 
             draw_vec3_control("Translation", transform_component.transform.get_position());

@@ -22,7 +22,7 @@ namespace toy
 
     struct TagComponent
     {
-        std::string_view tag{};
+        std::string tag{};
 
         TagComponent() = default;
         TagComponent(const TagComponent&) = default;
@@ -65,6 +65,14 @@ namespace toy
         // Render
         // Note: transform belongs to model asset
         void render(ID3D11DeviceContext *device_context, IEffect& effect, const transform_c& transform);
+
+        // Bounding box
+        DirectX::BoundingBox get_local_bounding_box() const;
+        DirectX::BoundingBox get_local_bounding_box(size_t idx) const;
+        DirectX::BoundingBox get_bounding_box(const transform_c& transform) const;
+        DirectX::BoundingBox get_bounding_box(const transform_c& transform, size_t idx) const;
+        DirectX::BoundingOrientedBox get_bounding_oriented_box(const transform_c& transform) const;
+        DirectX::BoundingOrientedBox get_bounding_oriented_box(const transform_c& transform, size_t idx) const;
     };
 }
 

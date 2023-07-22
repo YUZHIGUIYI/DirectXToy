@@ -38,7 +38,6 @@ namespace toy
         //
         // 包围盒线框的创建
         //
-
         // 创建AABB盒线框
         static WireFrameData create_bounding_box(const DirectX::BoundingBox& box, const DirectX::XMFLOAT4& color);
         // 创建OBB盒线框

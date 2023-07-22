@@ -11,8 +11,45 @@
 
 namespace toy
 {
+    // Alias
+    using Vec3f = std::array<float, 3>;
+
     // Color to clear rtv
     const float s_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
+
+    // Update transform
+    std::variant<std::true_type, std::false_type> bool_variant(bool cond)
+    {
+        if (cond) return std::true_type{};
+        else return std::false_type{};
+    }
+
+    void update_transform(TransformComponent& transform_comp, Vec3f& translation, Vec3f& rotation, Vec3f& scale, ImGuizmo::OPERATION operation_type)
+    {
+        auto change_translation = bool_variant(operation_type == ImGuizmo::OPERATION::TRANSLATE);
+        auto change_rotation = bool_variant(operation_type == ImGuizmo::OPERATION::ROTATE);
+        auto change_scale = bool_variant(operation_type == ImGuizmo::OPERATION::SCALE);
+        std::visit([&transform_comp, &translation, &rotation, &scale] (auto translation_changed, auto rotation_changed, auto scale_changed) {
+            if constexpr (translation_changed)
+            {
+                transform_comp.transform.set_position(translation[0], translation[1], translation[2]);
+            } else if constexpr (rotation_changed)
+            {
+                for (auto& each_rotation : rotation)
+                {
+                    each_rotation = DirectX::XMConvertToRadians(each_rotation);
+                }
+                transform_comp.transform.set_rotation(rotation[0], rotation[1], rotation[2]);
+            } else if constexpr (scale_changed)
+            {
+                for (auto& each_scale : scale)
+                {
+                    each_scale = std::clamp(each_scale, 0.1f, 10.0f);
+                }
+                transform_comp.transform.set_scale(scale[0], scale[1], scale[2]);
+            }
+        }, change_translation, change_rotation, change_scale);
+    }
 
     static void show_busy_window(std::string_view busy_reason_text)
     {
@@ -61,7 +98,12 @@ namespace toy
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin(m_viewer_name.data());
-        ImVec2 viewport_size         = ImGui::GetContentRegionAvail();
+
+        auto viewport_size         = ImGui::GetContentRegionAvail();
+        auto viewer_min_region = ImGui::GetWindowContentRegionMin();
+        auto viewer_max_region = ImGui::GetWindowContentRegionMax();
+        auto viewer_offset = ImGui::GetWindowPos();
+
         bool viewport_size_changed = (static_cast<int32_t>(viewport_size.x) != m_viewer_spec.width
                                         || static_cast<int32_t>(viewport_size.y) != m_viewer_spec.height);
         ImGui::End();
@@ -71,6 +113,9 @@ namespace toy
         {
             m_viewer_spec.width = static_cast<int32_t>(viewport_size.x);
             m_viewer_spec.height = static_cast<int32_t>(viewport_size.y);
+
+            m_viewer_spec.lower_bound = DirectX::XMFLOAT2{ viewer_offset.x + viewer_min_region.x, viewer_offset.y + viewer_min_region.y };
+            m_viewer_spec.upper_bound = DirectX::XMFLOAT2{ viewer_offset.x + viewer_max_region.x, viewer_offset.y + viewer_max_region.y };
         }
 
         return viewport_size_changed;
@@ -162,20 +207,70 @@ namespace toy
         if (m_busy) return;
 
         m_busy.store(true);
-        std::thread([this, filename]
+        const std::string extension = std::filesystem::path(filename).extension().string();
+        auto name = std::filesystem::path(filename).filename();
+        if (extension == ".gltf" || extension == ".glb")
         {
-            const std::string extension = std::filesystem::path(filename).extension().string();
-            if (extension == ".gltf" || extension == ".glb")
-            {
-                // TODO: create scene;
-            } else if (extension == ".hdr")
-            {
-                // TODO: create hdr
-            }
+            // TODO: create scene
+            model::ModelManagerHandle::get().create_from_file(filename);
 
-            DX_INFO("Load asset file successfully");
-            m_busy.store(false);
-        }).detach();
+            auto new_entity = m_editor_scene->create_entity(name.string());
+            auto& new_transform = new_entity.add_component<TransformComponent>();
+            new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
+            auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
+            new_mesh.model_asset = model::ModelManagerHandle::get().get_model(filename);
+        } else if (extension == ".hdr")
+        {
+            // TODO: create hdr
+        }
+
+        DX_INFO("Load asset file '{0}' successfully", name);
+        m_busy.store(false);
+    }
+
+    void Viewer::on_gizmo_render(toy::Entity &selected_entity)
+    {
+        // TODO: Begin ImGui Gizmos
+        static ImGuizmo::OPERATION gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
+        bool shift_pressed = DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::LeftShift);
+        if (shift_pressed && !ImGuizmo::IsUsing())
+        {
+            if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F1))
+            {
+                gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
+            } else if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F2))
+            {
+                gizmo_type = ImGuizmo::OPERATION::SCALE;
+            } else if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F3))
+            {
+                gizmo_type = ImGuizmo::OPERATION::ROTATE;
+            }
+        }
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(m_viewer_spec.lower_bound.x, m_viewer_spec.lower_bound.y,
+                            m_viewer_spec.upper_bound.x - m_viewer_spec.lower_bound.x, m_viewer_spec.upper_bound.y - m_viewer_spec.lower_bound.y);
+
+        auto camera_proj = m_camera->get_proj_xm();
+        auto camera_view = m_camera->get_view_xm();
+
+        auto& transform_component = selected_entity.get_component<TransformComponent>();
+        auto transform_matrix = transform_component.transform.get_local_to_world_matrix_xm();
+
+        bool keep_snap = DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::LeftControl);
+        float snap_value = 5.0f;
+        float snap_values[3] = { snap_value, snap_value, snap_value };
+        ImGuizmo::Manipulate((float *)&camera_view, (float *)&camera_proj, (ImGuizmo::OPERATION)gizmo_type, ImGuizmo::LOCAL, (float *)&transform_matrix,
+                                nullptr, keep_snap ? snap_values : nullptr);
+
+        if (ImGuizmo::IsUsing())
+        {
+            std::array<float, 3> translation_vector{};
+            std::array<float, 3> rotation_vector{};
+            std::array<float, 3> scale_vector{};
+            ImGuizmo::DecomposeMatrixToComponents((float *)&transform_matrix, translation_vector.data(), rotation_vector.data(), scale_vector.data());
+            update_transform(transform_component, translation_vector, rotation_vector, scale_vector, gizmo_type);
+        }
     }
 
     void Viewer::on_ui_render()
@@ -287,16 +382,16 @@ namespace toy
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
         ImGui::Begin(m_viewer_name.data());
 
-        auto viewer_min_region = ImGui::GetWindowContentRegionMin();
-        auto viewer_max_region = ImGui::GetWindowContentRegionMax();
-        auto viewer_offset = ImGui::GetWindowPos();
-        m_viewer_spec.lower_bound = DirectX::XMFLOAT2{ viewer_offset.x + viewer_min_region.x, viewer_offset.y + viewer_min_region.y };
-        m_viewer_spec.upper_bound = DirectX::XMFLOAT2{ viewer_offset.x + viewer_max_region.x, viewer_offset.y + viewer_max_region.y };
-
         m_viewer_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
         m_viewer_hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
 
         ImGui::Image(m_viewer_buffer->get_shader_resource(), ImGui::GetContentRegionAvail());
+
+        // Rendering Gizmo
+        if (m_viewer_focused && m_selected_entity.is_valid())
+        {
+            on_gizmo_render(m_selected_entity);
+        }
 
         ImGui::End();
         ImGui::PopStyleVar();
@@ -305,7 +400,7 @@ namespace toy
         m_scene_hierarchy_panel.on_ui_render();
     }
 
-    void Viewer::on_render(float dt)
+    void Viewer::on_update(float dt)
     {
         using namespace DirectX;
 
@@ -324,7 +419,6 @@ namespace toy
         BoundingFrustum frustum{};
         BoundingFrustum::CreateFromMatrix(frustum, m_camera->get_proj_xm());
         frustum.Transform(frustum, m_camera->get_local_to_world_xm());
-//        m_sponza.frustum_culling(frustum);
 
         // TODO: entity
         m_editor_scene->frustum_culling(frustum);
@@ -335,6 +429,25 @@ namespace toy
         {
             update_lights(dt);
         }
+
+        // Pick entity
+        if (!ImGuizmo::IsUsing() && DX_INPUT::is_mouse_button_pressed(m_d3d_app->get_glfw_window(), mouse::ButtonLeft))
+        {
+            auto [mouse_pos_x, mouse_pos_y] = ImGui::GetMousePos();
+            mouse_pos_x -= m_viewer_spec.lower_bound.x;
+            mouse_pos_y -= m_viewer_spec.lower_bound.y;
+            auto pick_anything = m_editor_scene->pick_entity(m_selected_entity, *m_camera, mouse_pos_x, mouse_pos_y);
+            if (m_viewer_focused && m_viewer_hovered && pick_anything)
+            {
+                m_scene_hierarchy_panel.set_selected_entity(m_selected_entity);
+            }
+        }
+    }
+
+    void Viewer::on_render(float dt)
+    {
+        // Update
+        on_update(dt);
 
         // Rendering scene
         ID3D11Device* d3d_device = m_d3d_app->get_device();

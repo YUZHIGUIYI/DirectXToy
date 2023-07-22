@@ -24,6 +24,8 @@ namespace toy
         Entity(Entity&&) = default;
         Entity& operator=(Entity&&) = default;
 
+        [[nodiscard]] bool is_valid() const;
+
         template<typename T, typename ... Args>
         T& add_component(Args&& ... args);
 
@@ -43,6 +45,8 @@ namespace toy
 
         bool operator!=(const Entity& other) const;
     };
+
+    inline bool Entity::is_valid() const { return entity_handle != entt::null; }
 
     template<typename T, typename ... Args>
     T& Entity::add_component(Args&& ... args)

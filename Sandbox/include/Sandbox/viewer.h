@@ -72,6 +72,10 @@ namespace toy
         void render_gbuffer();
         void render_skybox();
 
+        void on_gizmo_render(Entity& selected_entity);
+
+        void on_update(float dt);
+
     private:
         d3d_application_c* m_d3d_app = nullptr;
         std::string_view m_viewer_name;
@@ -135,6 +139,7 @@ namespace toy
 
         // TODO: Scene control via ECS
         std::shared_ptr<Scene> m_editor_scene = nullptr;
+        Entity m_selected_entity{};
         SceneHierarchyPanel m_scene_hierarchy_panel{};
     };
 }

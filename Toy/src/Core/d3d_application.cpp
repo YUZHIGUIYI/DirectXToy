@@ -26,6 +26,7 @@ namespace toy
         {
             m_d3d_immediate_context->ClearState();
         }
+        DX_CORE_INFO("End DXToy engine");
     }
 
     void d3d_application_c::init()
@@ -143,9 +144,6 @@ namespace toy
                 {
                     layer->on_render(current_time - last_time);
                 }
-
-//                update_scene(current_time - last_time);
-//                draw_scene();
 
                 ImGuiPass::end();
                 present();

@@ -54,6 +54,8 @@ namespace toy
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        ImGuizmo::BeginFrame();
+
         // Begin docking space
         static bool docking_space_open = true;
         static bool opt_fullscreen = true;
@@ -168,5 +170,19 @@ namespace toy
         colors[ImGuiCol_TitleBg] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
         colors[ImGuiCol_TitleBgActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
         colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+    }
+
+    void ImGuiPass::set_gizmo_style()
+    {
+        auto&& gizmo_style = ImGuizmo::GetStyle();
+
+        gizmo_style.TranslationLineThickness   = 4.0f;
+        gizmo_style.TranslationLineArrowSize   = 7.0f;
+        gizmo_style.RotationLineThickness      = 3.0f;
+        gizmo_style.RotationOuterLineThickness = 4.0f;
+        gizmo_style.ScaleLineThickness         = 4.0f;
+        gizmo_style.ScaleLineCircleSize        = 7.0f;
+        gizmo_style.HatchedAxisLineThickness   = 7.0f;
+        gizmo_style.CenterCircleSize           = 7.0f;
     }
 }

@@ -24,11 +24,6 @@ namespace toy
 
     void StaticMeshComponent::render(ID3D11DeviceContext *device_context, toy::IEffect &effect, const toy::transform_c &transform)
     {
-        if (!in_frustum || !device_context)
-        {
-            return;
-        }
-
         size_t sz = model_asset->meshes.size();
         size_t fsz = submodel_in_frustum.size();
         for (size_t i = 0; i < sz; ++i)
@@ -68,5 +63,66 @@ namespace toy
                 device_context->DrawIndexed(input.index_count, 0, 0);
             }
         }
+    }
+
+    // Bounding box
+    DirectX::BoundingBox StaticMeshComponent::get_local_bounding_box() const
+    {
+        return model_asset ? model_asset->bounding_box : DirectX::BoundingBox{DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{} };
+    }
+
+    DirectX::BoundingBox StaticMeshComponent::get_local_bounding_box(size_t idx) const
+    {
+        if (!model_asset || model_asset->meshes.size() >= idx)
+        {
+            return DirectX::BoundingBox{ DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{} };
+        }
+        return model_asset->meshes[idx].bounding_box;
+    }
+
+    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const transform_c& transform) const
+    {
+        if (!model_asset)
+        {
+            return DirectX::BoundingBox{ DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{} };
+        }
+        DirectX::BoundingBox box = model_asset->bounding_box;
+        box.Transform(box, transform.get_local_to_world_matrix_xm());
+        return box;
+    }
+
+    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const transform_c& transform, size_t idx) const
+    {
+        if (!model_asset || model_asset->meshes.size() >= idx)
+        {
+            return DirectX::BoundingBox{ DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{} };
+        }
+        DirectX::BoundingBox box = model_asset->meshes[idx].bounding_box;
+        box.Transform(box, transform.get_local_to_world_matrix_xm());
+        return box;
+    }
+
+    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const transform_c& transform) const
+    {
+        if (!model_asset)
+        {
+            return DirectX::BoundingOrientedBox{ DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{}, DirectX::XMFLOAT4{ 0.0f, 0.0f, 0.0f, 1.0f} };
+        }
+        DirectX::BoundingOrientedBox obb;
+        DirectX::BoundingOrientedBox::CreateFromBoundingBox(obb, model_asset->bounding_box);
+        obb.Transform(obb, transform.get_local_to_world_matrix_xm());
+        return obb;
+    }
+
+    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const transform_c& transform, size_t idx) const
+    {
+        if (!model_asset || model_asset->meshes.size() >= idx)
+        {
+            return DirectX::BoundingOrientedBox{ DirectX::XMFLOAT3{}, DirectX::XMFLOAT3{}, DirectX::XMFLOAT4{ 0.0f, 0.0f, 0.0f, 1.0f } };
+        }
+        DirectX::BoundingOrientedBox obb;
+        DirectX::BoundingOrientedBox::CreateFromBoundingBox(obb, model_asset->meshes[idx].bounding_box);
+        obb.Transform(obb, transform.get_local_to_world_matrix_xm());
+        return obb;
     }
 }

@@ -20,5 +20,7 @@ namespace toy
         static void release();
 
         static void set_dark_theme();
+
+        static void set_gizmo_style();
     };
 }
