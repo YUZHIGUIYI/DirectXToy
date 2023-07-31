@@ -486,6 +486,7 @@ namespace toy
                 if (errorBlob != nullptr)
                 {
                     OutputDebugStringA(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
+                    DX_CORE_ERROR("Fail to compile shader file, {0}", reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
                     errorBlob->Release();
                 }
                 return hr;

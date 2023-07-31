@@ -20,16 +20,16 @@ namespace toy
 
         glfwSetWindowCloseCallback(glfw_window, [](GLFWwindow* window)
         {
-            window_close_event_c event{};
+            event_t event = window_close_event_c{};
 
-            event_delegate_factory[0].fire(event);
+            event_delegate_factory[event.index()].fire(event);
         });
 
         glfwSetFramebufferSizeCallback(glfw_window, [](GLFWwindow* window, int32_t width, int32_t height)
         {
-            window_resize_event_c event{ width, height };
+            event_t event = window_resize_event_c{ width, height };
 
-            event_delegate_factory[1].fire(event);
+            event_delegate_factory[event.index()].fire(event);
         });
 
         glfwSetKeyCallback(glfw_window, [](GLFWwindow* window, int32_t key_in, int32_t scan_code, int32_t action, int32_t mods)
@@ -38,20 +38,20 @@ namespace toy
             {
                 case GLFW_PRESS:
                 {
-                    key_pressed_event_c event{static_cast<key_code>(key_in), false};
-                    event_delegate_factory[2].fire(event);
+                    event_t event = key_pressed_event_c{static_cast<key_code>(key_in), false};
+                    event_delegate_factory[event.index()].fire(event);
                     break;
                 }
                 case GLFW_RELEASE:
                 {
-                    key_released_event_c event{static_cast<key_code>(key_in)};
-                    event_delegate_factory[2].fire(event);
+                    event_t event = key_released_event_c{static_cast<key_code>(key_in)};
+                    event_delegate_factory[event.index()].fire(event);
                     break;
                 }
                 case GLFW_REPEAT:
                 {
-                    key_pressed_event_c event{static_cast<key_code>(key_in), true};
-                    event_delegate_factory[2].fire(event);
+                    event_t event = key_pressed_event_c{static_cast<key_code>(key_in), true};
+                    event_delegate_factory[event.index()].fire(event);
                     break;
                 }
             }

@@ -339,6 +339,50 @@ namespace toy
 
         std::unique_ptr<effect_impl> m_effect_impl;
     };
+
+    // FXAA effect - Post processing
+    class FXAAEffect
+    {
+    public:
+        FXAAEffect();
+        ~FXAAEffect() = default;
+
+        FXAAEffect(FXAAEffect&& other) noexcept;
+        FXAAEffect& operator=(FXAAEffect&& other) noexcept;
+
+        // Initialize all resources
+        void init(ID3D11Device* device);
+
+        // FXAA Quality
+        // major = 1, low quality, minor = 0 ... 5
+        // major = 2, middle quality, minor = 0 ... 9
+        // major = 3, high quality, minor = 9
+        void set_quality(int32_t major, int32_t minor);
+        void set_quality_sub_pix(float value);
+        void set_quality_edge_threshold(float threshold);
+        void set_quality_edge_threshold_min(float min_threshold);
+
+        void enable_debug(bool enabled);
+
+        void render_fxaa(ID3D11DeviceContext* device_context, ID3D11ShaderResourceView* input_srv, ID3D11RenderTargetView* output_rtv, const D3D11_VIEWPORT& viewport);
+
+    private:
+        struct EffectImpl
+        {
+            EffectImpl() = default;
+            ~EffectImpl() = default;
+
+            int32_t m_major = 2;
+            int32_t m_minor = 9;
+            int32_t m_enable_debug = 0;
+            float m_quality_sub_pix = 0.75f;
+            float m_quality_edge_threshold = 0.166f;
+            float m_quality_edge_threshold_min = 0.0833f;
+
+            std::unique_ptr<EffectHelper> m_effect_helper = nullptr;
+        };
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
 }
 
 

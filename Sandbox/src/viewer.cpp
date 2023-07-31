@@ -137,6 +137,7 @@ namespace toy
         m_forward_effect.init(d3d_device);
         m_deferred_effect.init(d3d_device);
         m_skybox_effect.init(d3d_device);
+        m_fxaa_effect.init(d3d_device);
 
         // Initialize resource
         init_resource();
@@ -219,6 +220,7 @@ namespace toy
             new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
             auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
             new_mesh.model_asset = model::ModelManagerHandle::get().get_model(filename);
+
         } else if (extension == ".hdr")
         {
             // TODO: create hdr
@@ -353,6 +355,8 @@ namespace toy
                 }
             }
 
+            ImGui::Checkbox("Enable post processing", &m_enable_fxaa);
+
             ImGui::Text(ICON_FA_WEIGHT_SCALE  " Light Height Scale");
             ImGui::PushID(0);
             if (ImGui::SliderFloat("", &m_light_height_scale, 0.25f, 1.0f))
@@ -420,9 +424,7 @@ namespace toy
         BoundingFrustum::CreateFromMatrix(frustum, m_camera->get_proj_xm());
         frustum.Transform(frustum, m_camera->get_local_to_world_xm());
 
-        // TODO: entity
         m_editor_scene->frustum_culling(frustum);
-        // TODO: end
 
         // Update lights
         if (m_animate_lights)
@@ -479,6 +481,8 @@ namespace toy
         }
 
         render_skybox();
+
+        post_process();
 
         // Deferred rendering debug
         if (m_light_cull_technique >= LightCullTechnique::CULL_DEFERRED_NONE)
@@ -544,6 +548,11 @@ namespace toy
         m_forward_effect.set_msaa_samples(1);
         m_deferred_effect.set_msaa_samples(1);
         m_skybox_effect.set_msaa_samples(1);
+        //// FXAA post processing
+        m_fxaa_effect.set_quality_sub_pix(0.75f);
+        m_fxaa_effect.set_quality_edge_threshold(0.166f);
+        m_fxaa_effect.set_quality_edge_threshold_min(0.0833f);
+        m_fxaa_effect.set_quality(3, 9);
 
         // Skybox texture
         model::TextureManagerHandle::get().create_from_file("../data/textures/Clouds.dds");
@@ -557,13 +566,8 @@ namespace toy
         resize_lights(m_active_lights);
         update_lights(0.0f);
 
-        // TODO: entity
+        // ECS
         m_editor_scene = std::make_shared<Scene>();
-        auto sponza_entity = m_editor_scene->create_entity("Sponza");
-        auto& sponza_transform = sponza_entity.add_component<TransformComponent>();
-        sponza_transform.transform.set_scale(0.05f, 0.05f, 0.05f);
-        auto& sponza_mesh = sponza_entity.add_component<StaticMeshComponent>();
-        sponza_mesh.model_asset = model::ModelManagerHandle::get().get_model("../data/models/Sponza/sponza.gltf");
 
         auto skybox_entity = m_editor_scene->create_entity("Skybox");
         skybox_entity.add_component<TransformComponent>();
@@ -652,11 +656,10 @@ namespace toy
         {
             const auto& data = m_point_light_init_data[i];
             float angle = data.angle + totalTime * data.animation_speed;
-            m_point_light_pos_worlds[i] = XMFLOAT3(
+            m_point_light_pos_worlds[i] = XMFLOAT3{
                 data.radius * std::cos(angle),
                 data.height * m_light_height_scale,
-                data.radius * std::sin(angle)
-            );
+                data.radius * std::sin(angle) };
         }
     }
 
@@ -737,6 +740,9 @@ namespace toy
         m_debug_normal_gbuffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM);
         m_debug_posz_grad_gbuffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_FLOAT);
 
+        // Temp buffer for post-processing
+        m_temp_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM);
+
         // Viewer buffer
         m_viewer_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM);
     }
@@ -758,9 +764,7 @@ namespace toy
             d3d_device_context->OMSetRenderTargets(0, nullptr, m_depth_buffer->get_depth_stencil());
             m_forward_effect.set_pre_z_pass_render();
 
-            // TODO: entity
             m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
-            // TODO: end
 
             d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
         }
@@ -790,9 +794,7 @@ namespace toy
 
             m_forward_effect.set_light_buffer(m_light_buffer->get_shader_resource());
 
-            // TODO: entity
             m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
-            // TODO: end
 
             // Clear binding
             m_forward_effect.set_tile_buffer(nullptr);
@@ -836,12 +838,20 @@ namespace toy
     {
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
 
-        d3d_device_context->ClearRenderTargetView(m_viewer_buffer->get_render_target(), s_color);
-        d3d_device_context->ClearRenderTargetView(m_d3d_app->get_back_buffer_rtv(), s_color);
-
         D3D11_VIEWPORT skybox_viewport = m_camera->get_viewport();
         skybox_viewport.MinDepth = 1.0f;
         skybox_viewport.MaxDepth = 1.0f;
+
+        if (m_enable_fxaa)
+        {
+            d3d_device_context->ClearRenderTargetView(m_temp_buffer->get_render_target(), s_color);
+        }
+        else
+        {
+            d3d_device_context->ClearRenderTargetView(m_viewer_buffer->get_render_target(), s_color);
+        }
+        d3d_device_context->ClearRenderTargetView(m_d3d_app->get_back_buffer_rtv(), s_color);
+
         d3d_device_context->RSSetViewports(1, &skybox_viewport);
 
         m_skybox_effect.set_default_render();
@@ -864,7 +874,8 @@ namespace toy
 
         // Full screen draw, do not need depth buffer, do not need to clear back buffer - if you use back buffer as rtv
         // Otherwise you must clear back buffer first
-        ID3D11RenderTargetView* rtvs[1] = { m_viewer_buffer->get_render_target() };
+        ID3D11RenderTargetView* rtvs[1] = { m_temp_buffer->get_render_target() };
+        if (!m_enable_fxaa) rtvs[0] = m_viewer_buffer->get_render_target();
         d3d_device_context->OMSetRenderTargets(1, rtvs, nullptr);
 
         // TODO: entity
@@ -877,6 +888,16 @@ namespace toy
         m_skybox_effect.set_flat_lit_texture(nullptr, 0, 0);
         m_skybox_effect.set_depth_texture(nullptr);
         m_skybox_effect.apply(d3d_device_context);
+    }
+
+    void Viewer::post_process()
+    {
+        if (!m_enable_fxaa) return;
+        ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
+        auto full_screen_viewport = m_camera->get_viewport();
+        full_screen_viewport.MinDepth = 0.0f;
+        full_screen_viewport.MaxDepth = 1.0f;
+        m_fxaa_effect.render_fxaa(d3d_device_context, m_temp_buffer->get_shader_resource(), m_viewer_buffer->get_render_target(), full_screen_viewport);
     }
 }
 

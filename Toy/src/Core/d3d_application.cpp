@@ -61,8 +61,6 @@ namespace toy
 
     void d3d_application_c::on_resize(const event_t &event)
     {
-        DX_CORE_INFO("Resize window");
-
         auto&& window_resize_event = std::get<window_resize_event_c>(event);
 
         if (window_resize_event.window_width == 0 || window_resize_event.window_height == 0)
@@ -73,6 +71,7 @@ namespace toy
         } else
         {
             m_window_minimized = false;
+            DX_CORE_INFO("Resize window");
         }
 
         m_client_width = window_resize_event.window_width;

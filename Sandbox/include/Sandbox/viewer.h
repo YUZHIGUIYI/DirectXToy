@@ -71,6 +71,7 @@ namespace toy
         void render_forward(bool do_pre_z);
         void render_gbuffer();
         void render_skybox();
+        void post_process();
 
         void on_gizmo_render(Entity& selected_entity);
 
@@ -98,6 +99,7 @@ namespace toy
         std::unique_ptr<Texture2D> m_debug_posz_grad_gbuffer;                       // Debug z-grad buffer
         std::unique_ptr<Texture2D> m_debug_albedo_gbuffer;                          // Debug color buffer
 
+        std::unique_ptr<Texture2D> m_temp_buffer;                                   // Prepare for post processing
         std::unique_ptr<Texture2D> m_viewer_buffer;                                 // Viewer image buffer
 
         // Disposable
@@ -116,6 +118,7 @@ namespace toy
         ForwardEffect m_forward_effect;                                             // Forward rendering effect
         DeferredEffect m_deferred_effect;                                           // Deferred rendering effect
         SkyboxEffect m_skybox_effect;                                               // Skybox rendering effect
+        FXAAEffect m_fxaa_effect;                                                   // Post-processing effect - FXAA
 
         // Camera
         std::shared_ptr<camera_c> m_camera;                                         // Camera
@@ -132,12 +135,13 @@ namespace toy
         bool m_visualize_shading_freq = false;
         bool m_clear_gbuffers = false;
         bool m_msaa_samples_changed = false;
+        bool m_enable_fxaa = false;
 
         // Viewer status
         bool m_viewer_focused = false;
         bool m_viewer_hovered = false;
 
-        // TODO: Scene control via ECS
+        // Scene control via ECS
         std::shared_ptr<Scene> m_editor_scene = nullptr;
         Entity m_selected_entity{};
         SceneHierarchyPanel m_scene_hierarchy_panel{};
