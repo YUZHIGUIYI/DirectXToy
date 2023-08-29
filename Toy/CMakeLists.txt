@@ -17,5 +17,7 @@ target_include_directories(Toy PUBLIC "${ICON_FONT_DIR}")
 
 target_precompile_headers(Toy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include/pch.h")
 
+target_compile_definitions(Toy PUBLIC -DDXTOY_HOME=\"${PROJECT_SOURCE_DIR}/\")
+
 set_target_properties(Toy PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${PROJECT_SOURCE_DIR}/lib")
 set_target_properties(Toy PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${PROJECT_SOURCE_DIR}/lib")

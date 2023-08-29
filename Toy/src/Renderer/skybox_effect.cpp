@@ -12,10 +12,33 @@
 
 namespace toy
 {
+    struct SkyboxEffect::EffectImpl
+    {
+        EffectImpl()
+        {
+            DirectX::XMStoreFloat4x4(&m_view, DirectX::XMMatrixIdentity());
+            DirectX::XMStoreFloat4x4(&m_proj, DirectX::XMMatrixIdentity());
+        }
+        ~EffectImpl() = default;
+
+
+        std::unique_ptr<EffectHelper> m_effect_helper;
+
+        std::shared_ptr<IEffectPass> m_curr_effect_pass;
+        com_ptr<ID3D11InputLayout> m_curr_input_layout;
+        com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
+
+        DirectX::XMFLOAT4X4 m_view, m_proj;
+        D3D11_PRIMITIVE_TOPOLOGY m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        uint32_t m_msaa_levels = 1;
+    };
+
     SkyboxEffect::SkyboxEffect()
     {
-        m_effect_impl = std::make_unique<effect_impl>();
+        m_effect_impl = std::make_unique<EffectImpl>();
     }
+
+    SkyboxEffect::~SkyboxEffect() noexcept = default;
 
     SkyboxEffect::SkyboxEffect(toy::SkyboxEffect &&other) noexcept
     {
@@ -31,7 +54,7 @@ namespace toy
     void SkyboxEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
-        m_effect_impl->m_effect_helper->set_binary_cache_directory(L"../data/defer/cache");
+        m_effect_impl->m_effect_helper->set_binary_cache_directory(DXTOY_HOME L"data/defer/cache");
 
         com_ptr<ID3DBlob> blob = nullptr;
         D3D_SHADER_MACRO defines[] = {
@@ -39,7 +62,7 @@ namespace toy
             {nullptr, nullptr}
         };
         // Create vertex shader
-        m_effect_impl->m_effect_helper->create_shader_from_file("SkyboxVS", L"../data/defer/skybox.hlsl", device,
+        m_effect_impl->m_effect_helper->create_shader_from_file("SkyboxVS", DXTOY_HOME L"data/defer/skybox.hlsl", device,
                                                                 "SkyboxVS", "vs_5_0", defines, blob.GetAddressOf());
         auto&& input_layout = VertexPosNormalTex::get_input_layout();
         device->CreateInputLayout(input_layout.data(), (uint32_t)input_layout.size(),
@@ -55,7 +78,7 @@ namespace toy
             std::string msaaSamplesStr = std::to_string(msaa_samples);
             defines[0].Definition = msaaSamplesStr.c_str();
             std::string shaderName = "Skybox_" + msaaSamplesStr + "xMSAA_PS";
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderName, L"../data/defer/skybox.hlsl",
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderName, DXTOY_HOME L"data/defer/skybox.hlsl",
                                                             device, "SkyboxPS", "ps_5_0", defines);
 
             // ******************

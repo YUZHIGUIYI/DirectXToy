@@ -555,10 +555,9 @@ namespace toy
         m_fxaa_effect.set_quality(3, 9);
 
         // Skybox texture
-        model::TextureManagerHandle::get().create_from_file("../data/textures/Clouds.dds");
+        model::TextureManagerHandle::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
 
         // Initialize models
-        model::ModelManagerHandle::get().create_from_file("../data/models/Sponza/sponza.gltf");
         model::ModelManagerHandle::get().create_from_geometry("skyboxCube", geometry::create_box());
 
         // Initialize lighting
@@ -574,7 +573,7 @@ namespace toy
         auto& skybox_mesh = skybox_entity.add_component<StaticMeshComponent>();
         skybox_mesh.model_asset = model::ModelManagerHandle::get().get_model("skyboxCube");
         skybox_mesh.is_skybox = true;
-        skybox_mesh.model_asset->materials[0].set<std::string>("$Skybox", "../data/textures/Clouds.dds");
+        skybox_mesh.model_asset->materials[0].set<std::string>("$Skybox", DXTOY_HOME "data/textures/Clouds.dds");
 
         m_scene_hierarchy_panel.set_context(m_editor_scene);
     }
@@ -588,7 +587,7 @@ namespace toy
         m_point_light_pos_worlds.resize(MAX_LIGHTS);
 
         // Using fixed random number seed to maintain consistency
-        std::mt19937 rng(1337);
+        std::mt19937 rng{ std::random_device{}() };
         constexpr float maxRadius = 100.0f;
         constexpr float attenuationStartFactor = 0.8f;
         std::uniform_real<float> radiusNormDist(0.0f, 1.0f);
@@ -826,9 +825,7 @@ namespace toy
             m_deferred_effect.set_gbuffer_render();
             d3d_device_context->OMSetRenderTargets(uint32_t(m_gbuffers.size()), m_gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
 
-            // TODO: entity
             m_editor_scene->render_scene(d3d_device_context, m_deferred_effect);
-            // TODO: end
 
             d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
         }

@@ -12,10 +12,29 @@
 
 namespace toy
 {
+    struct DeferredEffect::EffectImpl
+    {
+        EffectImpl() = default;
+        ~EffectImpl() = default;
+
+        std::unique_ptr<EffectHelper> m_effect_helper;
+        std::shared_ptr<IEffectPass> m_cur_effect_pass;
+        com_ptr<ID3D11InputLayout> m_cur_input_layout;
+        D3D11_PRIMITIVE_TOPOLOGY m_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+        com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
+        DirectX::XMFLOAT4X4 m_world{};
+        DirectX::XMFLOAT4X4 m_view{};
+        DirectX::XMFLOAT4X4 m_proj{};
+        uint32_t m_msaa_samples = 1;
+    };
+
     DeferredEffect::DeferredEffect()
     {
-        m_effect_impl = std::make_unique<effect_impl>();
+        m_effect_impl = std::make_unique<EffectImpl>();
     }
+
+    DeferredEffect::~DeferredEffect() noexcept = default;
 
     DeferredEffect::DeferredEffect(toy::DeferredEffect &&other) noexcept
     {
@@ -31,7 +50,7 @@ namespace toy
     void DeferredEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
-        m_effect_impl->m_effect_helper->set_binary_cache_directory(L"../data/defer/cache");
+        m_effect_impl->m_effect_helper->set_binary_cache_directory(DXTOY_HOME L"data/defer/cache");
 
         com_ptr<ID3DBlob> blob = nullptr;
         D3D_SHADER_MACRO defines[] = {
@@ -40,9 +59,9 @@ namespace toy
         };
 
         // Create vertex shader and input layout
-        m_effect_impl->m_effect_helper->create_shader_from_file("FullScreenTriangleVS", L"../data/defer/full_screen_triangle.hlsl", device,
+        m_effect_impl->m_effect_helper->create_shader_from_file("FullScreenTriangleVS", DXTOY_HOME L"data/defer/full_screen_triangle.hlsl", device,
                                                                 "FullScreenTriangleVS", "vs_5_0", defines);
-        m_effect_impl->m_effect_helper->create_shader_from_file("GeometryVS", L"../data/defer/gbuffer.hlsl", device,
+        m_effect_impl->m_effect_helper->create_shader_from_file("GeometryVS", DXTOY_HOME L"data/defer/gbuffer.hlsl", device,
                                                                 "GeometryVS", "vs_5_0", defines, blob.GetAddressOf());
         auto&& input_layout = VertexPosNormalTex::get_input_layout();
         device->CreateInputLayout(input_layout.data(), uint32_t(input_layout.size()), blob->GetBufferPointer(), blob->GetBufferSize(),
@@ -64,19 +83,19 @@ namespace toy
                 "ComputeShaderTileDeferred_" + msaaSamplesStr + "xMSAA_CS"
             };
 
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[0], L"../data/defer/gbuffer.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[0], DXTOY_HOME L"data/defer/gbuffer.hlsl", device,
                                                                     "GBufferPS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[1], L"../data/defer/gbuffer.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[1], DXTOY_HOME L"data/defer/gbuffer.hlsl", device,
                                                                     "RequiresPerSampleShadingPS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[2], L"../data/defer/basic_deferred.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[2], DXTOY_HOME L"data/defer/basic_deferred.hlsl", device,
                                                                     "BasicDeferredPS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[3], L"../data/defer/basic_deferred.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[3], DXTOY_HOME L"data/defer/basic_deferred.hlsl", device,
                                                                     "BasicDeferredPerSamplePS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[4], L"../data/defer/gbuffer.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[4], DXTOY_HOME L"data/defer/gbuffer.hlsl", device,
                                                                     "DebugNormalPS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[5], L"../data/defer/gbuffer.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[5], DXTOY_HOME L"data/defer/gbuffer.hlsl", device,
                                                                     "DebugPosZGradPS", "ps_5_0", defines);
-            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[6], L"../data/defer/compute_shader_tile.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(shaderNames[6], DXTOY_HOME L"data/defer/compute_shader_tile.hlsl", device,
                                                                     "ComputeShaderTileDeferredCS", "cs_5_0", defines);
 
             // Create passes

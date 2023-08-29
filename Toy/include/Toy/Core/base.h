@@ -17,6 +17,11 @@
     #define GRAPHICS_DEBUGGER_OBJECT_NAME 1
 #endif
 
+// Home directory - this should be defined by CMakeLists.txt, that is project root directory
+#ifndef DXTOY_HOME
+#define DXTOY_HOME
+#endif
+
 namespace toy
 {
     template<typename T>

@@ -12,10 +12,30 @@
 
 namespace toy
 {
+    struct ForwardEffect::EffectImpl
+    {
+        EffectImpl() = default;
+        ~EffectImpl() = default;
+
+        std::unique_ptr<EffectHelper> m_effect_helper;
+        std::shared_ptr<IEffectPass> m_cur_effect_pass;
+        com_ptr<ID3D11InputLayout> m_cur_input_layout;
+        com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
+        D3D11_PRIMITIVE_TOPOLOGY  m_topology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+
+        DirectX::XMFLOAT4X4 m_world{};
+        DirectX::XMFLOAT4X4 m_view{};
+        DirectX::XMFLOAT4X4 m_proj{};
+
+        uint32_t m_msaa_samples = 1;
+    };
+
     ForwardEffect::ForwardEffect()
     {
-        m_effect_impl = std::make_unique<effect_impl>();
+        m_effect_impl = std::make_unique<EffectImpl>();
     }
+
+    ForwardEffect::~ForwardEffect() noexcept = default;
 
     ForwardEffect::ForwardEffect(toy::ForwardEffect &&other) noexcept
     {

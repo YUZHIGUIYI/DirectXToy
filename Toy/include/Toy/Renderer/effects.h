@@ -10,11 +10,11 @@
 
 namespace toy
 {
-    class BasicEffect : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    class BasicEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
         BasicEffect();
-        ~BasicEffect() override = default;
+        ~BasicEffect() override;
 
         BasicEffect(BasicEffect&& other) noexcept;
         BasicEffect& operator=(BasicEffect&& other) noexcept;
@@ -52,30 +52,16 @@ namespace toy
         void apply(ID3D11DeviceContext * device_context) override;
 
     private:
-        struct effect_impl
-        {
-            effect_impl() = default;
-            ~effect_impl() = default;
+        struct EffectImpl;
 
-            std::unique_ptr<EffectHelper> m_effect_helper;
-            std::shared_ptr<IEffectPass> m_curr_effect_pass;
-            com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
-            com_ptr<ID3D11InputLayout> m_curr_input_layout;
-
-            D3D11_PRIMITIVE_TOPOLOGY m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            DirectX::XMFLOAT4X4 m_world{};
-            DirectX::XMFLOAT4X4 m_view{};
-            DirectX::XMFLOAT4X4 m_proj{};
-        };
-
-        std::unique_ptr<effect_impl> m_effect_impl;
+        std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
-    class SkyboxEffect : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    class SkyboxEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
         SkyboxEffect();
-        ~SkyboxEffect() override = default;
+        ~SkyboxEffect() override;
 
         SkyboxEffect(SkyboxEffect&& other) noexcept;
         SkyboxEffect& operator=(SkyboxEffect&& other) noexcept;
@@ -110,34 +96,16 @@ namespace toy
         void apply(ID3D11DeviceContext * device_context) override;
 
     private:
-        struct effect_impl
-        {
-            effect_impl()
-            {
-                DirectX::XMStoreFloat4x4(&m_view, DirectX::XMMatrixIdentity());
-                DirectX::XMStoreFloat4x4(&m_proj, DirectX::XMMatrixIdentity());
-            }
-            ~effect_impl() = default;
+        struct EffectImpl;
 
-
-            std::unique_ptr<EffectHelper> m_effect_helper;
-
-            std::shared_ptr<IEffectPass> m_curr_effect_pass;
-            com_ptr<ID3D11InputLayout> m_curr_input_layout;
-            com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
-
-            DirectX::XMFLOAT4X4 m_view, m_proj;
-            D3D11_PRIMITIVE_TOPOLOGY m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            uint32_t m_msaa_levels = 1;
-        };
-        std::unique_ptr<effect_impl> m_effect_impl;
+        std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
     class PostProcessEffect
     {
     public:
         PostProcessEffect();
-        ~PostProcessEffect() = default;
+        ~PostProcessEffect();
 
         PostProcessEffect(PostProcessEffect&& other) noexcept;
         PostProcessEffect& operator=(PostProcessEffect&& other) noexcept;
@@ -165,27 +133,17 @@ namespace toy
                                         uint32_t width, uint32_t height);
 
     private:
-        struct effect_impl
-        {
-            effect_impl() = default;
-            ~effect_impl() = default;
+        struct EffectImpl;
 
-            std::unique_ptr<EffectHelper> m_effect_helper;
-
-            std::vector<float> m_weights;
-            int32_t m_blur_radius = 3;
-            float m_blur_sigma = 1.0f;
-        };
-
-        std::unique_ptr<effect_impl> m_effect_impl;
+        std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
     // Forward effect
-    class ForwardEffect : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    class ForwardEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
         ForwardEffect();
-        ~ForwardEffect() override = default;
+        ~ForwardEffect() override;
 
         ForwardEffect(ForwardEffect&& other) noexcept;
         ForwardEffect& operator=(ForwardEffect&& other) noexcept;
@@ -232,33 +190,17 @@ namespace toy
         void apply(ID3D11DeviceContext* device_context) override;
 
     private:
-        struct effect_impl
-        {
-            effect_impl() = default;
-            ~effect_impl() = default;
+        struct EffectImpl;
 
-            std::unique_ptr<EffectHelper> m_effect_helper;
-            std::shared_ptr<IEffectPass> m_cur_effect_pass;
-            com_ptr<ID3D11InputLayout> m_cur_input_layout;
-            com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
-            D3D11_PRIMITIVE_TOPOLOGY  m_topology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
-
-            DirectX::XMFLOAT4X4 m_world{};
-            DirectX::XMFLOAT4X4 m_view{};
-            DirectX::XMFLOAT4X4 m_proj{};
-
-            uint32_t m_msaa_samples = 1;
-        };
-
-        std::unique_ptr<effect_impl> m_effect_impl;
+        std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
     // Deferred effect
-    class DeferredEffect : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    class DeferredEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
         DeferredEffect();
-        ~DeferredEffect() override = default;
+        ~DeferredEffect() override;
 
         DeferredEffect(DeferredEffect&& other) noexcept;
         DeferredEffect& operator=(DeferredEffect&& other) noexcept;
@@ -320,24 +262,9 @@ namespace toy
         void apply(ID3D11DeviceContext* device_context) override;
 
     private:
-        struct effect_impl
-        {
-            effect_impl() = default;
-            ~effect_impl() = default;
+        struct EffectImpl;
 
-            std::unique_ptr<EffectHelper> m_effect_helper;
-            std::shared_ptr<IEffectPass> m_cur_effect_pass;
-            com_ptr<ID3D11InputLayout> m_cur_input_layout;
-            D3D11_PRIMITIVE_TOPOLOGY m_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-            com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
-            DirectX::XMFLOAT4X4 m_world{};
-            DirectX::XMFLOAT4X4 m_view{};
-            DirectX::XMFLOAT4X4 m_proj{};
-            uint32_t m_msaa_samples = 1;
-        };
-
-        std::unique_ptr<effect_impl> m_effect_impl;
+        std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
     // FXAA effect - Post processing
@@ -345,7 +272,7 @@ namespace toy
     {
     public:
         FXAAEffect();
-        ~FXAAEffect() = default;
+        ~FXAAEffect();
 
         FXAAEffect(FXAAEffect&& other) noexcept;
         FXAAEffect& operator=(FXAAEffect&& other) noexcept;
@@ -367,20 +294,8 @@ namespace toy
         void render_fxaa(ID3D11DeviceContext* device_context, ID3D11ShaderResourceView* input_srv, ID3D11RenderTargetView* output_rtv, const D3D11_VIEWPORT& viewport);
 
     private:
-        struct EffectImpl
-        {
-            EffectImpl() = default;
-            ~EffectImpl() = default;
+        struct EffectImpl;
 
-            int32_t m_major = 2;
-            int32_t m_minor = 9;
-            int32_t m_enable_debug = 0;
-            float m_quality_sub_pix = 0.75f;
-            float m_quality_edge_threshold = 0.166f;
-            float m_quality_edge_threshold_min = 0.0833f;
-
-            std::unique_ptr<EffectHelper> m_effect_helper = nullptr;
-        };
         std::unique_ptr<EffectImpl> m_effect_impl;
     };
 }

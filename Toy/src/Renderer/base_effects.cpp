@@ -12,10 +12,28 @@
 
 namespace toy
 {
+    struct BasicEffect::EffectImpl
+    {
+        EffectImpl() = default;
+        ~EffectImpl() = default;
+
+        std::unique_ptr<EffectHelper> m_effect_helper;
+        std::shared_ptr<IEffectPass> m_curr_effect_pass;
+        com_ptr<ID3D11InputLayout> m_vertex_pos_normal_tex_layout;
+        com_ptr<ID3D11InputLayout> m_curr_input_layout;
+
+        D3D11_PRIMITIVE_TOPOLOGY m_curr_topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        DirectX::XMFLOAT4X4 m_world{};
+        DirectX::XMFLOAT4X4 m_view{};
+        DirectX::XMFLOAT4X4 m_proj{};
+    };
+
     BasicEffect::BasicEffect()
     {
-        m_effect_impl = std::make_unique<effect_impl>();
+        m_effect_impl = std::make_unique<EffectImpl>();
     }
+
+    BasicEffect::~BasicEffect() noexcept = default;
 
     BasicEffect::BasicEffect(toy::BasicEffect &&other) noexcept
     {

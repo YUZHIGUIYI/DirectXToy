@@ -11,10 +11,28 @@
 
 namespace toy
 {
+    struct FXAAEffect::EffectImpl
+    {
+        EffectImpl() = default;
+        ~EffectImpl() = default;
+
+        int32_t m_major = 2;
+        int32_t m_minor = 9;
+        int32_t m_enable_debug = 0;
+        float m_quality_sub_pix = 0.75f;
+        float m_quality_edge_threshold = 0.166f;
+        float m_quality_edge_threshold_min = 0.0833f;
+
+        std::unique_ptr<EffectHelper> m_effect_helper = nullptr;
+    };
+
+
     FXAAEffect::FXAAEffect()
     {
         m_effect_impl = std::make_unique<EffectImpl>();
     }
+
+    FXAAEffect::~FXAAEffect() = default;
 
     FXAAEffect::FXAAEffect(toy::FXAAEffect &&other) noexcept
     {
@@ -30,7 +48,7 @@ namespace toy
     void FXAAEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
-        m_effect_impl->m_effect_helper->set_binary_cache_directory(L"../data/defer/cache");
+        m_effect_impl->m_effect_helper->set_binary_cache_directory(DXTOY_HOME L"data/defer/cache");
 
         std::array<std::string_view, 17> strs{
             "10", "11", "12", "13", "14", "15",
@@ -42,7 +60,7 @@ namespace toy
             D3D_SHADER_MACRO{ nullptr, nullptr } };
 
         // Create vertex shader
-        m_effect_impl->m_effect_helper->create_shader_from_file("FullScreenTriangleTexcoordVS", L"../data/defer/fxaa.hlsl", device,
+        m_effect_impl->m_effect_helper->create_shader_from_file("FullScreenTriangleTexcoordVS", DXTOY_HOME L"data/defer/fxaa.hlsl", device,
                                                                 "FullScreenTriangleTexcoordVS", "vs_5_0");
 
         // major quality, minor quality, debug mode
@@ -61,7 +79,7 @@ namespace toy
             defines[1].Name = "DEBUG_OUTPUT";
             defines[1].Definition = "";
             // Create pixel shader - for Debug
-            m_effect_impl->m_effect_helper->create_shader_from_file(ps_name, L"../data/defer/fxaa.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(ps_name, DXTOY_HOME L"data/defer/fxaa.hlsl", device,
                                                             "PS", "ps_5_0", defines.data());
             // Create pixel pass
             pass_desc.namePS = ps_name;
@@ -71,7 +89,7 @@ namespace toy
             defines[1].Name = nullptr;
             defines[1].Definition = nullptr;
             // Create pixel shader
-            m_effect_impl->m_effect_helper->create_shader_from_file(ps_name, L"../data/defer/fxaa.hlsl", device,
+            m_effect_impl->m_effect_helper->create_shader_from_file(ps_name, DXTOY_HOME L"data/defer/fxaa.hlsl", device,
                                                                 "PS", "ps_5_0", defines.data());
             // Create pixel pass
             pass_desc.namePS = ps_name;

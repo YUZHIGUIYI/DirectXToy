@@ -30,12 +30,26 @@ namespace toy
         }
     }
 
+    struct PostProcessEffect::EffectImpl
+    {
+        EffectImpl() = default;
+        ~EffectImpl() = default;
+
+        std::unique_ptr<EffectHelper> m_effect_helper;
+
+        std::vector<float> m_weights;
+        int32_t m_blur_radius = 3;
+        float m_blur_sigma = 1.0f;
+    };
+
     PostProcessEffect::PostProcessEffect()
     {
-        m_effect_impl = std::make_unique<effect_impl>();
+        m_effect_impl = std::make_unique<EffectImpl>();
 
         m_effect_impl->m_weights.resize(32);
     }
+
+    PostProcessEffect::~PostProcessEffect() = default;
 
     PostProcessEffect::PostProcessEffect(toy::PostProcessEffect &&other) noexcept
     {
