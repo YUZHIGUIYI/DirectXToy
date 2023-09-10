@@ -35,9 +35,9 @@ namespace toy
         void set_debug_object_name(std::string_view name);
 
     protected:
-        com_ptr<ID3D11Buffer> m_buffer;
-        com_ptr<ID3D11ShaderResourceView> m_shader_resource;
-        com_ptr<ID3D11UnorderedAccessView> m_unordered_access;
+        com_ptr<ID3D11Buffer> m_buffer = nullptr;
+        com_ptr<ID3D11ShaderResourceView> m_shader_resource = nullptr;
+        com_ptr<ID3D11UnorderedAccessView> m_unordered_access = nullptr;
         uint32_t m_byte_width = 0;
     };
 

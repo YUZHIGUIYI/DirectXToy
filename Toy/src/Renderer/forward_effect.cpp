@@ -193,7 +193,7 @@ namespace toy
         pass->apply(device_context);
 
         // Dispatch
-        pass->dispatch(device_context, texDesc.Width, texDesc.Height);
+        pass->dispatch(device_context, texDesc.Width, texDesc.Height, 1);
 
         // Clear
         auto& effect_helper = m_effect_impl->m_effect_helper;

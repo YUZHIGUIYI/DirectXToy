@@ -20,6 +20,8 @@ namespace toy
 
         Scene() = default;
 
+        Entity get_skybox_entity();
+
         Entity create_entity(std::string_view entity_name);
         void destroy_entity(const Entity& entity);
 

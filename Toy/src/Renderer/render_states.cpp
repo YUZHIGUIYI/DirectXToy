@@ -89,11 +89,13 @@ namespace toy
         sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
         sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
         sampler_desc.MaxAnisotropy = 0;
+        sampler_desc.MinLOD = 0.0f;
+        sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
         device->CreateSamplerState(&sampler_desc, ss_linear_wrap.GetAddressOf());
 
         // 16x anisotropic filter and wrap mode
         sampler_desc.Filter = D3D11_FILTER_ANISOTROPIC;
-        sampler_desc.MaxAnisotropy =16;
+        sampler_desc.MaxAnisotropy = 16;
         device->CreateSamplerState(&sampler_desc, ss_anisotropic_wrap_16x.GetAddressOf());
 
         // Depth comparison and border mode

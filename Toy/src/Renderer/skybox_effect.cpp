@@ -132,9 +132,15 @@ namespace toy
     {
         auto&& texture_manager = model::TextureManagerHandle::get();
 
-        auto texture_id_str = material.try_get<std::string>("$Skybox");
-        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",
-                                                                    texture_id_str ? texture_manager.get_texture(*texture_id_str) : nullptr);
+        if (auto env_map_srv = PreProcessEffect::get().get_environment_srv())
+        {
+            m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",env_map_srv);
+        } else
+        {
+            auto texture_id_str = material.try_get<std::string>("$Skybox");
+            m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",
+                                                                        texture_id_str ? texture_manager.get_texture(*texture_id_str) : nullptr);
+        }
     }
 
     MeshDataInput SkyboxEffect::get_input_data(const model::MeshData &mesh_data)
@@ -154,6 +160,11 @@ namespace toy
         input.index_count = mesh_data.index_count;
 
         return input;
+    }
+
+    void SkyboxEffect::set_texture_cube(ID3D11ShaderResourceView* skybox_texture)
+    {
+        m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture", skybox_texture);
     }
 
     void SkyboxEffect::set_depth_texture(ID3D11ShaderResourceView *depth_texture)

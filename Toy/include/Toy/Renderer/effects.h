@@ -82,6 +82,8 @@ namespace toy
         // Draw by default state
         void set_default_render();
 
+        // Set texture cube
+        void set_texture_cube(ID3D11ShaderResourceView* skybox_texture);
         // Set depth resource view
         void set_depth_texture(ID3D11ShaderResourceView* depth_texture);
         // Set scene rendering resource view
@@ -292,6 +294,40 @@ namespace toy
         void enable_debug(bool enabled);
 
         void render_fxaa(ID3D11DeviceContext* device_context, ID3D11ShaderResourceView* input_srv, ID3D11RenderTargetView* output_rtv, const D3D11_VIEWPORT& viewport);
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    // PBR pre-processing effect
+    class PreProcessEffect
+    {
+    public:
+        PreProcessEffect();
+        ~PreProcessEffect();
+
+        PreProcessEffect(PreProcessEffect&& other) noexcept;
+        PreProcessEffect& operator=(PreProcessEffect&& other) noexcept;
+
+        // Initialize all resources
+        void init(ID3D11Device* device);
+
+        // Convert HDR image to cube map
+        void compute_cubemap(ID3D11Device *device, ID3D11DeviceContext *device_context, std::string_view file_path);
+
+        void compute_sp_env_map(ID3D11Device *device, ID3D11DeviceContext *device_context);
+
+        void compute_irradiance_map(ID3D11Device *device, ID3D11DeviceContext *device_context);
+
+        void compute_brdf_lut(ID3D11Device *device, ID3D11DeviceContext *device_context);
+
+        // Get environment map shader resource view
+        ID3D11ShaderResourceView* get_environment_srv() const;
+
+        // Singleton
+        static PreProcessEffect& get();
 
     private:
         struct EffectImpl;

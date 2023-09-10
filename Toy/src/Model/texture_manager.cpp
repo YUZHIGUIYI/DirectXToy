@@ -13,7 +13,7 @@ namespace toy::model
 {
     struct del
     {
-        void operator()(uint8_t *pixel_data)
+        void operator()(uint8_t *pixel_data) const
         {
             stbi_image_free(pixel_data);
         }
@@ -65,10 +65,24 @@ namespace toy::model
         com_ptr<ID3D11Texture2D> texture = nullptr;
         int32_t width = 0, height = 0, comp = 0;
 
-        std::unique_ptr<uint8_t, del> img_data(stbi_load(filename.data(), &width, &height, &comp, STBI_rgb_alpha));
+        uint8_t* pixels = nullptr;
+        auto is_hdr = stbi_is_hdr(filename.data());
+        if (is_hdr)
+        {
+            auto float_pixels = stbi_loadf(filename.data(), &width, &height, &comp, STBI_rgb_alpha);
+            pixels = reinterpret_cast<uint8_t *>(float_pixels);
+            DX_CORE_INFO("Load HDR image: {}", filename);
+        } else
+        {
+            pixels = stbi_load(filename.data(), &width, &height, &comp, STBI_rgb_alpha);
+        }
+
+        std::unique_ptr<uint8_t, del> img_data(pixels);
         if (img_data)
         {
-            CD3D11_TEXTURE2D_DESC tex_desc(force_SRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM,
+            DXGI_FORMAT texture_format = is_hdr ? DXGI_FORMAT_R32G32B32A32_FLOAT : (force_SRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
+            uint32_t row_pitch = is_hdr ? (static_cast<uint32_t>(STBI_rgb_alpha) * width * sizeof(float)) : (static_cast<uint32_t>(STBI_rgb_alpha) * width * sizeof(uint8_t));
+            CD3D11_TEXTURE2D_DESC tex_desc(texture_format,
                                             width, height, 1,
                                             enable_mips ? 0 : 1,
                                             D3D11_BIND_SHADER_RESOURCE | (enable_mips ? D3D11_BIND_RENDER_TARGET : 0),
@@ -77,10 +91,9 @@ namespace toy::model
 
             m_device->CreateTexture2D(&tex_desc, nullptr, texture.GetAddressOf());
             // Upload texture data
-            m_device_context->UpdateSubresource(texture.Get(), 0, nullptr, img_data.get(), width * sizeof(uint32_t), 0);
+            m_device_context->UpdateSubresource(texture.Get(), 0, nullptr, img_data.get(), row_pitch, 0);
             // Create SRV
-            CD3D11_SHADER_RESOURCE_VIEW_DESC srv_desc(D3D11_SRV_DIMENSION_TEXTURE2D,
-                                                        force_SRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
+            CD3D11_SHADER_RESOURCE_VIEW_DESC srv_desc(D3D11_SRV_DIMENSION_TEXTURE2D,texture_format);
             m_device->CreateShaderResourceView(texture.Get(), &srv_desc, res.ReleaseAndGetAddressOf());
             // Generate mipmap
             if (enable_mips)

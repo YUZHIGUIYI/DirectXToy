@@ -328,7 +328,7 @@ namespace toy
         std::string passName = "ComputeShaderTileDeferred_" + std::to_string(m_effect_impl->m_msaa_samples) + "xMSAA";
         auto pPass = m_effect_impl->m_effect_helper->get_effect_pass(passName);
         pPass->apply(device_context);
-        pPass->dispatch(device_context, texDesc.Width, texDesc.Height);
+        pPass->dispatch(device_context, texDesc.Width, texDesc.Height, 1);
 
         // Clear
         int32_t slot = m_effect_impl->m_effect_helper->map_unordered_access_slot("g_Framebuffer");

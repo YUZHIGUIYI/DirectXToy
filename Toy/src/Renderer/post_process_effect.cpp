@@ -121,7 +121,7 @@ namespace toy
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_Input", input);
         m_effect_impl->m_effect_helper->set_unordered_access_by_name("g_Output", output);
         pass->apply(device_context);
-        pass->dispatch(device_context, width, height);
+        pass->dispatch(device_context, width, height, 1);
 
         // Clear
         input = nullptr;
@@ -163,7 +163,7 @@ namespace toy
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_Input", input);
         m_effect_impl->m_effect_helper->set_unordered_access_by_name("g_Output", output);
         pass->apply(device_context);
-        pass->dispatch(device_context, width, height);
+        pass->dispatch(device_context, width, height, 1);
 
         // Clear
         input = nullptr;
@@ -183,7 +183,7 @@ namespace toy
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_Input", input);
         m_effect_impl->m_effect_helper->set_unordered_access_by_name("g_Output", output);
         pass->apply(device_context);
-        pass->dispatch(device_context, width, height);
+        pass->dispatch(device_context, width, height, 1);
 
         // Clear
         input = nullptr;

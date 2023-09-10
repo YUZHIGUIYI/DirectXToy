@@ -7,6 +7,37 @@
 
 namespace toy
 {
+    struct EffectHelper::EffectHelperImpl
+    {
+        EffectHelperImpl() { clear(); }
+        ~EffectHelperImpl() = default;
+
+        // Update shader reflection information
+        HRESULT update_shader_reflection(std::string_view name, ID3D11Device* device, ID3D11ShaderReflection* p_shader_reflection, uint32_t shader_flag);
+        // Clear all resources and reflection information
+        void clear();
+        // Create identifier
+        HRESULT create_shader_from_blob(std::string_view name, ID3D11Device* device, uint32_t shader_flag, ID3DBlob* blob);
+
+        std::unordered_map<size_t, std::shared_ptr<EffectPass>> m_EffectPasses;			                    // Render pass
+
+        std::unordered_map<size_t, std::shared_ptr<ConstantBufferVariable>> m_ConstantBufferVariables;      // Constant buffer variable
+        std::unordered_map<uint32_t, CBufferData> m_CBuffers;											    // Constant buffer cache data
+        std::unordered_map<uint32_t, ShaderResource> m_ShaderResources;									    // Shader resource
+        std::unordered_map<uint32_t, SamplerState> m_Samplers;											    // Sampler
+        std::unordered_map<uint32_t, RWResource> m_RWResources;											    // Readable and writable resources
+
+        std::unordered_map<size_t, std::shared_ptr<VertexShaderInfo>> m_VertexShaders;	        // Vertex shader
+        std::unordered_map<size_t, std::shared_ptr<HullShaderInfo>> m_HullShaders;		        // Hull shader
+        std::unordered_map<size_t, std::shared_ptr<DomainShaderInfo>> m_DomainShaders;	        // Domain shader
+        std::unordered_map<size_t, std::shared_ptr<GeometryShaderInfo>> m_GeometryShaders;      // Geometry shader
+        std::unordered_map<size_t, std::shared_ptr<PixelShaderInfo>> m_PixelShaders;		    // Pixel shader
+        std::unordered_map<size_t, std::shared_ptr<ComputeShaderInfo>> m_ComputeShaders;	    // Compute shader
+
+        std::filesystem::path m_cache_dir;              // Cache path
+        bool m_force_write = false;                     // Force to store after compiling
+    };
+
 #define EFFECTHELPER_CREATE_SHADER(FullShaderType, ShaderType)\
 {\
     m_##FullShaderType##s[nameID] = std::make_shared<FullShaderType##Info>();\
@@ -139,9 +170,8 @@ namespace toy
 }\
 
     // Effect helper implementation
-    HRESULT effect_helper_c::impl_c::update_shader_reflection(std::string_view name, ID3D11Device *device,
-                                                                ID3D11ShaderReflection *p_shader_reflection,
-                                                                uint32_t shader_flag)
+    HRESULT effect_helper_c::EffectHelperImpl::update_shader_reflection(std::string_view name, ID3D11Device *device,
+                                                                    ID3D11ShaderReflection *p_shader_reflection, uint32_t shader_flag)
     {
         HRESULT hr;
 
@@ -343,7 +373,7 @@ namespace toy
         return S_OK;
     }
 
-    void effect_helper_c::impl_c::clear()
+    void effect_helper_c::EffectHelperImpl::clear()
     {
         m_CBuffers.clear();
 
@@ -360,7 +390,7 @@ namespace toy
         m_ComputeShaders.clear();
     }
 
-    HRESULT effect_helper_c::impl_c::create_shader_from_blob(std::string_view name, ID3D11Device* device, uint32_t shader_flag, ID3DBlob* blob)
+    HRESULT effect_helper_c::EffectHelperImpl::create_shader_from_blob(std::string_view name, ID3D11Device* device, uint32_t shader_flag, ID3DBlob* blob)
     {
         HRESULT hr = 0;
         com_ptr<ID3D11VertexShader> pVS;
@@ -369,7 +399,7 @@ namespace toy
         com_ptr<ID3D11GeometryShader> pGS;
         com_ptr<ID3D11PixelShader> pPS;
         com_ptr<ID3D11ComputeShader> pCS;
-        // 创建着色器
+        // Create shader
         size_t nameID = string_to_id(name);
         switch (shader_flag)
         {
@@ -385,11 +415,11 @@ namespace toy
     }
 
     // Effect helper
-    effect_helper_c::effect_helper_c()
-    : p_impl_(std::make_unique<effect_helper_c::impl_c>())
+    effect_helper_c::effect_helper_c() : p_impl_(std::make_unique<effect_helper_c::EffectHelperImpl>())
     {
-
     }
+
+    effect_helper_c::~effect_helper_c() = default;
 
     HRESULT effect_helper_c::add_shader(std::string_view name, ID3D11Device *device, ID3DBlob *blob)
     {
@@ -936,8 +966,7 @@ namespace toy
         deviceContext->OMSetDepthStencilState(pDepthStencilState.Get(), stencilRef);
     }
 
-    void EffectPass::dispatch(ID3D11DeviceContext *deviceContext, uint32_t threadX, uint32_t threadY,
-                                uint32_t threadZ)
+    void EffectPass::dispatch(ID3D11DeviceContext *deviceContext, uint32_t threadX, uint32_t threadY, uint32_t threadZ)
     {
         if (!pCSInfo)
         {

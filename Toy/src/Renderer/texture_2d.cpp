@@ -42,6 +42,17 @@ namespace toy
         }
     }
 
+    template<typename T>
+    static constexpr T compute_mipmap_levels(T width, T height)
+    {
+        T levels = 1;
+        while ((width|height) >> levels)
+        {
+            ++levels;
+        }
+        return levels;
+    }
+
     // Texture 2d base
     Texture2DBase::Texture2DBase(ID3D11Device *device, const CD3D11_TEXTURE2D_DESC &tex_desc,
                                     const CD3D11_SHADER_RESOURCE_VIEW_DESC &srv_desc)
@@ -50,7 +61,17 @@ namespace toy
         m_texture.Reset();
         m_texture_srv.Reset();
 
-        device->CreateTexture2D(&tex_desc, nullptr, m_texture.GetAddressOf());
+        auto modified_texture_desc = tex_desc;
+        // Only available for TextureCube and Texture2D
+        // FIXME
+        if (tex_desc.MipLevels == 0)
+        {
+            modified_texture_desc.MipLevels = compute_mipmap_levels(tex_desc.Width, tex_desc.Height);
+            modified_texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+            modified_texture_desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        }
+
+        device->CreateTexture2D(&modified_texture_desc, nullptr, m_texture.GetAddressOf());
         if (!m_texture)
         {
             DX_CORE_CRITICAL("Fail to create 2d texture");
@@ -61,7 +82,7 @@ namespace toy
         m_texture->GetDesc(&desc);
 
         // Create shader resource view
-        if ((desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
+        if (desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
         {
             device->CreateShaderResourceView(m_texture.Get(), &srv_desc, m_texture_srv.GetAddressOf());
         }
@@ -84,11 +105,14 @@ namespace toy
         {
             device->CreateRenderTargetView(m_texture.Get(), nullptr, m_texture_rtv.GetAddressOf());
         }
-        if (bind_flags & D3D11_BIND_UNORDERED_ACCESS)
-        {
-            //CD3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc{ D3D11_UAV_DIMENSION_TEXTURE2D, format };
-            device->CreateUnorderedAccessView(m_texture.Get(), nullptr, m_texture_uav.GetAddressOf());
-        }
+//        if (bind_flags & D3D11_BIND_UNORDERED_ACCESS)
+//        {
+//            D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
+//            uav_desc.Format = desc.Format;
+//            uav_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+//            uav_desc.Texture2D.MipSlice = 0;
+//            device->CreateUnorderedAccessView(m_texture.Get(), &uav_desc, m_texture_uav.GetAddressOf());
+//        }
     }
 
     void Texture2D::set_debug_object_name(std::string_view name)
@@ -119,7 +143,7 @@ namespace toy
     TextureCube::TextureCube(ID3D11Device *device, uint32_t width, uint32_t height, DXGI_FORMAT format,
                                 uint32_t mip_levels, uint32_t bind_flags)
     : Texture2DBase(device, CD3D11_TEXTURE2D_DESC{ format, width, height, 6, mip_levels, bind_flags, D3D11_USAGE_DEFAULT,
-                    0, 1, 0, D3D11_RESOURCE_MISC_TEXTURECUBE},
+                    0, 1, 0, D3D11_RESOURCE_MISC_TEXTURECUBE },
                     CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_TEXTURECUBE, format })
     {
         D3D11_TEXTURE2D_DESC desc{};
@@ -146,42 +170,42 @@ namespace toy
             device->CreateRenderTargetView(m_texture.Get(), &rtv_desc, m_texture_array_rtv.GetAddressOf());
         }
 
-        if (bind_flags & D3D11_BIND_UNORDERED_ACCESS)
-        {
-            // Single sub resource
-            m_unordered_access_elements.reserve(6);
-            for (uint32_t i = 0; i <  6; ++i)
-            {
-                CD3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc{
-                    D3D11_UAV_DIMENSION_TEXTURE2DARRAY,
-                    format,
-                    0, i, 1
-                };
+//        if (bind_flags & D3D11_BIND_UNORDERED_ACCESS)
+//        {
+//            // Single sub resource
+//            m_unordered_access_elements.reserve(6);
+//            for (uint32_t i = 0; i <  6; ++i)
+//            {
+//                CD3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc{
+//                    D3D11_UAV_DIMENSION_TEXTURE2DARRAY,
+//                    format,
+//                    0, i, 1
+//                };
+//
+//                com_ptr<ID3D11UnorderedAccessView> uav = nullptr;
+//                device->CreateUnorderedAccessView(m_texture.Get(), &uav_desc, uav.GetAddressOf());
+//                m_unordered_access_elements.push_back(uav);
+//            }
+//        }
 
-                com_ptr<ID3D11UnorderedAccessView> uav = nullptr;
-                device->CreateUnorderedAccessView(m_texture.Get(), &uav_desc, uav.GetAddressOf());
-                m_unordered_access_elements.push_back(uav);
-            }
-        }
-
-        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
-        {
-            // Single sub resource
-            m_shader_resource_elements.reserve(6);
-            for (uint32_t i = 0; i < 6; ++i)
-            {
-                CD3D11_SHADER_RESOURCE_VIEW_DESC srv_desc{
-                    D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
-                    format,
-                    0, uint32_t(-1),
-                    i, 1
-                };
-
-                com_ptr<ID3D11ShaderResourceView> srv = nullptr;
-                device->CreateShaderResourceView(m_texture.Get(), &srv_desc, srv.GetAddressOf());
-                m_shader_resource_elements.push_back(srv);
-            }
-        }
+//        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
+//        {
+//            // Single sub resource
+//            m_shader_resource_elements.reserve(6);
+//            for (uint32_t i = 0; i < 6; ++i)
+//            {
+//                CD3D11_SHADER_RESOURCE_VIEW_DESC srv_desc{
+//                    D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+//                    format,
+//                    0, uint32_t(-1),
+//                    i, 1
+//                };
+//
+//                com_ptr<ID3D11ShaderResourceView> srv = nullptr;
+//                device->CreateShaderResourceView(m_texture.Get(), &srv_desc, srv.GetAddressOf());
+//                m_shader_resource_elements.push_back(srv);
+//            }
+//        }
     }
 
     void TextureCube::set_debug_object_name(std::string_view name)

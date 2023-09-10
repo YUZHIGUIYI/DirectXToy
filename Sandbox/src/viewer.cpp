@@ -99,10 +99,10 @@ namespace toy
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin(m_viewer_name.data());
 
-        auto viewport_size         = ImGui::GetContentRegionAvail();
+        auto viewport_size     = ImGui::GetContentRegionAvail();
         auto viewer_min_region = ImGui::GetWindowContentRegionMin();
         auto viewer_max_region = ImGui::GetWindowContentRegionMax();
-        auto viewer_offset = ImGui::GetWindowPos();
+        auto viewer_offset     = ImGui::GetWindowPos();
 
         bool viewport_size_changed = (static_cast<int32_t>(viewport_size.x) != m_viewer_spec.width
                                         || static_cast<int32_t>(viewport_size.y) != m_viewer_spec.height);
@@ -138,6 +138,7 @@ namespace toy
         m_deferred_effect.init(d3d_device);
         m_skybox_effect.init(d3d_device);
         m_fxaa_effect.init(d3d_device);
+        PreProcessEffect::get().init(d3d_device);
 
         // Initialize resource
         init_resource();
@@ -223,10 +224,15 @@ namespace toy
 
         } else if (extension == ".hdr")
         {
-            // TODO: create hdr
+            auto d3d_device = m_d3d_app->get_device();
+            auto d3d_device_context = m_d3d_app->get_device_context();
+            PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, filename);
+            PreProcessEffect::get().compute_sp_env_map(d3d_device, d3d_device_context);
+            PreProcessEffect::get().compute_irradiance_map(d3d_device, d3d_device_context);
+            PreProcessEffect::get().compute_brdf_lut(d3d_device, d3d_device_context);
         }
 
-        DX_INFO("Load asset file '{0}' successfully", name);
+        DX_INFO("Load asset file {} successfully", name);
         m_busy.store(false);
     }
 

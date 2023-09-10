@@ -23,6 +23,11 @@ namespace toy
         registry_handle.destroy(entity.entity_handle);
     }
 
+    Entity Scene::get_skybox_entity()
+    {
+        return Entity{ skybox_entity, this };
+    }
+
     void Scene::frustum_culling(const DirectX::BoundingFrustum &frustum_in_world)
     {
         general_static_mesh_entities.clear();

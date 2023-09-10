@@ -56,7 +56,7 @@ namespace toy
         virtual void apply(ID3D11DeviceContext* device_context) = 0;
 
         // Dispatch compute shader
-        virtual void dispatch(ID3D11DeviceContext* device_context, uint32_t thread_x = 1, uint32_t thread_y = 1, uint32_t thread_z = 1) = 0;
+        virtual void dispatch(ID3D11DeviceContext* device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z) = 0;
 
         virtual ~effect_pass_interface_s() = default;
     };
@@ -91,7 +91,7 @@ namespace toy
 
         void apply(ID3D11DeviceContext * deviceContext) override;
 
-        void dispatch(ID3D11DeviceContext* deviceContext, uint32_t threadX = 1, uint32_t threadY = 1, uint32_t threadZ = 1) override;
+        void dispatch(ID3D11DeviceContext* deviceContext, uint32_t threadX, uint32_t threadY, uint32_t threadZ) final;
 
         effect_helper_c* pEffectHelper = nullptr;
         std::string passName;
@@ -135,7 +135,7 @@ namespace toy
     {
     public:
         effect_helper_c();
-        ~effect_helper_c() = default;
+        ~effect_helper_c();
 
         // Disable copy, allow move
         effect_helper_c(const effect_helper_c&) = delete;
@@ -200,40 +200,9 @@ namespace toy
         int32_t map_unordered_access_slot(std::string_view name);
 
     private:
-        class impl_c
-        {
-        public:
-            impl_c() { clear(); }
-            ~impl_c() = default;
+        struct EffectHelperImpl;
 
-            // Update shader reflection information
-            HRESULT update_shader_reflection(std::string_view name, ID3D11Device* device, ID3D11ShaderReflection* p_shader_reflection, uint32_t shader_flag);
-            // Clear all resources and reflection information
-            void clear();
-            // Create identifier
-            HRESULT create_shader_from_blob(std::string_view name, ID3D11Device* device, uint32_t shader_flag, ID3DBlob* blob);
-
-        public:
-            std::unordered_map<size_t, std::shared_ptr<EffectPass>> m_EffectPasses;			                    // Render pass
-
-            std::unordered_map<size_t, std::shared_ptr<ConstantBufferVariable>> m_ConstantBufferVariables;      // Constant buffer variable
-            std::unordered_map<uint32_t, CBufferData> m_CBuffers;											    // Constant buffer cache data
-            std::unordered_map<uint32_t, ShaderResource> m_ShaderResources;									    // Shader resource
-            std::unordered_map<uint32_t, SamplerState> m_Samplers;											    // Sampler
-            std::unordered_map<uint32_t, RWResource> m_RWResources;											    // Readable and writable resources
-
-            std::unordered_map<size_t, std::shared_ptr<VertexShaderInfo>> m_VertexShaders;	        // Vertex shader
-            std::unordered_map<size_t, std::shared_ptr<HullShaderInfo>> m_HullShaders;		        // Hull shader
-            std::unordered_map<size_t, std::shared_ptr<DomainShaderInfo>> m_DomainShaders;	        // Domain shader
-            std::unordered_map<size_t, std::shared_ptr<GeometryShaderInfo>> m_GeometryShaders;      // Geometry shader
-            std::unordered_map<size_t, std::shared_ptr<PixelShaderInfo>> m_PixelShaders;		    // Pixel shader
-            std::unordered_map<size_t, std::shared_ptr<ComputeShaderInfo>> m_ComputeShaders;	    // Compute shader
-
-            std::filesystem::path m_cache_dir;              // Cache path
-            bool m_force_write = false;                     // Force to store after compiling
-        };
-
-        std::unique_ptr<impl_c> p_impl_;
+        std::unique_ptr<EffectHelperImpl> p_impl_ = nullptr;
     };
 
     using EffectHelper = effect_helper_c;
