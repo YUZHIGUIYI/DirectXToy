@@ -127,8 +127,8 @@ namespace toy
 
         // Initialize texture manager and model manager
         auto d3d_device = m_d3d_app->get_device();
-        model::TextureManagerHandle::get().init(d3d_device);
-        model::ModelManagerHandle::get().init(d3d_device);
+        model::TextureManager::get().init(d3d_device);
+        model::ModelManager::get().init(d3d_device);
 
         // Initialize render states
         RenderStates::init(d3d_device);
@@ -214,13 +214,13 @@ namespace toy
         if (extension == ".gltf" || extension == ".glb")
         {
             // TODO: create scene
-            model::ModelManagerHandle::get().create_from_file(filename);
+            model::ModelManager::get().create_from_file(filename);
 
             auto new_entity = m_editor_scene->create_entity(name.string());
             auto& new_transform = new_entity.add_component<TransformComponent>();
             new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
             auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
-            new_mesh.model_asset = model::ModelManagerHandle::get().get_model(filename);
+            new_mesh.model_asset = model::ModelManager::get().get_model(filename);
 
         } else if (extension == ".hdr")
         {
@@ -561,10 +561,10 @@ namespace toy
         m_fxaa_effect.set_quality(3, 9);
 
         // Skybox texture
-        model::TextureManagerHandle::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
+        model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
 
         // Initialize models
-        model::ModelManagerHandle::get().create_from_geometry("skyboxCube", geometry::create_box());
+        model::ModelManager::get().create_from_geometry("skyboxCube", geometry::create_box());
 
         // Initialize lighting
         init_light_params();
@@ -577,7 +577,7 @@ namespace toy
         auto skybox_entity = m_editor_scene->create_entity("Skybox");
         skybox_entity.add_component<TransformComponent>();
         auto& skybox_mesh = skybox_entity.add_component<StaticMeshComponent>();
-        skybox_mesh.model_asset = model::ModelManagerHandle::get().get_model("skyboxCube");
+        skybox_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
         skybox_mesh.is_skybox = true;
         skybox_mesh.model_asset->materials[0].set<std::string>("$Skybox", DXTOY_HOME "data/textures/Clouds.dds");
 

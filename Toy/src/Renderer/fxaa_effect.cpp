@@ -45,6 +45,12 @@ namespace toy
         return *this;
     }
 
+    FXAAEffect& FXAAEffect::get()
+    {
+        static FXAAEffect fxaa_effect{};
+        return fxaa_effect;
+    }
+
     void FXAAEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();

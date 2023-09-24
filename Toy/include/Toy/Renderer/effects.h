@@ -51,6 +51,9 @@ namespace toy
         // Update and bind constant buffers
         void apply(ID3D11DeviceContext * device_context) override;
 
+        // Singleton
+        static BasicEffect &get();
+
     private:
         struct EffectImpl;
 
@@ -97,6 +100,9 @@ namespace toy
         // Update and bind constant buffers
         void apply(ID3D11DeviceContext * device_context) override;
 
+        // Singleton
+        static SkyboxEffect &get();
+
     private:
         struct EffectImpl;
 
@@ -133,6 +139,9 @@ namespace toy
                                         uint32_t width, uint32_t height);
         void compute_gaussian_blur_y(ID3D11DeviceContext* device_context, ID3D11ShaderResourceView* input, ID3D11UnorderedAccessView* output,
                                         uint32_t width, uint32_t height);
+
+        // Singleton
+        static PostProcessEffect &get();
 
     private:
         struct EffectImpl;
@@ -190,6 +199,9 @@ namespace toy
 
         // Constant buffers and resources change
         void apply(ID3D11DeviceContext* device_context) override;
+
+        // Singleton
+        static ForwardEffect &get();
 
     private:
         struct EffectImpl;
@@ -263,6 +275,9 @@ namespace toy
         // Apply constant buffers and resources
         void apply(ID3D11DeviceContext* device_context) override;
 
+        // Singleton
+        static DeferredEffect &get();
+
     private:
         struct EffectImpl;
 
@@ -294,6 +309,9 @@ namespace toy
         void enable_debug(bool enabled);
 
         void render_fxaa(ID3D11DeviceContext* device_context, ID3D11ShaderResourceView* input_srv, ID3D11RenderTargetView* output_rtv, const D3D11_VIEWPORT& viewport);
+
+        // Singleton
+        static FXAAEffect &get();
 
     private:
         struct EffectImpl;

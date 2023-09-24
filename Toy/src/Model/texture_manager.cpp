@@ -19,6 +19,12 @@ namespace toy::model
         }
     };
 
+    TextureManager& TextureManager::get()
+    {
+        static TextureManager texture_manager{};
+        return texture_manager;
+    }
+
     void TextureManager::init(ID3D11Device *device)
     {
         m_device = device;

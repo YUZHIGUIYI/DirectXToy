@@ -46,6 +46,12 @@ namespace toy
         return *this;
     }
 
+    BasicEffect& BasicEffect::get()
+    {
+        static BasicEffect basic_effect{};
+        return basic_effect;
+    }
+
     void BasicEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
@@ -93,7 +99,7 @@ namespace toy
 
     void BasicEffect::set_material(const model::Material &material)
     {
-        auto&& texture_manager = model::TextureManagerHandle::get();
+        auto&& texture_manager = model::TextureManager::get();
 
         // Color value
         PhongMaterial phong_mat{};

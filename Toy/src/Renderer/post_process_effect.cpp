@@ -62,6 +62,12 @@ namespace toy
         return *this;
     }
 
+    PostProcessEffect& PostProcessEffect::get()
+    {
+        static PostProcessEffect post_process_effect{};
+        return post_process_effect;
+    }
+
     void PostProcessEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
@@ -100,7 +106,7 @@ namespace toy
         auto&& pass = m_effect_impl->m_effect_helper->get_effect_pass("composite");
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_Input", input1);
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_EdgeInput",
-                                                                    (input2 ? input2 : model::TextureManagerHandle::get().get_null_texture()));
+                                                                    (input2 ? input2 : model::TextureManager::get().get_null_texture()));
         pass->apply(device_context);
 
         device_context->OMSetRenderTargets(1, &output, nullptr);

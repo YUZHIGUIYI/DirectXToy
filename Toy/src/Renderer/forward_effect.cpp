@@ -48,6 +48,12 @@ namespace toy
         return *this;
     }
 
+    ForwardEffect& ForwardEffect::get()
+    {
+        static ForwardEffect forward_effect{};
+        return forward_effect;
+    }
+
     void ForwardEffect::init(ID3D11Device* device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
@@ -228,7 +234,7 @@ namespace toy
 
     void ForwardEffect::set_material(const model::Material &material)
     {
-        auto&& texture_manager = model::TextureManagerHandle::get();
+        auto&& texture_manager = model::TextureManager::get();
 
         auto texture_id_str = material.try_get<std::string>("$Diffuse");
         m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_DiffuseMap",

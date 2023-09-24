@@ -16,7 +16,7 @@ namespace toy::model
 
         TextureManager(TextureManager&) = delete;
         TextureManager& operator=(const TextureManager&) = delete;
-        TextureManager(TextureManager&&) = default;
+        TextureManager(TextureManager&&) noexcept = default;
         TextureManager& operator=(TextureManager&&) = default;
 
         void init(ID3D11Device* device);
@@ -30,13 +30,14 @@ namespace toy::model
         ID3D11ShaderResourceView* get_texture(std::string_view filename);
         ID3D11ShaderResourceView* get_null_texture();
 
+        // Singleton
+        static TextureManager &get();
+
     private:
         com_ptr<ID3D11Device> m_device;
         com_ptr<ID3D11DeviceContext> m_device_context;
         std::unordered_map<XID, com_ptr<ID3D11ShaderResourceView>> m_texture_srvs;
     };
-
-    using TextureManagerHandle = singleton_c<TextureManager>;
 }
 
 

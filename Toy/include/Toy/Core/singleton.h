@@ -6,7 +6,8 @@
 
 namespace toy
 {
-    template<typename T>
+    // Note: currently deprecated
+    template<typename T, typename = std::enable_if_t<std::is_default_constructible_v<T>>>
     class singleton_c
     {
     private:

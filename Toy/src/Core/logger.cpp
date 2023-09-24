@@ -5,10 +5,15 @@
 #include <Toy/Core/logger.h>
 
 
-
 namespace toy
 {
-    logger_c::logger_c()
+    Logger& Logger::get()
+    {
+        static Logger logger{};
+        return logger;
+    }
+
+    Logger::Logger()
     {
         // Log messages are additionally sent to Hazel.log file
         // Just one console sink

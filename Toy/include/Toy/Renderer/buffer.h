@@ -43,14 +43,14 @@ namespace toy
 
     // Ensure the size and layout of T are the same as those of structure in shader
     template<typename T>
-    class StructureBuffer : public Buffer
+    class StructureBuffer final : public Buffer
     {
     public:
         StructureBuffer(ID3D11Device* device, uint32_t elements,
                         uint32_t bind_flags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE,
                         bool enable_counter = false,
                         bool dynamic = false);
-        ~StructureBuffer() = default;
+        ~StructureBuffer() override = default;
 
         StructureBuffer(const StructureBuffer&) = delete;
         StructureBuffer& operator=(const StructureBuffer&) = delete;
@@ -70,11 +70,11 @@ namespace toy
     StructureBuffer<T>::StructureBuffer(ID3D11Device *device, uint32_t elements, uint32_t bind_flags,
                                         bool enable_counter, bool dynamic)
     : m_elements(elements),
-    Buffer(device, CD3D11_BUFFER_DESC{ sizeof(T) * elements, bind_flags,
+    Buffer(device, CD3D11_BUFFER_DESC{ uint32_t(sizeof(T)) * elements, bind_flags,
                                     dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT,
                                     dynamic ? D3D11_CPU_ACCESS_WRITE : uint32_t(0),
                                     D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-                                    sizeof(T) },
+                                    uint32_t(sizeof(T)) },
         CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_BUFFER, DXGI_FORMAT_UNKNOWN, 0, elements },
         CD3D11_UNORDERED_ACCESS_VIEW_DESC{ D3D11_UAV_DIMENSION_BUFFER, DXGI_FORMAT_UNKNOWN, 0, elements, 0, D3D11_BUFFER_UAV_FLAG_COUNTER })
     {

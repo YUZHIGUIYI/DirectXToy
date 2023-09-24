@@ -51,6 +51,12 @@ namespace toy
         return *this;
     }
 
+    SkyboxEffect& SkyboxEffect::get()
+    {
+        static SkyboxEffect skybox_effect{};
+        return skybox_effect;
+    }
+
     void SkyboxEffect::init(ID3D11Device *device)
     {
         m_effect_impl->m_effect_helper = std::make_unique<EffectHelper>();
@@ -130,7 +136,7 @@ namespace toy
 
     void SkyboxEffect::set_material(const model::Material &material)
     {
-        auto&& texture_manager = model::TextureManagerHandle::get();
+        auto&& texture_manager = model::TextureManager::get();
 
         if (auto env_map_srv = PreProcessEffect::get().get_environment_srv())
         {

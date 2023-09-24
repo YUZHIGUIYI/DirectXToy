@@ -98,7 +98,7 @@ namespace toy
     void PreProcessEffect::compute_cubemap(ID3D11Device *device, ID3D11DeviceContext *device_context, std::string_view file_path)
     {
         // Load and convert equirectangular environment map to a cubemap texture
-        auto&& texture_manager = model::TextureManagerHandle::get();
+        auto&& texture_manager = model::TextureManager::get();
         auto hdr_srv = texture_manager.create_from_file(file_path);
 
         if (!m_effect_impl->cube_texture)

@@ -206,7 +206,7 @@ namespace toy::model
                     tex_name += ai_path.C_Str();
                     char* end_str = nullptr;
                     aiTexture* p_tex = assimp_scene->mTextures[std::strtol(ai_path.data + 1, &end_str, 10)];
-                    TextureManagerHandle::get().create_from_memory(tex_name, p_tex->pcData, (p_tex->mHeight ? p_tex->mWidth * p_tex->mHeight : p_tex->mWidth),
+                    TextureManager::get().create_from_memory(tex_name, p_tex->pcData, (p_tex->mHeight ? p_tex->mWidth * p_tex->mHeight : p_tex->mWidth),
                                                                     gen_mips, force_SRGB);
                     material.set(property_name, std::string(tex_name));
                 }
@@ -215,7 +215,7 @@ namespace toy::model
                 {
                     tex_file_name = file_name;
                     tex_file_name = tex_file_name.parent_path() / ai_path.C_Str();
-                    TextureManagerHandle::get().create_from_file(tex_file_name.string(), gen_mips, force_SRGB);
+                    TextureManager::get().create_from_file(tex_file_name.string(), gen_mips, force_SRGB);
                     material.set(property_name, tex_file_name.string());
                 }
             };
@@ -301,6 +301,12 @@ namespace toy::model
     void Model::set_debug_object_name(std::string_view name)
     {
         // TODO
+    }
+
+    ModelManager& ModelManager::get()
+    {
+        static ModelManager model_manager{};
+        return model_manager;
     }
 
     void ModelManager::init(ID3D11Device *device)
