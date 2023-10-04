@@ -3,23 +3,24 @@
 //
 
 #include <Sandbox/viewer.h>
+#include <Sandbox/pbr_viewer.h>
 #include <Sandbox/default_menu.h>
 
 int main()
 {
     if (!glfwInit())
     {
-        DX_CRITICAL("Can not initialize GLFW");
+        DX_CRITICAL("Fail to initialize GLFW");
     }
 
     // Create window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    std::pair<int32_t, int32_t> window_size{ 1280, 720 };
+    std::pair<int32_t, int32_t> window_size{ 1600, 900 };
     auto window = glfwCreateWindow(window_size.first, window_size.second, "DX11Renderer", nullptr, nullptr);
     if (!window)
     {
         glfwTerminate();
-        DX_CRITICAL("Can not create window");
+        DX_CRITICAL("Failed to create GLFW window");
     }
 
     // Create and initialize d3d application
@@ -27,7 +28,8 @@ int main()
     d3d_app->init();
 
     // Create layers of d3d application
-    d3d_app->add_layer(std::make_shared<toy::Viewer>("Viewport"));
+//    d3d_app->add_layer(std::make_shared<toy::Viewer>("Viewport"));
+    d3d_app->add_layer(std::make_shared<toy::viewer::PBRViewer>("PBRViewer"));
     d3d_app->add_layer(std::make_shared<toy::DefaultMenu>());
 
     // Tick d3d application

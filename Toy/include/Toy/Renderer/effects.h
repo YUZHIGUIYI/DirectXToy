@@ -71,7 +71,7 @@ namespace toy
 
         void init(ID3D11Device* device);
 
-        // Useless
+        // * Currently useless
         void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
         void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
         void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
@@ -329,10 +329,10 @@ namespace toy
         PreProcessEffect(PreProcessEffect&& other) noexcept;
         PreProcessEffect& operator=(PreProcessEffect&& other) noexcept;
 
-        // Initialize all resources
+        // * Initialize all resources
         void init(ID3D11Device* device);
 
-        // Convert HDR image to cube map
+        // * Convert HDR image to cube map
         void compute_cubemap(ID3D11Device *device, ID3D11DeviceContext *device_context, std::string_view file_path);
 
         void compute_sp_env_map(ID3D11Device *device, ID3D11DeviceContext *device_context);
@@ -341,11 +341,114 @@ namespace toy
 
         void compute_brdf_lut(ID3D11Device *device, ID3D11DeviceContext *device_context);
 
-        // Get environment map shader resource view
+        // * Get environment map shader resource view
         ID3D11ShaderResourceView* get_environment_srv() const;
 
-        // Singleton
+        // * Get irradiance map shader resource view
+        ID3D11ShaderResourceView* get_irradiance_srv() const;
+
+        // * Get BRDF shader resource view
+        ID3D11ShaderResourceView* get_brdf_srv() const;
+
+        // * Check whether pre-process has been completed
+        bool is_ready() const;
+
+        // * Singleton
         static PreProcessEffect& get();
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    // Deferred PBR effect
+    class DeferredPBREffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        DeferredPBREffect();
+        ~DeferredPBREffect() override;
+
+        DeferredPBREffect(DeferredPBREffect&& other) noexcept;
+        DeferredPBREffect& operator=(DeferredPBREffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        // * Set material for geometry pass
+        // * Note: called by render object automatically
+        void set_material(const model::Material& material) override;
+
+        // * Get mesh data
+        // * Note: called by render object automatically
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        // * Set camera near and far parameters for geometry pass
+        void set_camera_near_far(float nearz, float farz);
+
+        // * Set camera world position
+        void set_camera_position(DirectX::XMFLOAT3 camera_position);
+
+        // * Render GBuffer for geometry pass - set vertex layout and skybox pass and topology
+        void set_gbuffer_render();
+
+        // * Apply constant buffers and resources for geometry pass
+        // * Note: called by render object automatically
+        void apply(ID3D11DeviceContext* device_context) override;
+
+        // * Render to lit texture
+        // * Note: default method of deferred lighting pass
+        void deferred_lighting_pass(ID3D11DeviceContext* device_context, ID3D11RenderTargetView* lit_buffer_rtv,
+                                    ID3D11ShaderResourceView** gbuffers, D3D11_VIEWPORT viewport);
+
+        // * Singleton
+        static DeferredPBREffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    class SimpleSkyboxEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        SimpleSkyboxEffect();
+        ~SimpleSkyboxEffect() override;
+
+        SimpleSkyboxEffect(SimpleSkyboxEffect&& other) noexcept;
+        SimpleSkyboxEffect& operator=(SimpleSkyboxEffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        // * Set material for geometry pass
+        // * Note: called by render object automatically
+        void set_material(const model::Material& material) override;
+
+        // * Get mesh data
+        // * Note: called by render object automatically
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        // * Set vertex layout and skybox pass and topology
+        void set_skybox_render();
+
+        // * Apply constant buffers and resources for geometry pass
+        // * Note: called by render object automatically
+        void apply(ID3D11DeviceContext* device_context) override;
+
+        // * Singleton
+        static SimpleSkyboxEffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
 
     private:
         struct EffectImpl;

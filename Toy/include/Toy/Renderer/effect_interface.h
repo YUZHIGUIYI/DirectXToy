@@ -38,7 +38,8 @@ namespace toy
         IEffect(IEffect&&) = default;
         IEffect& operator=(IEffect&&) = default;
 
-        // Update and bind constant buffers
+        // * Update and bind constant buffers and resources
+        // * Note: called by render object automatically
         virtual void apply(ID3D11DeviceContext * device_context) = 0;
     };
 

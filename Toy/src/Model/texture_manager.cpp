@@ -49,6 +49,7 @@ namespace toy::model
         XID file_id = string_to_id(filename);
         if (m_texture_srvs.count(file_id))
         {
+            DX_CORE_WARN("{} texture asset has been loaded", filename);
             return m_texture_srvs[file_id].Get();
         }
 
@@ -81,6 +82,7 @@ namespace toy::model
         } else
         {
             pixels = stbi_load(filename.data(), &width, &height, &comp, STBI_rgb_alpha);
+            DX_CORE_INFO("Load image: {}", filename);
         }
 
         std::unique_ptr<uint8_t, del> img_data(pixels);
@@ -110,7 +112,7 @@ namespace toy::model
             return res.Get();
         } else
         {
-            DX_CORE_CRITICAL("Fail to create texture via stb image");
+            DX_CORE_CRITICAL("Fail to create texture via stb image: {}", filename);
         }
     }
 

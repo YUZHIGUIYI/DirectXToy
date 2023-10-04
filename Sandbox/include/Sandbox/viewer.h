@@ -99,7 +99,7 @@ namespace toy
         std::unique_ptr<Texture2D> m_debug_posz_grad_gbuffer;                       // Debug z-grad buffer
         std::unique_ptr<Texture2D> m_debug_albedo_gbuffer;                          // Debug color buffer
 
-        std::unique_ptr<Texture2D> m_temp_buffer;                                   // Prepare for post processing
+        std::unique_ptr<Texture2D> m_temp_buffer;                                   // Prepare for post-processing
         std::unique_ptr<Texture2D> m_viewer_buffer;                                 // Viewer image buffer
 
         // Disposable

@@ -24,6 +24,7 @@ namespace toy::model
         importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
         auto assimp_scene = importer.ReadFile(file_name.data(),
             aiProcess_ConvertToLeftHanded |     // Left hand coordinate
+            aiProcess_CalcTangentSpace |               // Tangent space
             aiProcess_GenBoundingBoxes |               // Generate bounding box
             aiProcess_Triangulate |                    // Polygon splitting
             aiProcess_ImproveCacheLocality |           // Improve cache locality
@@ -220,14 +221,33 @@ namespace toy::model
                 }
             };
 
-            // Create texture
-            try_create_texture(aiTextureType_DIFFUSE, "$Diffuse", true, 1);
-            try_create_texture(aiTextureType_NORMALS, "$Normal");
-            try_create_texture(aiTextureType_BASE_COLOR, "$Albedo", true, 1);
-            try_create_texture(aiTextureType_NORMAL_CAMERA, "$NormalCamera");
-            try_create_texture(aiTextureType_METALNESS, "$Metalness");
-            try_create_texture(aiTextureType_DIFFUSE_ROUGHNESS, "$Roughness");
-            try_create_texture(aiTextureType_AMBIENT_OCCLUSION, "$AmbientOcclusion");
+            // Create textures
+            try_create_texture(aiTextureType_DIFFUSE, material_semantics_name(MaterialSemantics::DiffuseMap), true, 1);
+            try_create_texture(aiTextureType_SPECULAR, material_semantics_name(MaterialSemantics::SpecularMap), true, 1);
+            try_create_texture(aiTextureType_NORMALS, material_semantics_name(MaterialSemantics::NormalMap));
+            try_create_texture(aiTextureType_BASE_COLOR, material_semantics_name(MaterialSemantics::AlbedoMap), true, 1);
+            try_create_texture(aiTextureType_NORMAL_CAMERA, material_semantics_name(MaterialSemantics::NormalCameraMap));
+            try_create_texture(aiTextureType_METALNESS, material_semantics_name(MaterialSemantics::MetalnessMap));
+            try_create_texture(aiTextureType_DIFFUSE_ROUGHNESS, material_semantics_name(MaterialSemantics::RoughnessMap));
+            try_create_texture(aiTextureType_AMBIENT_OCCLUSION, material_semantics_name(MaterialSemantics::AmbientOcclusionMap));
+
+            // Set diffuse color and opacity and metalness and roughness material properties
+            if (auto diffuse_color_name = material_semantics_name(MaterialSemantics::DiffuseColor); !material.has_property(diffuse_color_name))
+            {
+                material.set<XMFLOAT4>(diffuse_color_name, XMFLOAT4{ 0.8f, 0.8f, 0.8f, 1.0f });
+            }
+            if (auto opacity_name = material_semantics_name(MaterialSemantics::Opacity); !material.has_property(opacity_name))
+            {
+                material.set<float>(opacity_name, 1.0f);
+            }
+            if (auto metalness_name = material_semantics_name(MaterialSemantics::Metalness); !material.has_property(metalness_name))
+            {
+                material.set<float>(metalness_name, 0.5f);
+            }
+            if (auto roughness_name = material_semantics_name(MaterialSemantics::Roughness); !material.has_property(roughness_name))
+            {
+                material.set<float>(roughness_name, 0.5f);
+            }
         }
     }
 
@@ -237,11 +257,13 @@ namespace toy::model
         using namespace DirectX;
         // Default material
         model.materials.resize(1);
-        model.materials[0].set<XMFLOAT4>("$AmbientColor", XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
-        model.materials[0].set<XMFLOAT4>("$DiffuseColor", XMFLOAT4{0.8f, 0.8f, 0.8f, 1.0f });
-        model.materials[0].set<XMFLOAT4>("$SpecularColor", XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
-        model.materials[0].set<float>("$SpecularFactor", 10.0f);
-        model.materials[0].set<float>("$Opacity", 1.0f);
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::AmbientColor), XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::DiffuseColor), XMFLOAT4{0.8f, 0.8f, 0.8f, 1.0f });
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::SpecularColor), XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::SpecularFactor), 10.0f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Opacity), 1.0f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Metalness), 0.5f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Roughness), 0.5f);
 
         model.meshes.resize(1);
         model.meshes[0].texcoord_arrays.resize(1);

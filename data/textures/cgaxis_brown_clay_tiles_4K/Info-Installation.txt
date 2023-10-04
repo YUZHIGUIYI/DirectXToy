@@ -1,0 +1,12 @@
+Adding materials to 3ds max:
+- Add "4K" OR "8K" folder into 3ds max External Paths (Customize > Configure User Paths > External Paths > Add). Remember to check Add Subpaths
+- Open "pbr_free_pack_3ds_max_vray_materials" Library in the Material Editor
+- To control the Displacement Value, add VRayDisplacementMod Modifier to your object and check 'Use object mtl' in the 3D mapping/subdivision settings
+
+Adding materials to Unity:
+- Add asset package (Assets > Import Package > Custom Package)
+
+PBR Textures Unreal Engine Materials:
+- Please copy everything from the "Content" folder to your project "Content" folder.
+- To have easier control over material (displacement value / tesselation / normal flatness) please use Material Instances
+- Please note tesselation value is dependent on density of your mesh
