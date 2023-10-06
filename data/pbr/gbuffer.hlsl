@@ -8,6 +8,7 @@ struct GBuffer
     float4 AlbedoMetalness : SV_Target0;
     float4 NormalRoughness : SV_Target1;
     float4 WorldPosition   : SV_Target2;
+    float2 MotionVector    : SV_Target3;
 };
 
 GBuffer PS(VertexShaderOutput pin)
@@ -46,6 +47,17 @@ GBuffer PS(VertexShaderOutput pin)
     }
 
     gbuffer.WorldPosition = float4(pin.world_position, 1.0f);
+
+    // TODO: enable TAA - motion vector
+    float4 pre_vp_pos = pin.pre_vp_position;
+    float4 cur_vp_pos = pin.cur_vp_position;
+    pre_vp_pos = pre_vp_pos / pre_vp_pos.w;
+    cur_vp_pos = cur_vp_pos / cur_vp_pos.w;
+    //// Negate Y because world coordinate and texture coordinate have different Y axis
+    pre_vp_pos.xy = pre_vp_pos.xy / float2(2.0f, -2.0f) + float2(0.5f, 0.5f);
+    cur_vp_pos.xy = cur_vp_pos.xy / float2(2.0f, -2.0f) + float2(0.5f, 0.5f);
+
+    gbuffer.MotionVector = float2(cur_vp_pos.x - pre_vp_pos.x, cur_vp_pos.y - pre_vp_pos.y);
 
     return gbuffer;
 }

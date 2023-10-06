@@ -4,11 +4,11 @@
 
 #include <Toy/Renderer/effects.h>
 #include <Toy/Renderer/render_states.h>
-#include <Toy/Core/d3d_util.h>
 #include <Toy/Geometry/vertex.h>
 #include <Toy/Model/mesh_data.h>
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Model/material.h>
+#include <Toy/Renderer/taa_settings.h>
 
 namespace toy
 {
@@ -42,6 +42,13 @@ namespace toy
         DirectX::XMFLOAT4X4 world_matrix = {};
         DirectX::XMFLOAT4X4 view_matrix = {};
         DirectX::XMFLOAT4X4 proj_matrix = {};
+
+        DirectX::XMFLOAT4X4 pre_world_matrix = {};
+        DirectX::XMFLOAT4X4 pre_view_proj_matrix = {};
+        DirectX::XMFLOAT4X4 unjittered_view_proj_matrix = {};
+
+        int32_t viewer_width = 0;
+        int32_t viewer_height = 0;
 
         D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
@@ -213,6 +220,12 @@ namespace toy
         m_effect_impl->set_material(material, MaterialSemantics::RoughnessMap);
     }
 
+    void DeferredPBREffect::set_viewer_size(int32_t width, int32_t height)
+    {
+        m_effect_impl->viewer_width = width;
+        m_effect_impl->viewer_height = height;
+    }
+
     void DeferredPBREffect::set_camera_near_far(float nearz, float farz)
     {
 //        m_effect_impl->effect_helper->get_constant_buffer_variable("gNearZ")->set_float(nearz);
@@ -256,9 +269,28 @@ namespace toy
     void DeferredPBREffect::apply(ID3D11DeviceContext *device_context)
     {
         using namespace DirectX;
+
+        static bool first_frame = true;
+        static uint32_t taa_frame_counter = 0;
+
         XMMATRIX world = XMLoadFloat4x4(&m_effect_impl->world_matrix);
         XMMATRIX view = XMLoadFloat4x4(&m_effect_impl->view_matrix);
         XMMATRIX proj = XMLoadFloat4x4(&m_effect_impl->proj_matrix);
+        XMMATRIX unjittered_view_proj =  XMMatrixTranspose(view * proj);
+
+        if (first_frame)
+        {
+            XMStoreFloat4x4(&m_effect_impl->pre_view_proj_matrix, unjittered_view_proj);
+            XMStoreFloat4x4(&m_effect_impl->pre_world_matrix, XMMatrixTranspose(world));
+            first_frame = false;
+        }
+
+        float jitter_x = taa::s_halton_2[taa_frame_counter] / static_cast<float>(m_effect_impl->viewer_width) * taa::s_taa_jitter_distance;
+        float jitter_y = taa::s_halton_3[taa_frame_counter] / static_cast<float>(m_effect_impl->viewer_height) * taa::s_taa_jitter_distance;
+        proj.r[2].m128_f32[0] += jitter_x;
+        proj.r[2].m128_f32[1] += jitter_y;
+//        taa::s_taa_jitter_x = jitter_x / 2.0f;
+//        taa::s_taa_jitter_y = -jitter_y / 2.0f;
 
         XMMATRIX world_view = world * view;
         XMMATRIX world_view_proj = world_view * proj;
@@ -277,19 +309,28 @@ namespace toy
         m_effect_impl->effect_helper->get_constant_buffer_variable("gWorld")->set_float_matrix(4, 4, (float*)&world);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gViewProj")->set_float_matrix(4, 4, (float*)&view_proj);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gWorldViewProj")->set_float_matrix(4, 4, (float*)&world_view_proj);
+        XMMATRIX pre_world = XMLoadFloat4x4(&m_effect_impl->pre_world_matrix);
+        XMMATRIX pre_view_proj = XMLoadFloat4x4(&m_effect_impl->pre_view_proj_matrix);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gPreWorld")->set_float_matrix(4, 4, (float*)&pre_world);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gPreViewProj")->set_float_matrix(4, 4, (float*)&pre_view_proj);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gUnjitteredViewProj")->set_float_matrix(4, 4, (float*)&unjittered_view_proj);
 
         if (m_effect_impl->cur_effect_pass)
         {
             m_effect_impl->cur_effect_pass->apply(device_context);
         }
+
+        XMStoreFloat4x4(&m_effect_impl->pre_world_matrix, world);
+        XMStoreFloat4x4(&m_effect_impl->pre_view_proj_matrix, unjittered_view_proj);
+        taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }
 
     void DeferredPBREffect::deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
                                                     ID3D11ShaderResourceView **gbuffers, D3D11_VIEWPORT viewport)
     {
         // Clear render target view
-        static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        device_context->ClearRenderTargetView(lit_buffer_rtv, zeros);
+//        static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+//        device_context->ClearRenderTargetView(lit_buffer_rtv, zeros);
 
         // Full-screen triangle
         device_context->IASetInputLayout(nullptr);

@@ -383,6 +383,9 @@ namespace toy
         // * Note: called by render object automatically
         MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
 
+        // * Set viewer size
+        void set_viewer_size(int32_t width, int32_t height);
+
         // * Set camera near and far parameters for geometry pass
         void set_camera_near_far(float nearz, float farz);
 
@@ -449,6 +452,38 @@ namespace toy
         void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
         void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
         void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    class TAAEffect final
+    {
+    public:
+        TAAEffect();
+        ~TAAEffect();
+
+        TAAEffect(TAAEffect&& other) noexcept;
+        TAAEffect& operator=(TAAEffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        //
+        void set_camera_near_far(float nearz, float farz);
+
+        //
+        void set_viewer_size(int32_t width, int32_t height);
+
+        // * Render
+        void render(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *history_buffer_srv, ID3D11ShaderResourceView *cur_buffer_srv,
+                    ID3D11ShaderResourceView *motion_vector_srv, ID3D11ShaderResourceView *depth_buffer_srv,
+                    ID3D11RenderTargetView *lit_buffer_rtv, D3D11_VIEWPORT viewport);
+
+        // * Singleton
+        static TAAEffect &get();
 
     private:
         struct EffectImpl;

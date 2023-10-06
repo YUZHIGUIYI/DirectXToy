@@ -53,6 +53,8 @@ namespace toy::viewer
 
         void render_gbuffer();
 
+        void taa_pass();
+
         void render_skybox();
 
         void on_gizmo_render(Entity& selected_entity);
@@ -68,6 +70,8 @@ namespace toy::viewer
 
         // Resources
         std::unique_ptr<Depth2D> m_depth_buffer;                                    // Depth buffer
+        std::unique_ptr<Texture2D> m_history_buffer;                                // History frame buffer
+        std::unique_ptr<Texture2D> m_cur_buffer;                                    // Current frame buffer
         com_ptr<ID3D11DepthStencilView> m_depth_buffer_read_only_dsv;               // Read-only depth stencil view
         std::vector<std::unique_ptr<Texture2D>> m_gbuffers;                         // G-Buffers
 

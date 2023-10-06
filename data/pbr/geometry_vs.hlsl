@@ -11,6 +11,9 @@ VertexShaderOutput VS(VertexShaderInput vin)
     vout.local_position = vin.position;
 
     // TODO: Enable TAA
+    float4 pre_world_position = mul(float4(vin.position, 1.0f), gPreWorld);
+    vout.cur_vp_position = mul(world_position, gUnjitteredViewProj);
+    vout.pre_vp_position = mul(pre_world_position, gPreViewProj);
 
     // Assume non-uniform scaling, otherwise need to use inverse-transpose of world matrix
     vout.world_normal = normalize(mul(vin.normal, (float3x3)gWorld));

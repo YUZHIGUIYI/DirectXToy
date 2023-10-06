@@ -4,6 +4,7 @@
 
 #include <Sandbox/pbr_viewer.h>
 #include <Sandbox/file_dialog.h>
+#include <Toy/Renderer/taa_settings.h>
 
 #include <IconsFontAwesome6.h>
 
@@ -99,6 +100,7 @@ namespace toy::viewer
         DeferredPBREffect::get().init(d3d_device);
         SimpleSkyboxEffect::get().init(d3d_device);
         PreProcessEffect::get().init(d3d_device);
+        TAAEffect::get().init(d3d_device);
 
         // Initialize resource
         init_resource();
@@ -127,7 +129,9 @@ namespace toy::viewer
         m_camera->set_frustum(XM_PI / 3.0f, aspect_ratio, 0.5f, 300.0f);
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
         DeferredPBREffect::get().set_proj_matrix(m_camera->get_proj_xm(false));
-        DeferredPBREffect::get().set_camera_near_far(0.5f, 300.0f);
+        DeferredPBREffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+        TAAEffect::get().set_viewer_size(width, height);
+        TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
         resize_buffers(width, height);
     }
@@ -282,7 +286,10 @@ namespace toy::viewer
         DeferredPBREffect::get().set_view_matrix(camera->get_view_xm());
         //// reverse z - currently prohibited
         DeferredPBREffect::get().set_proj_matrix(camera->get_proj_xm(false));
-        DeferredPBREffect::get().set_camera_near_far(0.5f, 300.0f);
+        DeferredPBREffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+
+        TAAEffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
+        TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
         // Skybox texture
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
@@ -337,7 +344,7 @@ namespace toy::viewer
         test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_roughness.jpg");
 
-        //// Debug: Test entity two
+        //// TODO: Debug: Test entity two
         auto cerberus_entity = m_editor_scene->create_entity("Cerberus");
         auto& cerberus_transform = cerberus_entity.add_component<TransformComponent>();
         cerberus_transform.transform.set_scale(0.3f, 0.3f, 0.3f);
@@ -376,6 +383,9 @@ namespace toy::viewer
         // World position
         m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
                                                             1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
+        // Motion vector
+        m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_UNORM,
+                                                            1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
 
         // Set G-Buffer resource list
         m_gbuffer_rtvs.resize(m_gbuffers.size(), 0);
@@ -390,6 +400,10 @@ namespace toy::viewer
 
         // Viewer buffer
         m_viewer_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+
+        // TAA effect input
+        m_history_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+        m_cur_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
     }
 
     void PBRViewer::on_render(float dt)
@@ -403,8 +417,8 @@ namespace toy::viewer
         // Rendering scene
         render_gbuffer();
 
-        DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_viewer_buffer->get_render_target(),
-                                                        m_gbuffer_srvs.data(), m_camera->get_viewport());
+        // TAA pass
+        taa_pass();
 
         // Rendering skybox
         render_skybox();
@@ -465,6 +479,7 @@ namespace toy::viewer
 
         DeferredPBREffect::get().set_view_matrix(m_camera->get_view_xm());
         DeferredPBREffect::get().set_camera_position(m_camera->get_position());
+        DeferredPBREffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
 
         // Update collision
         BoundingFrustum frustum{};
@@ -508,6 +523,41 @@ namespace toy::viewer
         d3d_device_context->OMSetRenderTargets(static_cast<uint32_t>(m_gbuffers.size()), m_gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
         m_editor_scene->render_scene(d3d_device_context, DeferredPBREffect::get());
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void PBRViewer::taa_pass()
+    {
+        static bool first_frame = true;
+        static uint32_t taa_frame_counter = 0;
+        ID3D11Device* d3d_device = m_d3d_app->get_device();
+        ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
+        D3D11_VIEWPORT viewport = m_camera->get_viewport();
+
+        if (first_frame)
+        {
+            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_history_buffer->get_render_target(),
+                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
+            TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_history_buffer->get_shader_resource(),
+                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
+                                    m_viewer_buffer->get_render_target(), viewport);
+            first_frame = false;
+        } else if (taa_frame_counter % taa::s_taa_sample == 0)
+        {
+            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_history_buffer->get_render_target(),
+                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
+            TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_history_buffer->get_shader_resource(),
+                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
+                                    m_viewer_buffer->get_render_target(), viewport);
+        } else
+        {
+            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
+                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
+            TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
+                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
+                                    m_viewer_buffer->get_render_target(), viewport);
+        }
+
+        taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }
 
     void PBRViewer::render_skybox()

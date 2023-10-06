@@ -4,11 +4,7 @@
 
 #include <Toy/Renderer/effects.h>
 #include <Toy/Renderer/render_states.h>
-#include <Toy/Geometry/vertex.h>
-#include <Toy/Model/mesh_data.h>
 #include <Toy/Model/texture_manager.h>
-#include <Toy/Model/material.h>
-#include <Toy/Renderer/buffer.h>
 #include <Toy/Renderer/texture_2d.h>
 
 namespace toy
