@@ -298,7 +298,8 @@ namespace toy::viewer
         // Initialize models
         model::ModelManager::get().create_from_geometry("skyboxCube", geometry::create_box());
         // TODO: Debug - start
-        model::ModelManager::get().create_from_geometry("skyboxBall", geometry::create_sphere());
+        model::ModelManager::get().create_from_geometry("simpleBall", geometry::create_sphere());
+        model::ModelManager::get().create_from_geometry("simpleCylinder", geometry::create_cylinder(1.0f, 2.0f, 40, 20));
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_diffuse.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_normal.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_metallic.jpg");
@@ -328,13 +329,14 @@ namespace toy::viewer
         skybox_mesh.is_skybox = true;
         skybox_mesh.model_asset->materials[0].set<std::string>("$Skybox", DXTOY_HOME "data/textures/Clouds.dds");
 
-        //// TODO: Debug - Test entity one - start
+        //// TODO: Debug - Test entity one
         using namespace toy::model;
         auto test_entity = m_editor_scene->create_entity("TestSuccess");
         auto& test_transform = test_entity.add_component<TransformComponent>();
+        test_transform.transform.set_position(-15.0f, 15.0f, 10.0f);
         test_transform.transform.set_scale(10.0f, 10.0f, 10.0f);
         auto& test_mesh = test_entity.add_component<StaticMeshComponent>();
-        test_mesh.model_asset = model::ModelManager::get().get_model("skyboxBall");
+        test_mesh.model_asset = model::ModelManager::get().get_model("simpleBall");
         test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_diffuse.jpg");
         test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::NormalMap),
@@ -360,6 +362,14 @@ namespace toy::viewer
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_M.tga");
         cerberus_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap),
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
+
+        //// TODO: Debug: Test entity three
+        auto test_entity_two = m_editor_scene->create_entity("TestSuccessTwo");
+        auto& test_transform_two = test_entity_two.add_component<TransformComponent>();
+        test_transform_two.transform.set_scale(10.0f, 10.0f, 10.0f);
+        auto& test_mesh_two = test_entity_two.add_component<StaticMeshComponent>();
+        test_mesh_two.model_asset = model::ModelManager::get().get_model("simpleCylinder");
+
         // TODO: Debug - end
 
         m_scene_hierarchy_panel.set_context(m_editor_scene);

@@ -11,40 +11,23 @@ struct GBuffer
     float2 MotionVector    : SV_Target3;
 };
 
+static const float3 s_normal = float3(0.0f, 0.0f, 1.0f);
+
 GBuffer PS(VertexShaderOutput pin)
 {
     GBuffer gbuffer;
 
-    float3 normal_from_tex = gNoNormalSrv == 1 ? float3(0.0f, 0.0f, 1.0f) :
-        2 * (gNormalMap.Sample(gSamAnisotropicWrap, pin.texcoord).rgb - 0.5f);
+    float3 normal_from_tex = lerp(2.0f * (gNormalMap.Sample(gSamAnisotropicWrap, pin.texcoord).rgb - 0.5f), s_normal, gNoNormalSrv);
     // Construct TBN
     float3x3 TBN = float3x3(pin.tangent, pin.bi_normal, pin.world_normal);
     float3 normal = mul(normal_from_tex, TBN);
 
-    if (gNoDiffuseSrv == 1)
-    {
-        gbuffer.AlbedoMetalness = float4(1.0f, 1.0f, 1.0f, 1.0f) * gBaseColorOpacity;
-    } else 
-    {
-        gbuffer.AlbedoMetalness = float4(gAlbedoMap.Sample(gSamAnisotropicWrap, pin.texcoord).rgb, 1.0f);
-    }
-
-    if (gNoMetalnessSrv == 1)
-    {
-        gbuffer.AlbedoMetalness.a = gMetalness;
-    } else
-    {
-        gbuffer.AlbedoMetalness.a = gMetalnessMap.Sample(gSamAnisotropicWrap, pin.texcoord).r;
-    }
+    float3 albedo = gAlbedoMap.Sample(gSamAnisotropicWrap, pin.texcoord).rgb;
+    gbuffer.AlbedoMetalness.rgb = lerp(albedo, gBaseColorOpacity.rgb, gNoDiffuseSrv);
+    gbuffer.AlbedoMetalness.a = lerp(gMetalnessMap.Sample(gSamAnisotropicWrap, pin.texcoord).r, gMetalness, gNoMetalnessSrv);
     
-    gbuffer.NormalRoughness = float4(normal, 1.0f);
-    if (gNoRoughnessSrv == 1)
-    {
-        gbuffer.NormalRoughness.a = gRoughness;
-    } else 
-    {
-        gbuffer.NormalRoughness.a = gRoughnessMap.Sample(gSamAnisotropicWrap, pin.texcoord).r;
-    }
+    gbuffer.NormalRoughness.rgb = normal;
+    gbuffer.NormalRoughness.a = lerp(gRoughnessMap.Sample(gSamAnisotropicWrap, pin.texcoord).r, gRoughness, gNoRoughnessSrv);
 
     gbuffer.WorldPosition = float4(pin.world_position, 1.0f);
 

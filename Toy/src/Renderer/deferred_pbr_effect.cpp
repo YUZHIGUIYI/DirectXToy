@@ -67,6 +67,7 @@ namespace toy
             } else
             {
                 effect_helper->get_constant_buffer_variable(constant_buffer_semantics)->set_uint(1);
+                effect_helper->set_shader_resource_by_name(shader_resource_view_semantics, texture_manager.get_null_texture()); // White texture
                 if (material_semantics == MaterialSemantics::DiffuseMap)
                 {
                     // Currently do not consider opacity property
@@ -165,54 +166,6 @@ namespace toy
 
     void DeferredPBREffect::set_material(const model::Material &material)
     {
-        // TODO: separate
-//        using namespace toy::model;
-//        auto&& texture_manager = model::TextureManager::get();
-//
-//        auto diffuse_map_id_str = material.try_get<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap));
-//        auto normal_map_id_str = material.try_get<std::string>(material_semantics_name(MaterialSemantics::NormalMap));
-//        auto metalness_map_id_str = material.try_get<std::string>(material_semantics_name(MaterialSemantics::MetalnessMap));
-//        auto roughness_map_id_str = material.try_get<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap));
-//        if (diffuse_map_id_str)
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoDiffuseSrv")->set_uint(0);
-//            m_effect_impl->effect_helper->set_shader_resource_by_name("gAlbedoMap", texture_manager.get_texture(*diffuse_map_id_str));
-//        } else
-//        {
-//            // Note: do not convert "DirectX::XMFLOAT4 *" to "float *"
-//            auto diffuse_color = material.try_get<DirectX::XMFLOAT4>("$DiffuseColor");
-//            auto opacity = material.try_get<float>("$Opacity");
-//            float base_color_opacity[4] = { diffuse_color->x, diffuse_color->y, diffuse_color->z, *opacity };
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoDiffuseSrv")->set_uint(1);
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gBaseColorOpacity")->set_float_vector(4, base_color_opacity);
-//        }
-//
-//        if (normal_map_id_str)
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoNormalSrv")->set_uint(0);
-//            m_effect_impl->effect_helper->set_shader_resource_by_name("gNormalMap", texture_manager.get_texture(*normal_map_id_str));
-//        } else
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoNormalSrv")->set_uint(1);
-//        }
-//
-//        if (metalness_map_id_str)
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoMetalnessSrv")->set_uint(0);
-//            m_effect_impl->effect_helper->set_shader_resource_by_name("gMetalnessMap", texture_manager.get_texture(*metalness_map_id_str));
-//        } else
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoMetalnessSrv")->set_uint(1);
-//        }
-//
-//        if (roughness_map_id_str)
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoRoughnessSrv")->set_uint(0);
-//            m_effect_impl->effect_helper->set_shader_resource_by_name("gRoughnessMap", texture_manager.get_texture(*roughness_map_id_str));
-//        } else
-//        {
-//            m_effect_impl->effect_helper->get_constant_buffer_variable("gNoRoughnessSrv")->set_uint(1);
-//        }
         using namespace toy::model;
         m_effect_impl->set_material(material, MaterialSemantics::DiffuseMap);
         m_effect_impl->set_material(material, MaterialSemantics::NormalMap);
