@@ -242,20 +242,12 @@ namespace toy
         float jitter_y = taa::s_halton_3[taa_frame_counter] / static_cast<float>(m_effect_impl->viewer_height) * taa::s_taa_jitter_distance;
         proj.r[2].m128_f32[0] += jitter_x;
         proj.r[2].m128_f32[1] += jitter_y;
-//        taa::s_taa_jitter_x = jitter_x / 2.0f;
-//        taa::s_taa_jitter_y = -jitter_y / 2.0f;
 
         XMMATRIX world_view = world * view;
         XMMATRIX world_view_proj = world_view * proj;
-//        XMMATRIX world_inv_t_view = XMath::inverse_transpose(world) * view;
-//        XMMATRIX inv_view = XMMatrixInverse(nullptr, view);
         XMMATRIX view_proj = view * proj;
 
-//        world_view = XMMatrixTranspose(world_view);
         world_view_proj = XMMatrixTranspose(world_view_proj);
-//        inv_view = XMMatrixTranspose(inv_view);
-//        world_inv_t_view = XMMatrixTranspose(world_inv_t_view);
-//        proj = XMMatrixTranspose(proj);
         view_proj = XMMatrixTranspose(view_proj);
         world = XMMatrixTranspose(world);
 
@@ -282,8 +274,8 @@ namespace toy
                                                     ID3D11ShaderResourceView **gbuffers, D3D11_VIEWPORT viewport)
     {
         // Clear render target view
-//        static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-//        device_context->ClearRenderTargetView(lit_buffer_rtv, zeros);
+        static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        device_context->ClearRenderTargetView(lit_buffer_rtv, zeros);
 
         // Full-screen triangle
         device_context->IASetInputLayout(nullptr);

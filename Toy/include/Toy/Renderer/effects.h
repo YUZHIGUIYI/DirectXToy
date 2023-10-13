@@ -471,10 +471,10 @@ namespace toy
         // * Initialize all resources and shaders
         void init(ID3D11Device* device);
 
-        //
+        // * Set camera near far
         void set_camera_near_far(float nearz, float farz);
 
-        //
+        // * Set render target size
         void set_viewer_size(int32_t width, int32_t height);
 
         // * Render

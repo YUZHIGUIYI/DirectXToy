@@ -539,25 +539,17 @@ namespace toy::viewer
     {
         static bool first_frame = true;
         static uint32_t taa_frame_counter = 0;
-        ID3D11Device* d3d_device = m_d3d_app->get_device();
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
 
         if (first_frame)
         {
-            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_history_buffer->get_render_target(),
+            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                             m_gbuffer_srvs.data(), m_camera->get_viewport());
-            TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_history_buffer->get_shader_resource(),
+            TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
                                     m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
                                     m_viewer_buffer->get_render_target(), viewport);
             first_frame = false;
-        } else if (taa_frame_counter % taa::s_taa_sample == 0)
-        {
-            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_history_buffer->get_render_target(),
-                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
-            TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_history_buffer->get_shader_resource(),
-                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
-                                    m_viewer_buffer->get_render_target(), viewport);
         } else
         {
             DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
@@ -566,6 +558,8 @@ namespace toy::viewer
                                     m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
                                     m_viewer_buffer->get_render_target(), viewport);
         }
+
+        d3d_device_context->CopyResource(m_history_buffer->get_texture(), m_cur_buffer->get_texture());
 
         taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }

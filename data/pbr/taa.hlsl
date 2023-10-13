@@ -34,31 +34,6 @@ float linear_depth(float depth)
     return (depth * gNearZ) / (gFarZ - depth * (gFarZ - gNearZ));
 }
 
-float3 clip_aabb(float3 aabb_min, float3 aabb_max, float3 prev_sample, float3 avg)
-{
-    const float eps = 0.000001f;
-
-    float3 r = prev_sample - avg;
-    float3 rmax = aabb_max - avg;
-    float3 rmin = aabb_min - avg;
-
-    if (r.x > rmax.x + eps) 
-        r *= (rmax.x / r.x);
-    if (r.y > rmax.y + eps)
-        r *= (rmax.y / r.y);
-    if (r.z > rmax.z + eps)
-        r *= (rmax.z / r.z);
-
-    if (r.x < rmin.x - eps)
-        r *= (rmin.x / r.x);
-    if (r.y < rmin.y - eps)
-        r *= (rmin.y / r.y);
-    if (r.z < rmin.z - eps)
-        r *= (rmin.z / r.z);
-
-    return avg + r;
-}
-
 float3 RGB_TO_YCoCgR(float3 rgb_color)
 {
     float3 YCoCgR_color;
@@ -75,30 +50,91 @@ float3 YCoCgR_To_RGB(float3 YCoCgR_color)
 {
     float3 rgb_color;
 
-    float temp = YCoCgR_color.x - YCoCgR_color.z / 2;
+    float temp = YCoCgR_color.x - YCoCgR_color.z / 2.0f;
     rgb_color.g = YCoCgR_color.z + temp;
-    rgb_color.b = temp - YCoCgR_color.y / 2;
+    rgb_color.b = temp - YCoCgR_color.y / 2.0f;
     rgb_color.r = rgb_color.b + YCoCgR_color.y;
 
     return rgb_color;
 }
 
-//// Optimized HDR weighting function
-float hdr_weight4(float3 color, float exposure)
+// Tone mapping
+float luminance(float3 color)
 {
-    return rcp(color.r * exposure + 4.0f);
+    return 0.25f * color.r + 0.5f * color.g + 0.25f * color.b;
+}
+
+float3 tonemap(float3 color)
+{
+    return color / (1.0f + luminance(color));
+}
+
+float3 untonemap(float3 color)
+{
+    return color / (1.0f - luminance(color));
+}
+
+// Modified clip aabb
+float3 clip_aabb(float3 cur_color, float3 pre_color, float2 texcoord)
+{
+    float3 aabb_min = cur_color;
+    float3 aabb_max = cur_color;
+
+    float3 m1 = float3(0.0f, 0.0f, 0.0f);
+    float3 m2 = float3(0.0f, 0.0f, 0.0f);
+    
+    for (int i = -1; i <= 1; ++i)
+    {
+        for (int j = -1; j <= 1; ++j)
+        {
+            float2 sample_uv = texcoord + float2(i, j) * gInvRenderTargetSize;
+            sample_uv = saturate(sample_uv);
+            float3 color = gCurrentFrameMap.Sample(gSamLinearWrap, sample_uv).rgb;
+            color = RGB_TO_YCoCgR(tonemap(color));
+            m1 += color;
+            m2 += color * color;
+        }
+    }
+
+    // Variance clip
+    const int N = 9;
+    const float variance_clip_gamma = 1.0f;
+    float3 mu = m1 / N;
+    float3 sigma = sqrt(abs(m2 / N - mu * mu));
+    aabb_min = mu - variance_clip_gamma * sigma;
+    aabb_max = mu + variance_clip_gamma * sigma;
+
+    // Clip to center
+    float3 p_clip = 0.5f * (aabb_max + aabb_min);
+    float3 e_clip = 0.5f * (aabb_max - aabb_min);
+
+    float3 v_clip = pre_color - p_clip;
+    float3 v_unit = v_clip / e_clip;
+    float3 a_unit = abs(v_unit);
+    float  ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+
+    if (ma_unit > 1.0f) 
+    {
+        return p_clip + v_clip / ma_unit;
+    }
+    else 
+    {
+        return pre_color;
+    }
 }
 
 // Pixel shader
 float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_Target
 {
     int x, y, i;
-    float closest_depth = gFarZ;  // ???
+    float closest_depth = gFarZ;  
     float len_velocity = 0.0f;
     float2 velocity = float2(0.0f, 0.0f);
     float2 closest_offset = float2(0.0f, 0.0f);
-    double2 jittered_uv = (double2)texcoord + gJitter.xy;
+    // float2 jittered_uv = texcoord + gJitter.xy;
+    float2 jittered_uv = texcoord;
     
+    // 3 x 3 velocity
     for (y = -1; y <= 1; ++y)
     {
         for (x = -1; x <= 1; ++x)
@@ -107,75 +143,34 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
             float2 sample_uv = jittered_uv + sample_offset;
             sample_uv = saturate(sample_uv);
 
-            float neighborhood_depth_samp = gDepthMap.Sample(gSamLinearClamp, sample_uv).r;
+            float neighborhood_depth_samp = gDepthMap.Sample(gSamLinearWrap, sample_uv).r;
             neighborhood_depth_samp = linear_depth(neighborhood_depth_samp);    // Handle reverse z
 
-            if (neighborhood_depth_samp > closest_depth)
+            if (neighborhood_depth_samp < closest_depth)
             {
                 closest_depth = neighborhood_depth_samp;
-                closest_offset = float2(x, y);
+                closest_offset = sample_offset;
             }
         }
     }
-    closest_offset *= gInvRenderTargetSize;
-    velocity = gVelocityMap.Sample(gSamLinearClamp, jittered_uv + closest_offset).rg;
+    velocity = gVelocityMap.Sample(gSamLinearWrap, jittered_uv + closest_offset).rg;
     len_velocity = length(velocity);
 
-    float2 cur_sample_uv = lerp(texcoord, jittered_uv, 0.0f);
-    float3 cur_color = gCurrentFrameMap.Sample(gSamLinearClamp, cur_sample_uv).rgb;
-    cur_color = RGB_TO_YCoCgR(cur_color);
+    float2 cur_sample_uv = texcoord;
+    float3 cur_color = gCurrentFrameMap.Sample(gSamLinearWrap, cur_sample_uv).rgb;
 
-    float3 prev_color = gHistoryFrameMap.Sample(gSamLinearClamp, texcoord - velocity).rgb;
-    prev_color = RGB_TO_YCoCgR(prev_color);
+    float2 pre_sample_uv = saturate(texcoord - velocity);
+    float3 prev_color = gHistoryFrameMap.Sample(gSamLinearWrap, pre_sample_uv).rgb;
 
-    uint N = 9;
-    float3 history;
-    float3 sum = float3(0.0f, 0.0f, 0.0f);
-    float3 m1 = float3(0.0f, 0.0f, 0.0f);
-    float3 m2 = float3(0.0f, 0.0f, 0.0f);
-    float3 neighbor_min = float3(9999999.0f, 9999999.0f, 9999999.0f);
-    float3 neighbor_max = float3(-99999999.0f, -99999999.0f, -99999999.0f);
-    float  neighborhood_final_weight = 0.0f;
-    float  total_weight = 0.0f;
-    // 3 x 3 sampling
-    for (y = -1; y <= 1; ++y)
-    {
-        for (x = -1; x <= 1; ++x)
-        {
-            i = (y + 1) * 3 + x + 1;
-            float2 sample_offset = float2(x, y) * gInvRenderTargetSize;
-            float2 sample_uv = cur_sample_uv + sample_offset;
-            sample_uv = saturate(sample_uv);
+    cur_color = RGB_TO_YCoCgR(tonemap(cur_color));
+    prev_color = RGB_TO_YCoCgR(tonemap(prev_color));
 
-            float3 neighborhood_samp = gCurrentFrameMap.Sample(gSamLinearClamp, sample_uv).rgb;
-            neighborhood_samp = max(neighborhood_samp, float3(0.0f, 0.0f, 0.0f));
-            neighborhood_samp = RGB_TO_YCoCgR(neighborhood_samp);
+    prev_color = clip_aabb(cur_color, prev_color, texcoord);
 
-            neighbor_min = min(neighbor_min, neighborhood_samp);
-            neighbor_max = max(neighbor_max, neighborhood_samp);
-            neighborhood_final_weight = hdr_weight4(neighborhood_samp, s_exposure);
-            m1 += neighborhood_samp;
-            m2 += neighborhood_samp * neighborhood_samp;
-            total_weight += neighborhood_final_weight;
-            sum += neighborhood_samp * neighborhood_final_weight;
-        }
-    }
-    float3 filtered = sum / total_weight;
+    prev_color = untonemap(YCoCgR_To_RGB(prev_color));
+    cur_color = untonemap(YCoCgR_To_RGB(cur_color));
 
-    // Variance clip
-    float3 mu = m1 / N;
-    float3 sigma = sqrt(abs(m2 / N - mu * mu));
-    float3 minc = mu - s_variance_clip_gamma * sigma;
-    float3 maxc = mu + s_variance_clip_gamma * sigma;
-
-    prev_color = clip_aabb(minc, maxc, prev_color, mu);
-
-    float cur_weight = lerp(s_blend_weight_lower_bound, s_blend_weight_upper_bound, saturate(len_velocity * s_blend_weight_velocity_scale));
-    float prev_weight = 1.0f - cur_weight;
-
-    float rcp_weight = rcp(cur_weight + prev_weight);
-    history = (cur_color * cur_weight + prev_color * prev_weight) * rcp_weight;
-    history.rgb = YCoCgR_To_RGB(history.rgb);
-
-    return float4(history, 1.0f);
+    const float weight = 0.05f;
+    float3 final_color = weight * cur_color + (1.0f - weight) * prev_color;
+    return float4(final_color, 1.0f);
 }
