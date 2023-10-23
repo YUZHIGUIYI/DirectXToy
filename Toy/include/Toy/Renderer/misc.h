@@ -5,6 +5,7 @@
 #pragma once
 
 #include <Toy/Core/base.h>
+#include <Toy/Model/property.h>
 
 namespace toy
 {
@@ -155,7 +156,7 @@ namespace toy
         virtual void set_raw(const void* data, uint32_t byte_offset = 0, uint32_t byte_count = 0xFFFFFFFF) = 0;
 
         // Set property
-
+        virtual void set(const Property &prop) = 0;
 
         // Obtain the most recently setting values, allow specifying reading range
         virtual HRESULT get_raw(void* p_output, uint32_t byte_offset = 0, uint32_t byte_count = 0xFFFFFFFF) = 0;
@@ -292,6 +293,11 @@ namespace toy
                 memcpy_s(p_CBufferData->cbuffer_data.data() + start_byte_offset + byte_offset, byte_count, data, byte_count);
                 p_CBufferData->is_dirty = true;
             }
+        }
+
+        void set(const Property &prop) override
+        {
+            std::visit(PropertyFunctor{ *this }, prop);
         }
 
         HRESULT get_raw(void* p_output, uint32_t byte_offset = 0, uint32_t byte_count = 0xFFFFFFFF) override

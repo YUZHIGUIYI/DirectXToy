@@ -490,6 +490,43 @@ namespace toy
 
         std::unique_ptr<EffectImpl> m_effect_impl;
     };
+
+    class ShadowEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        ShadowEffect();
+        ~ShadowEffect() override;
+
+        ShadowEffect(ShadowEffect &&other) noexcept;
+        ShadowEffect &operator=(ShadowEffect &&other) noexcept;
+
+        void init(ID3D11Device *device);
+
+        void set_material(const model::Material &material) override;
+
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        void set_default_render();
+
+        void set_alpha_clip_render(float alpha_clip_value);
+
+        void render_depth_to_texture(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT  &viewport);
+
+        void apply(ID3D11DeviceContext *device_context) override;
+
+        static ShadowEffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl = nullptr;
+    };
 }
 
 

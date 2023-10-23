@@ -8,4 +8,6 @@ SamplerState gSamLinearClamp      : register(s3);
 SamplerState gSamAnisotropicWrap  : register(s4);
 SamplerState gSamAnisotropicClamp : register(s5);
 
+SamplerComparisonState gSamShadow : register(s6);
+
 #endif
