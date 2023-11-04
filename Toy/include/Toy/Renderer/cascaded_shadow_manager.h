@@ -57,6 +57,8 @@ namespace toy
 
         void init(ID3D11Device *device);
 
+        static CascadedShadowManager &get();
+
         void update_frame(const camera_c &viewer_camera, const camera_c &light_camera, const DirectX::BoundingBox &scene_bounding_box);
 
         ID3D11DepthStencilView *get_cascade_depth_stencil_view(size_t cascade_index) const;

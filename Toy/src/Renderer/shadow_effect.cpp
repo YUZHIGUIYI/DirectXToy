@@ -63,7 +63,7 @@ namespace toy
         std::string_view shadow_vs = "ShadowVS";
         std::string_view screen_triangle_vs = "ShadowScreenVS";
         std::string_view shadow_ps = "ShadowPS";
-        std::string_view debug_ps = "DebugPS";
+        std::string_view debug_ps = "ShadowDebugPS";
 
         m_effect_impl->shadow_pass = "ShadowPass";
         m_effect_impl->shadow_alpha_clip_pass = "ShadowAlphaClipPass";
@@ -122,14 +122,14 @@ namespace toy
         device_context->IASetInputLayout(nullptr);
         device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_debug_pass);
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gDiffuseMap", input_srv);    // TODO: modify name
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gAlbedoMap", input_srv);    // TODO: modify name
         m_effect_impl->cur_effect_pass->apply(device_context);
         device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
         device_context->RSSetViewports(1, &viewport);
         device_context->Draw(3, 0);
 
         // Clear
-        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gDiffuseMap");  // TODO: modify name
+        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gAlbedoMap");  // TODO: modify name
         input_srv = nullptr;
         device_context->PSSetShaderResources(static_cast<uint32_t>(slot), 1, &input_srv);
         device_context->OMSetRenderTargets(0, nullptr, nullptr);
@@ -137,17 +137,7 @@ namespace toy
 
     void ShadowEffect::set_material(const model::Material &material)
     {
-        using namespace toy::model;
-        auto&& texture_manager = TextureManager::get();
 
-        auto texture_map_name = material.try_get<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap));
-        if (texture_map_name)
-        {
-            m_effect_impl->effect_helper->set_shader_resource_by_name("gDiffuseMap", texture_manager.get_texture(*texture_map_name));
-        } else
-        {
-            m_effect_impl->effect_helper->set_shader_resource_by_name("gDiffuseMap", texture_manager.get_null_texture()); // White texture
-        }
     }
 
     MeshDataInput ShadowEffect::get_input_data(const model::MeshData &mesh_data)

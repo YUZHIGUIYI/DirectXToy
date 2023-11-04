@@ -769,7 +769,7 @@ namespace toy
             d3d_device_context->OMSetRenderTargets(0, nullptr, m_depth_buffer->get_depth_stencil());
             m_forward_effect.set_pre_z_pass_render();
 
-            m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
+//            m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
 
             d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
         }
@@ -799,7 +799,7 @@ namespace toy
 
             m_forward_effect.set_light_buffer(m_light_buffer->get_shader_resource());
 
-            m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
+//            m_editor_scene->render_scene(d3d_device_context, m_forward_effect);
 
             // Clear binding
             m_forward_effect.set_tile_buffer(nullptr);
@@ -831,7 +831,7 @@ namespace toy
             m_deferred_effect.set_gbuffer_render();
             d3d_device_context->OMSetRenderTargets(uint32_t(m_gbuffers.size()), m_gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
 
-            m_editor_scene->render_scene(d3d_device_context, m_deferred_effect);
+//            m_editor_scene->render_scene(d3d_device_context, m_deferred_effect);
 
             d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
         }
@@ -882,7 +882,7 @@ namespace toy
         d3d_device_context->OMSetRenderTargets(1, rtvs, nullptr);
 
         // TODO: entity
-        m_editor_scene->render_scene(d3d_device_context, m_skybox_effect, true);
+//        m_editor_scene->render_scene(d3d_device_context, m_skybox_effect, true);
         // TODO: end
 
         // Clear status

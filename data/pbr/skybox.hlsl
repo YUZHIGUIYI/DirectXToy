@@ -1,7 +1,11 @@
-#include "common_cb.hlsl"
 #include "samplers.hlsl"
 
-TextureCube<float4> gSkyboxMap : register(t10);
+TextureCube<float4> gSkyboxMap : register(t0);
+
+cbuffer CBPerObject : register(b0)
+{
+    matrix gViewProj;
+}
 
 struct SkyboxInput
 {

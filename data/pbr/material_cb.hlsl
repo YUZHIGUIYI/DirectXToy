@@ -4,6 +4,7 @@
 // Basic PBR material attribute sets
 cbuffer CBMaterial : register(b1)
 {
+    // For geometry pass - pixel shader
     float4 gBaseColorOpacity;           // float3 color + float opacity
     float4 gSpecularAnisotropic;        // float3 specular color + float anisotropic
 

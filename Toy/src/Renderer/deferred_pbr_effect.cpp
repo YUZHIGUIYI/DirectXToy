@@ -50,6 +50,14 @@ namespace toy
         int32_t viewer_width = 0;
         int32_t viewer_height = 0;
 
+        // For cascaded shadow map
+        int32_t cascade_level = 0;
+        int32_t derivative_offset = 0;
+        int32_t cascade_blend = 0;
+        int32_t cascade_selection = 0;
+        int32_t pcf_kernel_size = 1;
+        int32_t shadow_size = 1024;
+
         D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
         void set_material(const model::Material &material, model::MaterialSemantics material_semantics) const
@@ -315,6 +323,102 @@ namespace toy
         m_effect_impl->effect_helper->set_shader_resource_by_name("gIrradianceMap", nullptr);
         m_effect_impl->effect_helper->set_shader_resource_by_name("gBRDFLUT", nullptr);
         pass->apply(device_context);
+    }
+
+    void DeferredPBREffect::set_cascade_levels(int32_t cascade_levels)
+    {
+        m_effect_impl->cascade_level = cascade_levels;
+    }
+
+    void DeferredPBREffect::set_pcf_derivatives_offset_enabled(bool enable)
+    {
+        m_effect_impl->derivative_offset = enable;
+    }
+
+    void DeferredPBREffect::set_cascade_blend_enabled(bool enable)
+    {
+        m_effect_impl->cascade_blend = enable;
+    }
+
+    void DeferredPBREffect::set_cascade_interval_selection_enabled(bool enable)
+    {
+        m_effect_impl->cascade_selection = enable;
+    }
+
+    void DeferredPBREffect::set_cascade_visualization(bool enable)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gVisualizeCascades")->set_sint(enable);
+    }
+
+    void DeferredPBREffect::set_cascade_offsets(const DirectX::XMFLOAT4 *offsets)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedOffset")->set_raw(offsets);
+    }
+
+    void DeferredPBREffect::set_cascade_scales(const DirectX::XMFLOAT4 *scales)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedScale")->set_raw(scales);
+    }
+
+    void DeferredPBREffect::set_cascade_frustums_eye_space_depths(const float *depths)
+    {
+        float depths_array[8][4] = { {depths[0]},{depths[1]}, {depths[2]}, {depths[3]},
+                                    {depths[4]}, {depths[5]}, {depths[6]}, {depths[7]} };
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsFloat")->set_raw(depths);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsFloat4")->set_raw(depths_array);
+    }
+
+    void DeferredPBREffect::set_cascade_blend_area(float blend_area)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadeBlendArea")->set_float(blend_area);
+    }
+
+    void DeferredPBREffect::set_pcf_kernel_size(int32_t size)
+    {
+        int32_t start = -size / 2;
+        int32_t end = size + start;
+
+        m_effect_impl->pcf_kernel_size = size;
+        float padding = static_cast<float>(size / 2) / static_cast<float>(m_effect_impl->shadow_size);
+
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gPCFBlurForLoopStart")->set_sint(start);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gPCFBlurForLoopEnd")->set_sint(end);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gMinBorderPadding")->set_float(padding);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gMaxBorderPadding")->set_float(1.0f - padding);
+    }
+
+    void DeferredPBREffect::set_pcf_depth_offset(float offset)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gShadowBias")->set_float(offset);
+    }
+
+    void DeferredPBREffect::set_shadow_size(int32_t size)
+    {
+        m_effect_impl->shadow_size = size;
+
+        float padding = static_cast<float>(m_effect_impl->pcf_kernel_size / 2) / static_cast<float>(size);
+
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gTexelSize")->set_float(1.0f / static_cast<float>(size));
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gMinBorderPadding")->set_float(padding);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gMaxBorderPadding")->set_float(1.0f - padding);
+    }
+
+    void DeferredPBREffect::set_shadow_texture_array(ID3D11ShaderResourceView *shadow_map)
+    {
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", shadow_map);
+    }
+
+    void DeferredPBREffect::set_light_direction(const DirectX::XMFLOAT3 &direction)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gLightDir")->set_float_vector(3, (const float *)&direction);
+    }
+
+    void XM_CALLCONV DeferredPBREffect::set_shadow_view_matrix(DirectX::FXMMATRIX shadow_view)
+    {
+        using namespace DirectX;
+        XMMATRIX shadow_view_transpose = XMMatrixTranspose(shadow_view);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gShadowView")->
+                        set_float_matrix(4, 4, (const float *)&shadow_view_transpose);
     }
 
     void XM_CALLCONV DeferredPBREffect::set_world_matrix(DirectX::FXMMATRIX world)

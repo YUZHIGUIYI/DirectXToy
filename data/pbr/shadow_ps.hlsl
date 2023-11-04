@@ -17,9 +17,11 @@ void PS(VertexShaderOutput pin, uniform float clip_value)
     clip(diffuse.a - clip_value);
 }
 
-float4 DebugPS(VertexShaderOutput pin) : SV_Target
+float4 DebugPS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_Target
 {
-    float depth = gAlbedoMap.Sample(gSamLinearWrap, pin.texcoord);
+    float depth = gAlbedoMap.Sample(gSamLinearWrap, texcoord).r;
+
+    depth = 1.0f - depth;
 
     return float4(depth.rrr, 1.0f);
 }

@@ -14,6 +14,9 @@ namespace toy
         camera_c() = default;
         virtual ~camera_c() = default;
 
+        const transform_c& get_transform() const { return class_transform; }
+        transform_c& get_transform() { return class_transform; }
+
         //
         // Get camera position
         //

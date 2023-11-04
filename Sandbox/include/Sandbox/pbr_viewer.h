@@ -51,6 +51,8 @@ namespace toy::viewer
 
         void resize_buffers(uint32_t width, uint32_t height);
 
+        void render_shadow();
+
         void render_gbuffer();
 
         void taa_pass();
@@ -77,11 +79,14 @@ namespace toy::viewer
 
         std::unique_ptr<Texture2D> m_viewer_buffer;                                 // Viewer image buffer
 
+        std::unique_ptr<Texture2D> m_shadow_buffer;
+
         // Disposable
         std::vector<ID3D11RenderTargetView *> m_gbuffer_rtvs;
         std::vector<ID3D11ShaderResourceView *> m_gbuffer_srvs;
 
         // Camera
+        std::shared_ptr<camera_c> m_light_camera;
         std::shared_ptr<camera_c> m_camera;                                         // Camera
         FirstPersonCameraController m_camera_controller;                            // Camera controller
 

@@ -35,6 +35,7 @@ namespace toy
         void on_resize(const event_t& event);                        // Call when resize window
         void on_close(const event_t& event);                         // Call when close window
         void tick();                                                 // Run application, and game-loop
+        void reset_render_target();                                  // Set render target view of back buffer to current render target view
         void present();                                              // Present back buffer view
 
         void add_layer(const std::shared_ptr<ILayer>& layer);       // Add layer into engine

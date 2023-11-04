@@ -9,6 +9,13 @@
 
 namespace toy
 {
+    namespace model
+    {
+        struct Model;
+    }
+
+    class camera_c;
+
     struct CopyableAndMovable
     {
         CopyableAndMovable() = default;
@@ -43,16 +50,18 @@ namespace toy
         TransformComponent& operator=(const TransformComponent&) = default;
     };
 
-    namespace model
+    struct CameraComponent
     {
-        struct Model;
-    }
+        std::shared_ptr<camera_c> camera = nullptr;
+    };
+
     struct StaticMeshComponent
     {
         model::Model* model_asset = nullptr;
         std::vector<bool> submodel_in_frustum{};
         bool in_frustum = true;
         bool is_skybox = false;     // TODO: Check whether static mesh component is skybox, bad design
+        bool is_camera = false;
 
         StaticMeshComponent() = default;
         StaticMeshComponent(const StaticMeshComponent&) = default;

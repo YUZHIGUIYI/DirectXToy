@@ -144,7 +144,10 @@ namespace toy
                     layer->on_render(current_time - last_time);
                 }
 
+                reset_render_target();
+
                 ImGuiPass::end();
+
                 present();
 
                 ++m_frame_count;
@@ -154,6 +157,13 @@ namespace toy
 
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(100ms);
+    }
+
+    // Set render target view of back buffer to current render target view
+    void d3d_application_c::reset_render_target()
+    {
+        ID3D11RenderTargetView* rtv =  get_back_buffer_rtv();
+        m_d3d_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
     }
 
     // Present back buffer view

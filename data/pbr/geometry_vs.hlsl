@@ -1,5 +1,5 @@
 #include "vertex_definitions.hlsl"
-#include "common_cb.hlsl"
+#include "deferred_common_cb.hlsl"
 
 VertexShaderOutput VS(VertexShaderInput vin)
 {

@@ -32,6 +32,12 @@ namespace toy
         shadow_viewport.MaxDepth = 1.0f;
     }
 
+    CascadedShadowManager &CascadedShadowManager::get()
+    {
+        static CascadedShadowManager cascaded_shadow_manager = {};
+        return cascaded_shadow_manager;
+    }
+
     ID3D11DepthStencilView *CascadedShadowManager::get_cascade_depth_stencil_view(size_t cascade_index) const
     {
         return csm_texture_array->get_depth_stencil(cascade_index);

@@ -1,8 +1,6 @@
 #include "screen_triangle_vs.hlsl"
-#include "deferred_registers.hlsl"
-#include "common_cb.hlsl"
 #include "pbr_common.hlsl"
-#include "samplers.hlsl"
+#include "cascaded_shadow.hlsl"
 
 // Constant normal incidence Fresnel factor for all dielectrics
 static const float3 s_fresnel = float3(0.04f, 0.04f, 0.04f);

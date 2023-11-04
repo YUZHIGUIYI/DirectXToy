@@ -5,6 +5,7 @@
 #include <Sandbox/pbr_viewer.h>
 #include <Sandbox/file_dialog.h>
 #include <Toy/Renderer/taa_settings.h>
+#include <Toy/Renderer/cascaded_shadow_manager.h>
 
 #include <IconsFontAwesome6.h>
 
@@ -97,10 +98,14 @@ namespace toy::viewer
         RenderStates::init(d3d_device);
 
         // Initialize effects
+        ShadowEffect::get().init(d3d_device);
         DeferredPBREffect::get().init(d3d_device);
         SimpleSkyboxEffect::get().init(d3d_device);
         PreProcessEffect::get().init(d3d_device);
         TAAEffect::get().init(d3d_device);
+
+        // Initialize shadow
+        CascadedShadowManager::get().init(d3d_device);
 
         // Initialize resource
         init_resource();
@@ -279,6 +284,13 @@ namespace toy::viewer
         m_camera->set_frustum(XM_PI / 3.0f, m_viewer_spec.get_aspect_ratio(), 0.5f, 300.0f);
         camera->look_at(XMFLOAT3(-60.0f, 10.0f, 2.5f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
 
+        auto light_camera = std::make_shared<first_person_camera_c>();
+        m_light_camera = light_camera;
+
+        m_light_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
+        m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1200.0f);
+        light_camera->look_at(XMFLOAT3{ -50.0f, 10.0f, -10.5f }, XMFLOAT3{ 10.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+
         m_camera_controller.init(camera.get());
         m_camera_controller.set_move_speed(10.0f);
 
@@ -290,6 +302,8 @@ namespace toy::viewer
 
         TAAEffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+
+        ShadowEffect::get().set_view_matrix(m_light_camera->get_view_xm());
 
         // Skybox texture
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
@@ -331,7 +345,7 @@ namespace toy::viewer
 
         //// TODO: Debug - Test entity one
         using namespace toy::model;
-        auto test_entity = m_editor_scene->create_entity("TestSuccess");
+        auto test_entity = m_editor_scene->create_entity("SphereWithTexture");
         auto& test_transform = test_entity.add_component<TransformComponent>();
         test_transform.transform.set_position(-15.0f, 15.0f, 10.0f);
         test_transform.transform.set_scale(10.0f, 10.0f, 10.0f);
@@ -364,13 +378,24 @@ namespace toy::viewer
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
 
         //// TODO: Debug: Test entity three
-        auto test_entity_two = m_editor_scene->create_entity("TestSuccessTwo");
+        auto test_entity_two = m_editor_scene->create_entity("CylinderWithoutTexture");
         auto& test_transform_two = test_entity_two.add_component<TransformComponent>();
         test_transform_two.transform.set_scale(10.0f, 10.0f, 10.0f);
         auto& test_mesh_two = test_entity_two.add_component<StaticMeshComponent>();
         test_mesh_two.model_asset = model::ModelManager::get().get_model("simpleCylinder");
 
         // TODO: Debug - end
+
+        // TODO: camera component
+        auto test_entity_three = m_editor_scene->create_entity("FirstIlluminant");
+        auto& test_camera_component = test_entity_three.add_component<CameraComponent>();
+        test_camera_component.camera = m_light_camera;
+        auto& test_camera_transform = test_entity_three.add_component<TransformComponent>();
+        test_camera_transform.transform.set_scale(3.0f, 3.0f, 3.0f);
+        test_camera_transform.transform.set_position(0.0f, 0.0f, 30.0f);
+        auto& test_mesh_three = test_entity_three.add_component<StaticMeshComponent>();
+        test_mesh_three.model_asset = model::ModelManager::get().get_model("skyboxCube");
+        test_mesh_three.is_camera = true;
 
         m_scene_hierarchy_panel.set_context(m_editor_scene);
     }
@@ -414,23 +439,29 @@ namespace toy::viewer
         // TAA effect input
         m_history_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
         m_cur_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+
+        // Shadow effect debug
+        m_shadow_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
     }
 
     void PBRViewer::on_render(float dt)
     {
+        // Cascaded shadow pass
+        render_shadow();
+
         // Update
         on_update(dt);
 
         ID3D11Device* d3d_device = m_d3d_app->get_device();
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
 
-        // Rendering scene
+        // Geometry pass
         render_gbuffer();
 
-        // TAA pass
+        // Deferred PBR and TAA pass
         taa_pass();
 
-        // Rendering skybox
+        // Skybox pass
         render_skybox();
 
         // Deferred rendering debug
@@ -465,15 +496,29 @@ namespace toy::viewer
 
         if (ImGui::Begin("Roughness"))
         {
-            static ID3D11ShaderResourceView* roughness_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
+//            static ID3D11ShaderResourceView* roughness_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
+//            ImVec2 winSize = ImGui::GetWindowSize();
+//            float smaller = (std::min)((winSize.x - 20.0f) / aspect_ratio, winSize.y - 20.0f);
+//            ImGui::Image(roughness_srv, ImVec2(smaller * aspect_ratio, smaller));
+            auto&& cascade_shadow_manager = CascadedShadowManager::get();
+            static const std::array<const char *, 7> cascade_level_selections{
+                "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7"
+            };
+            static int32_t cur_level_index = 0;
+            ImGui::Combo("##1", &cur_level_index, cascade_level_selections.data(), cascade_shadow_manager.cascade_levels);
+            if (cur_level_index >= cascade_shadow_manager.cascade_levels)
+            {
+                cur_level_index = cascade_shadow_manager.cascade_levels - 1;
+            }
+
+            ShadowEffect::get().render_depth_to_texture(d3d_device_context, cascade_shadow_manager.get_cascade_output(cur_level_index),
+                                                        m_shadow_buffer->get_render_target(), cascade_shadow_manager.shadow_viewport);
+
             ImVec2 winSize = ImGui::GetWindowSize();
             float smaller = (std::min)((winSize.x - 20.0f) / aspect_ratio, winSize.y - 20.0f);
-            ImGui::Image(roughness_srv, ImVec2(smaller * aspect_ratio, smaller));
+            ImGui::Image(m_shadow_buffer->get_shader_resource(), ImVec2(smaller * aspect_ratio, smaller));
         }
         ImGui::End();
-
-        ID3D11RenderTargetView* rtv =  m_d3d_app->get_back_buffer_rtv();
-        d3d_device_context->OMSetRenderTargets(1, &rtv, nullptr);
     }
 
     void PBRViewer::on_update(float dt)
@@ -512,6 +557,37 @@ namespace toy::viewer
         }
     }
 
+    void PBRViewer::render_shadow()
+    {
+        using namespace DirectX;
+        ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
+        auto&& shadow_effect = ShadowEffect::get();
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        auto viewport = cascade_shadow_manager.get_shadow_viewport();
+
+        shadow_effect.set_view_matrix(m_light_camera->get_view_xm());
+        m_editor_scene->update_cascaded_shadow([this, &cascade_shadow_manager] (const DirectX::BoundingBox &bounding_box){
+            cascade_shadow_manager.update_frame(*m_camera, *m_light_camera, bounding_box);
+        });
+
+        shadow_effect.set_default_render();
+        d3d_device_context->RSSetViewports(1, &viewport);
+        for (size_t cascade_index = 0; cascade_index < cascade_shadow_manager.cascade_levels; ++cascade_index)
+        {
+            ID3D11RenderTargetView* null_rtv = nullptr;
+            ID3D11DepthStencilView* dsv = cascade_shadow_manager.get_cascade_depth_stencil_view(cascade_index);
+            d3d_device_context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
+            d3d_device_context->OMSetRenderTargets(1, &null_rtv, dsv);
+
+            XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
+            shadow_effect.set_proj_matrix(m_light_camera->get_proj_xm());
+
+            // TODO: culling
+
+            m_editor_scene->render_static_mesh(d3d_device_context, shadow_effect, true);
+        }
+    }
+
     void PBRViewer::render_gbuffer()
     {
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
@@ -531,7 +607,7 @@ namespace toy::viewer
 
         DeferredPBREffect::get().set_gbuffer_render();
         d3d_device_context->OMSetRenderTargets(static_cast<uint32_t>(m_gbuffers.size()), m_gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
-        m_editor_scene->render_scene(d3d_device_context, DeferredPBREffect::get());
+        m_editor_scene->render_static_mesh(d3d_device_context, DeferredPBREffect::get());
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 
@@ -580,7 +656,7 @@ namespace toy::viewer
         SimpleSkyboxEffect::get().apply(d3d_device_context);
 
         d3d_device_context->OMSetRenderTargets(1, &render_target_view, m_depth_buffer->get_depth_stencil());
-        m_editor_scene->render_scene(d3d_device_context, SimpleSkyboxEffect::get(), true);
+        m_editor_scene->render_skybox(d3d_device_context, SimpleSkyboxEffect::get());
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 }

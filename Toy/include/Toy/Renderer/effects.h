@@ -407,6 +407,51 @@ namespace toy
         // * Singleton
         static DeferredPBREffect &get();
 
+        // * Cascade level
+        void set_cascade_levels(int32_t cascade_levels);
+
+        // * Enable/disable PCF derivatives offset
+        void set_pcf_derivatives_offset_enabled(bool enable);
+
+        // * Enable/disable cascade blend
+        void set_cascade_blend_enabled(bool enable);
+
+        // * Enable/disable cascade interval selection
+        void set_cascade_interval_selection_enabled(bool enable);
+
+        // * Enable/disable cascade visualization
+        void set_cascade_visualization(bool enable);
+
+        // * Cascade offsets - TODO: use std::span
+        void set_cascade_offsets(const DirectX::XMFLOAT4 *offsets);
+
+        // * Cascade scales - TODO: use std::span
+        void set_cascade_scales(const DirectX::XMFLOAT4 *scales);
+
+        // * Cascade frustums eye space depths - TODO: use std::span
+        void set_cascade_frustums_eye_space_depths(const float *depths);
+
+        // * Cascade blend area
+        void set_cascade_blend_area(float blend_area);
+
+        // * PCF kernel size
+        void set_pcf_kernel_size(int32_t size);
+
+        // * PCF depth offset
+        void set_pcf_depth_offset(float offset);
+
+        // * Shadow size
+        void set_shadow_size(int32_t size);
+
+        // * Shadow texture array
+        void set_shadow_texture_array(ID3D11ShaderResourceView * shadow_map);
+
+        // * Light direction
+        void set_light_direction(const DirectX::XMFLOAT3 &direction);
+
+        // * Shadow view matrix
+        void XM_CALLCONV set_shadow_view_matrix(DirectX::FXMMATRIX shadow_view);
+
         // * Set MVP matrix
         void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
         void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;

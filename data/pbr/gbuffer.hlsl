@@ -31,7 +31,7 @@ GBuffer PS(VertexShaderOutput pin)
 
     gbuffer.WorldPosition = float4(pin.world_position, 1.0f);
 
-    // TODO: enable TAA - motion vector
+    // TAA - motion vector
     float4 pre_vp_pos = pin.pre_vp_position;
     float4 cur_vp_pos = pin.cur_vp_position;
     pre_vp_pos = pre_vp_pos / pre_vp_pos.w;
