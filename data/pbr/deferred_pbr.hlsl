@@ -42,12 +42,28 @@ float3 ambient_brdf(PBRMaterial pbr_mat, float3 irradiance_color, float3 prefilt
     return diffuse_color + specular_color;
 }
 
+// Calculate cascaded shadow
+float get_cascaded_shadow(float3 world_position)
+{
+    int cascade_index = 0;
+    int next_cascade_index = 0;
+    float blend_amount = 0.0f;
+    float4 shadow_view_position = mul(float4(world_position, 1.0f), gShadowView);
+    float view_depth = mul(float4(world_position, 1.0f), gView).z;
+    float percent_lit = calculate_cascaded_shadow(shadow_view_position, view_depth, 
+                        cascade_index, next_cascade_index, blend_amount);
+    
+    return percent_lit;
+}
+
 
 float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_Target
 {
     float4 albedo_metalness = gGeometryAlbedoMetalness.Sample(gSamAnisotropicWrap, texcoord);
     float4 world_normal_roughness = gGeometryNormalRoughness.Sample(gSamAnisotropicWrap, texcoord);
     float3 world_position = gGeometryWorldPosition.Sample(gSamAnisotropicWrap, texcoord).rgb;
+
+    float percent_lit = get_cascaded_shadow(world_position);
 
     PBRMaterial pbr_mat;
     pbr_mat.base_color = albedo_metalness.rgb;
@@ -60,19 +76,36 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
     pbr_mat.roughness = world_normal_roughness.a;
 
     float3 view_dir = normalize(gEyeWorldPos.xyz - world_position);
-    float3 normal = normalize(world_normal_roughness.rgb);
-    float normal_dot_view = max(0.0f, dot(normal, view_dir));
+    float3 world_normal = normalize(world_normal_roughness.rgb);
+    float normal_dot_view = max(0.0f, dot(world_normal, view_dir));
 
     float4 final_color = float4(pbr_mat.base_color, 1.0f);
 
     if (gNoPreprocess == 0)
     {
         float2 brdf = gBRDFLUT.Sample(gSamAnisotropicWrap, float2(normal_dot_view, pbr_mat.roughness)).rg;
-        float3 prefiltered_color = sample_prefiltered_color(view_dir, normal, pbr_mat.roughness);
-        float3 irradiance_color = gIrradianceMap.Sample(gSamAnisotropicWrap, normal).rgb;
+        float3 prefiltered_color = sample_prefiltered_color(view_dir, world_normal, pbr_mat.roughness);
+        float3 irradiance_color = gIrradianceMap.Sample(gSamAnisotropicWrap, world_normal).rgb;
         float3 ambient_color = ambient_brdf(pbr_mat, irradiance_color, prefiltered_color, brdf, normal_dot_view);
         final_color.rgb = ambient_color;
     }
 
-    return final_color;
+    // Lighting and shadow
+    float3 light_dirs[4] = {
+        float3(-1.0f, 1.0f, -1.0f),
+        float3(1.0f, 1.0f, -1.0f),
+        float3(0.0f, -1.0f, 0.0f),
+        float3(1.0f, 1.0f, 1.0f)
+    };
+
+    float lighting = saturate(dot(light_dirs[0], world_normal)) * 0.05f +
+                    saturate(dot(light_dirs[1], world_normal)) * 0.05f +
+                    saturate(dot(light_dirs[2], world_normal)) * 0.05f +
+                    saturate(dot(light_dirs[3], world_normal)) * 0.05f;
+
+    float shadow_lighting = lighting * 0.5f;
+    lighting += saturate(dot(-gLightDir, world_normal));
+    lighting = lerp(shadow_lighting, lighting, percent_lit);
+
+    return lighting * final_color;
 }

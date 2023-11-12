@@ -61,9 +61,9 @@ namespace toy
 
         void update_frame(const camera_c &viewer_camera, const camera_c &light_camera, const DirectX::BoundingBox &scene_bounding_box);
 
-        ID3D11DepthStencilView *get_cascade_depth_stencil_view(size_t cascade_index) const;
-        ID3D11ShaderResourceView *get_cascades_output() const;
-        ID3D11ShaderResourceView *get_cascade_output(size_t cascade_index) const;
+        [[nodiscard]] ID3D11DepthStencilView *get_cascade_depth_stencil_view(size_t cascade_index) const;
+        [[nodiscard]] ID3D11ShaderResourceView *get_cascades_output() const;
+        [[nodiscard]] ID3D11ShaderResourceView *get_cascade_output(size_t cascade_index) const;
 
         const float *get_cascade_partitions() const;
         void get_cascade_partitions(float *output) const;
@@ -83,7 +83,7 @@ namespace toy
         int32_t shadow_size = 1024;
         int32_t cascade_levels = 4;
         int32_t pcf_kernel_size = 5;
-        float pcf_depth_offset = 0.001f;
+        float pcf_depth_offset = 0.0016f;
         float blend_between_cascades_range = 0.2f;
         bool derivative_based_offset = false;
         bool blend_between_cascades = true;
@@ -92,7 +92,7 @@ namespace toy
 
         CameraSelection selected_camera = CameraSelection::CameraSelection_Eye;
         FitProjection selected_cascades_fit = FitProjection::FitProjection_ToCascade;
-        FitNearFar selected_near_far_fit = FitNearFar::FitNearFar_SceneAABB_Intersection;
+        FitNearFar selected_near_far_fit = FitNearFar::FitNearFar_SceneAABB;
         CascadeSelection selected_cascade_selection = CascadeSelection::CascadeSelection_Map;
 
         D3D11_VIEWPORT shadow_viewport = {};

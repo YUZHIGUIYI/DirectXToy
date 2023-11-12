@@ -59,6 +59,8 @@ namespace toy::viewer
 
         void render_skybox();
 
+        void set_shadow_paras();
+
         void on_gizmo_render(Entity& selected_entity);
 
         void on_update(float dt);

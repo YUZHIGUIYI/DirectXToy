@@ -122,7 +122,7 @@ namespace toy
         device_context->IASetInputLayout(nullptr);
         device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_debug_pass);
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gAlbedoMap", input_srv);    // TODO: modify name
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gAlbedoMap", input_srv);
         m_effect_impl->cur_effect_pass->apply(device_context);
         device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
         device_context->RSSetViewports(1, &viewport);

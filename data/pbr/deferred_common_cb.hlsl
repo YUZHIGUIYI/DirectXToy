@@ -7,8 +7,8 @@ cbuffer CBPerObject      : register(b0)
 {
     // 1. For geometry pass - vertex shader
     matrix gWorld;
+    matrix gView;
     matrix gViewProj;
-    matrix gWorldViewProj;
 
     matrix gPreWorld;
     matrix gPreViewProj; 

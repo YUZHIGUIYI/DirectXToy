@@ -32,16 +32,34 @@ namespace toy
 
     void Scene::update_cascaded_shadow(std::function<void(const DirectX::BoundingBox &)> &&update_func)
     {
+        using namespace DirectX;
+        entt::entity max_volume_entity = entt::null;
+        BoundingBox max_volume_bounding_box = {};
+        auto max_volume = std::numeric_limits<float>::lowest();
         auto view = registry_handle.view<TransformComponent, StaticMeshComponent>();
-        for (auto entity : view)
+        for (auto entity : entities_in_viewer)
         {
             const auto [transform_component, static_mesh_component] = view.get<TransformComponent, StaticMeshComponent>(entity);
 
-            if (!static_mesh_component.is_skybox)
+            if (static_mesh_component.is_camera) continue;
+
+            BoundingBox bounding_box = static_mesh_component.model_asset->bounding_box;
+            bounding_box.Transform(bounding_box, transform_component.transform.get_local_to_world_matrix_xm());
+            auto extents = bounding_box.Extents;
+            auto volume = extents.x * extents.y * extents.z;
+            if (volume > max_volume)
             {
-                auto model_asset = static_mesh_component.model_asset;
-                update_func(model_asset->bounding_box);
+                max_volume_bounding_box = bounding_box;
+                max_volume = volume;
+                max_volume_entity = entity;
             }
+        }
+
+        if (max_volume_entity != entt::null)
+        {
+            const auto [transform_component, static_mesh_component] = view.get<TransformComponent, StaticMeshComponent>(max_volume_entity);
+
+            update_func(max_volume_bounding_box);
         }
     }
 
@@ -128,7 +146,7 @@ namespace toy
             auto camera = dynamic_cast<first_person_camera_c *>(camera_component.camera.get());
             if (camera)
             {
-                camera->look_at(transform_component.transform.get_position(), XMFLOAT3{ 10.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+                camera->look_at(transform_component.transform.get_position(), XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
             }
         }
     }

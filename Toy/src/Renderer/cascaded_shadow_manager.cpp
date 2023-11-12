@@ -92,8 +92,8 @@ namespace toy
         using namespace DirectX;
 
         XMMATRIX ViewerProj = viewer_camera.get_proj_xm();
-        XMMATRIX ViewerView = viewer_camera.get_view_proj_xm();
-        XMMATRIX LightView = light_camera.get_view_proj_xm();
+        XMMATRIX ViewerView = viewer_camera.get_view_xm();
+        XMMATRIX LightView = light_camera.get_view_xm();
         XMMATRIX ViewerInvView = XMMatrixInverse(nullptr, ViewerView);
 
         float frustumIntervalBegin, frustumIntervalEnd;
@@ -105,7 +105,7 @@ namespace toy
         //
         // 为每个级联计算光照空间下的正交投影矩阵
         //
-        for (int cascadeIndex = 0; cascadeIndex < cascade_levels; ++cascadeIndex)
+        for (size_t cascadeIndex = 0; cascadeIndex < cascade_levels; ++cascadeIndex)
         {
             // 计算当前级联覆盖的视锥体区间。我们以沿着Z轴最小/最大距离来衡量级联覆盖的区间
             if (selected_cascades_fit == FitProjection::FitProjection_ToCascade)
@@ -116,8 +116,7 @@ namespace toy
                     frustumIntervalBegin = 0.0f;
                 else
                     frustumIntervalBegin = cascade_partitions_percentage[cascadeIndex - 1];
-            }
-            else
+            } else
             {
                 // 在FIT_PROJECTION_TO_SCENE中，这些级联相互重叠
                 // 比如级联1-8覆盖了区间1
@@ -143,7 +142,7 @@ namespace toy
             lightCameraOrthographicMaxVec = XMLoadFloat3(&viewerFrustumBox.Center) + XMLoadFloat3(&viewerFrustumBox.Extents);
             lightCameraOrthographicMinVec = XMLoadFloat3(&viewerFrustumBox.Center) - XMLoadFloat3(&viewerFrustumBox.Extents);
 
-            // 这段代码可以消除由于光线改变或摄像机视角变化导致阴影边缘出现的闪烁效果
+            // 消除由于光线改变或摄像机视角变化导致阴影边缘出现的闪烁效果
             if (fixed_size_frustum_aabb)
             {
                 // 使用max(子视锥体的斜对角线, 远平面对角线)的长度作为XY的宽高，从而固定AABB的宽高
@@ -161,16 +160,16 @@ namespace toy
 
                 // 计算出的偏移量会填充正交投影
                 XMVECTOR borderOffsetVec = (lengthVec - (lightCameraOrthographicMaxVec - lightCameraOrthographicMinVec)) * g_XMOneHalf.v;
-                // 我们仅对XY方向进行填充
+                // 仅对XY方向进行填充
                 static const XMVECTORF32 xyzw1100Vec = { {1.0f, 1.0f, 0.0f, 0.0f} };
                 lightCameraOrthographicMaxVec += borderOffsetVec * xyzw1100Vec.v;
                 lightCameraOrthographicMinVec -= borderOffsetVec * xyzw1100Vec.v;
             }
 
-            // 我们基于PCF核的大小再计算一个边界扩充值使得包围盒稍微放大一些。
+            // 基于PCF核的大小再计算一个边界扩充值使得包围盒稍微放大一些。
             // 等比缩放不会影响前面固定大小的AABB
             {
-                float scaleDuetoBlur = pcf_kernel_size / static_cast<float>(shadow_size);
+                float scaleDuetoBlur = static_cast<float>(pcf_kernel_size) / static_cast<float>(shadow_size);
                 XMVECTORF32 scaleDuetoBlurVec = { {scaleDuetoBlur, scaleDuetoBlur, 0.0f, 0.0f} };
 
                 XMVECTOR borderOffsetVec = lightCameraOrthographicMaxVec - lightCameraOrthographicMinVec;
@@ -184,7 +183,7 @@ namespace toy
             if (move_light_texel_size)
             {
                 // 计算阴影图中每个texel对应世界空间的宽高，用于后续避免阴影边缘的闪烁
-                float normalizeByBufferSize = 1.0f / shadow_size;
+                float normalizeByBufferSize = 1.0f / static_cast<float>(shadow_size);
                 XMVECTORF32 normalizeByBufferSizeVec = { {normalizeByBufferSize, normalizeByBufferSize, 0.0f, 0.0f} };
                 worldUnitsPerTexelVec = lightCameraOrthographicMaxVec - lightCameraOrthographicMinVec;
                 worldUnitsPerTexelVec *= normalizeByBufferSize;
@@ -214,7 +213,7 @@ namespace toy
             {
                 XMFLOAT3 corners[8];
                 scene_bounding_box.GetCorners(corners);
-                for (int i = 0; i < 8; ++i)
+                for (size_t i = 0; i < 8; ++i)
                 {
                     XMVECTOR v = XMLoadFloat3(corners + i);
                     sceneAABBPointsLightSpace[i] = XMVector3Transform(v, LightView);
@@ -233,28 +232,27 @@ namespace toy
                 // 故无法产生遮挡
                 nearPlane = XMVectorGetZ(lightCameraOrthographicMinVec);
                 farPlane = XMVectorGetZ(lightCameraOrthographicMaxVec);
-            }
-            else if (selected_near_far_fit == FitNearFar::FitNearFar_SceneAABB)
+            } else if (selected_near_far_fit == FitNearFar::FitNearFar_SceneAABB)
             {
                 XMVECTOR lightSpaceSceneAABBminValueVec = g_XMFltMax.v;
                 XMVECTOR lightSpaceSceneAABBmaxValueVec = -g_XMFltMax.v;
-                // 我们计算光照空间下场景的min max向量
+                // 计算光照空间下场景的min max向量
                 // 其中光照空间AABB的minZ和maxZ可以用于近平面和远平面
                 // 这比场景与AABB的相交测试简单，在某些情况下也能提供相似的结果
-                for (int i = 0; i < 8; ++i)
+                for (size_t i = 0; i < 8; ++i)
                 {
                     lightSpaceSceneAABBminValueVec = XMVectorMin(sceneAABBPointsLightSpace[i], lightSpaceSceneAABBminValueVec);
                     lightSpaceSceneAABBmaxValueVec = XMVectorMax(sceneAABBPointsLightSpace[i], lightSpaceSceneAABBmaxValueVec);
                 }
                 nearPlane = XMVectorGetZ(lightSpaceSceneAABBminValueVec);
                 farPlane = XMVectorGetZ(lightSpaceSceneAABBmaxValueVec);
-            }
-            else if (selected_near_far_fit == FitNearFar::FitNearFar_SceneAABB_Intersection)
+            } else if (selected_near_far_fit == FitNearFar::FitNearFar_SceneAABB_Intersection)
             {
-                // 通过光照空间下视锥体的AABB 与 变换到光照空间的场景AABB 的相交测试，我们可以得到一个更紧密的近平面和远平面
+                // 通过光照空间下视锥体的AABB 与 变换到光照空间的场景AABB 的相交测试，可以得到一个更紧密的近平面和远平面
                 compute_near_far(nearPlane, farPlane, lightCameraOrthographicMinVec,
                                     lightCameraOrthographicMaxVec,sceneAABBPointsLightSpace);
             }
+
             XMStoreFloat4x4(shadow_proj.data() + cascadeIndex,
                             XMMatrixOrthographicOffCenterLH(XMVectorGetX(lightCameraOrthographicMinVec), XMVectorGetX(lightCameraOrthographicMaxVec),
                                                             XMVectorGetY(lightCameraOrthographicMinVec), XMVectorGetY(lightCameraOrthographicMaxVec),
@@ -305,12 +303,12 @@ namespace toy
         //    |/   |/
         //    3----2
         static const int all_indices[][3] = {
-                {4,7,6}, {6,5,4},
-                {5,6,2}, {2,1,5},
-                {1,2,3}, {3,0,1},
-                {0,3,7}, {7,4,0},
-                {7,3,2}, {2,6,7},
-                {0,4,5}, {5,1,0}
+            {4,7,6}, {6,5,4},
+            {5,6,2}, {2,1,5},
+            {1,2,3}, {3,0,1},
+            {0,3,7}, {7,4,0},
+            {7,3,2}, {2,6,7},
+            {0,4,5}, {5,1,0}
         };
         bool triPointPassCollision[3]{};
         const float minX = XMVectorGetX(light_camera_orthographic_min_vec);
@@ -327,7 +325,7 @@ namespace toy
             triangleList[0].is_culled = false;
 
             // 每个三角形都需要对4个视锥体侧面进行裁剪
-            for (int planeIdx = 0; planeIdx < 4; ++planeIdx)
+            for (size_t planeIdx = 0; planeIdx < 4; ++planeIdx)
             {
                 float edge;
                 int component;
@@ -340,7 +338,7 @@ namespace toy
                     default: break;
                 }
 
-                for (int triIdx = 0; triIdx < numTriangles; ++triIdx)
+                for (size_t triIdx = 0; triIdx < numTriangles; ++triIdx)
                 {
                     // 跳过裁剪的三角形
                     if (triangleList[triIdx].is_culled)
@@ -348,7 +346,7 @@ namespace toy
 
                     int insideVertexCount = 0;
 
-                    for (int triVtxIdx = 0; triVtxIdx < 3; ++triVtxIdx)
+                    for (size_t triVtxIdx = 0; triVtxIdx < 3; ++triVtxIdx)
                     {
                         switch (planeIdx)
                         {
@@ -403,7 +401,7 @@ namespace toy
                         // 裁剪后需要分开成两个三角形
 
                         // 把当前三角形后面的三角形(如果存在的话)复制出来，这样
-                        // 我们就可以用算出来的新三角形覆盖它
+                        // 可以用算出来的新三角形覆盖它
                         triangleList[numTriangles] = triangleList[triIdx + 1];
                         triangleList[triIdx + 1].is_culled = false;
 
@@ -433,16 +431,16 @@ namespace toy
                 }
             }
 
-            for (int triIdx = 0; triIdx < numTriangles; ++triIdx)
+            for (size_t triIdx = 0; triIdx < numTriangles; ++triIdx)
             {
                 if (!triangleList[triIdx].is_culled)
                 {
-                    for (int vtxIdx = 0; vtxIdx < 3; ++vtxIdx)
+                    for (size_t vtxIdx = 0; vtxIdx < 3; ++vtxIdx)
                     {
                         float z = XMVectorGetZ(triangleList[triIdx].points[vtxIdx]);
 
-                        out_near_plane = (std::min)(out_near_plane, z);
-                        out_far_plane = (std::max)(out_far_plane, z);
+                        out_near_plane = std::min(out_near_plane, z);
+                        out_far_plane = std::max(out_far_plane, z);
                     }
                 }
             }

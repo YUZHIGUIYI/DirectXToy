@@ -132,6 +132,15 @@ namespace toy
         m_effect_impl->geometry_pass = "GeometryPass";
         m_effect_impl->deferred_lighting_pass = "DeferredLightingPass";
 
+        // Shader macro
+        std::array<D3D_SHADER_MACRO, 5> shader_defines = {
+            D3D_SHADER_MACRO{ "CASCADE_COUNT_FLAG", "4" },
+            D3D_SHADER_MACRO{ "USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG", "0" },
+            D3D_SHADER_MACRO{ "BLEND_BETWEEN_CASCADE_LAYERS_FLAG", "1" },
+            D3D_SHADER_MACRO{ "SELECT_CASCADE_BY_INTERVAL_FLAG", "1" },
+            D3D_SHADER_MACRO{ nullptr, nullptr }
+        };
+
         // Create vertex and pixel shaders and input layout
         com_ptr<ID3DBlob> blob = nullptr;
         m_effect_impl->effect_helper->create_shader_from_file(geometry_vs, DXTOY_HOME L"data/pbr/geometry_vs.hlsl", device,
@@ -150,10 +159,10 @@ namespace toy
         m_effect_impl->effect_helper->create_shader_from_file(screen_triangle_vs, DXTOY_HOME L"data/pbr/screen_triangle_vs.hlsl", device,
                                                                 "VS", "vs_5_0", nullptr, blob.ReleaseAndGetAddressOf());
         m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
-                                                                "PS", "ps_5_0", nullptr, blob.ReleaseAndGetAddressOf());
+                                                                "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
 
         // Create geometry and deferred lighting passes
-        EffectPassDesc pass_desc{};
+        EffectPassDesc pass_desc = {};
         pass_desc.nameVS = geometry_vs;
         pass_desc.namePS = gbuffer_ps;
         m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->geometry_pass, device, &pass_desc);
@@ -170,6 +179,7 @@ namespace toy
         // Set sampler state
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamLinearWrap", RenderStates::ss_linear_wrap.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamAnisotropicWrap", RenderStates::ss_anisotropic_wrap_16x.Get());
+        m_effect_impl->effect_helper->set_sampler_state_by_name("gSamShadow", RenderStates::ss_shadow_pcf.Get());
     }
 
     void DeferredPBREffect::set_material(const model::Material &material)
@@ -189,8 +199,7 @@ namespace toy
 
     void DeferredPBREffect::set_camera_near_far(float nearz, float farz)
     {
-//        m_effect_impl->effect_helper->get_constant_buffer_variable("gNearZ")->set_float(nearz);
-//        m_effect_impl->effect_helper->get_constant_buffer_variable("gFarZ")->set_float(farz);
+
     }
 
     void DeferredPBREffect::set_camera_position(DirectX::XMFLOAT3 camera_position)
@@ -258,10 +267,11 @@ namespace toy
         world_view_proj = XMMatrixTranspose(world_view_proj);
         view_proj = XMMatrixTranspose(view_proj);
         world = XMMatrixTranspose(world);
+        view = XMMatrixTranspose(view);
 
         m_effect_impl->effect_helper->get_constant_buffer_variable("gWorld")->set_float_matrix(4, 4, (float*)&world);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gView")->set_float_matrix(4, 4, (float*)&view);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gViewProj")->set_float_matrix(4, 4, (float*)&view_proj);
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gWorldViewProj")->set_float_matrix(4, 4, (float*)&world_view_proj);
         XMMATRIX pre_world = XMLoadFloat4x4(&m_effect_impl->pre_world_matrix);
         XMMATRIX pre_view_proj = XMLoadFloat4x4(&m_effect_impl->pre_view_proj_matrix);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gPreWorld")->set_float_matrix(4, 4, (float*)&pre_world);

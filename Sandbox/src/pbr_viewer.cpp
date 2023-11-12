@@ -289,16 +289,27 @@ namespace toy::viewer
 
         m_light_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
         m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1200.0f);
-        light_camera->look_at(XMFLOAT3{ -50.0f, 10.0f, -10.5f }, XMFLOAT3{ 10.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+        light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
         m_camera_controller.init(camera.get());
-        m_camera_controller.set_move_speed(10.0f);
+        m_camera_controller.set_move_speed(25.0f);
 
         // Initialize effects
-        DeferredPBREffect::get().set_view_matrix(camera->get_view_xm());
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        auto&& deferred_pbr_effect = DeferredPBREffect::get();
+        deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
         //// reverse z - currently prohibited
-        DeferredPBREffect::get().set_proj_matrix(camera->get_proj_xm(false));
-        DeferredPBREffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+        deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(false));
+        deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+
+        deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.pcf_kernel_size);
+        deferred_pbr_effect.set_pcf_depth_offset(cascade_shadow_manager.pcf_depth_offset);
+        deferred_pbr_effect.set_shadow_size(cascade_shadow_manager.shadow_size);
+        deferred_pbr_effect.set_cascade_blend_enabled(cascade_shadow_manager.blend_between_cascades);
+        deferred_pbr_effect.set_cascade_blend_area(cascade_shadow_manager.blend_between_cascades_range);
+        deferred_pbr_effect.set_cascade_levels(cascade_shadow_manager.cascade_levels);
+        deferred_pbr_effect.set_cascade_interval_selection_enabled(static_cast<bool>(cascade_shadow_manager.selected_cascade_selection));
+        deferred_pbr_effect.set_pcf_derivatives_offset_enabled(cascade_shadow_manager.derivative_based_offset);
 
         TAAEffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
@@ -384,18 +395,27 @@ namespace toy::viewer
         auto& test_mesh_two = test_entity_two.add_component<StaticMeshComponent>();
         test_mesh_two.model_asset = model::ModelManager::get().get_model("simpleCylinder");
 
+        //// TODO: Debug: Test entity four
+        auto test_entity_floor = m_editor_scene->create_entity("FloorWithoutTexture");
+        auto& test_floor_transform = test_entity_floor.add_component<TransformComponent>();
+        test_floor_transform.transform.set_scale(80.0f, 1.0f, 80.0f);
+        test_floor_transform.transform.set_position(0.0f, -25.0f, 0.0f);
+        auto& test_floor_mesh = test_entity_floor.add_component<StaticMeshComponent>();
+        test_floor_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
+
         // TODO: Debug - end
 
         // TODO: camera component
-        auto test_entity_three = m_editor_scene->create_entity("FirstIlluminant");
-        auto& test_camera_component = test_entity_three.add_component<CameraComponent>();
+        auto test_entity_camera = m_editor_scene->create_entity("FirstIlluminant");
+        auto& test_camera_component = test_entity_camera.add_component<CameraComponent>();
         test_camera_component.camera = m_light_camera;
-        auto& test_camera_transform = test_entity_three.add_component<TransformComponent>();
+        auto& test_camera_transform = test_entity_camera.add_component<TransformComponent>();
         test_camera_transform.transform.set_scale(3.0f, 3.0f, 3.0f);
-        test_camera_transform.transform.set_position(0.0f, 0.0f, 30.0f);
-        auto& test_mesh_three = test_entity_three.add_component<StaticMeshComponent>();
-        test_mesh_three.model_asset = model::ModelManager::get().get_model("skyboxCube");
-        test_mesh_three.is_camera = true;
+        test_camera_transform.transform.set_position(-15.0f, 55.0f, -10.0f);
+        auto& test_camera_mesh = test_entity_camera.add_component<StaticMeshComponent>();
+        test_camera_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
+        test_camera_mesh.is_camera = true;
+        // TODO: end camera component
 
         m_scene_hierarchy_panel.set_context(m_editor_scene);
     }
@@ -496,10 +516,6 @@ namespace toy::viewer
 
         if (ImGui::Begin("Roughness"))
         {
-//            static ID3D11ShaderResourceView* roughness_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
-//            ImVec2 winSize = ImGui::GetWindowSize();
-//            float smaller = (std::min)((winSize.x - 20.0f) / aspect_ratio, winSize.y - 20.0f);
-//            ImGui::Image(roughness_srv, ImVec2(smaller * aspect_ratio, smaller));
             auto&& cascade_shadow_manager = CascadedShadowManager::get();
             static const std::array<const char *, 7> cascade_level_selections{
                 "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7"
@@ -580,9 +596,7 @@ namespace toy::viewer
             d3d_device_context->OMSetRenderTargets(1, &null_rtv, dsv);
 
             XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
-            shadow_effect.set_proj_matrix(m_light_camera->get_proj_xm());
-
-            // TODO: culling
+            shadow_effect.set_proj_matrix(shadow_proj);
 
             m_editor_scene->render_static_mesh(d3d_device_context, shadow_effect, true);
         }
@@ -618,6 +632,7 @@ namespace toy::viewer
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
 
+        set_shadow_paras();
         if (first_frame)
         {
             DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
@@ -658,5 +673,40 @@ namespace toy::viewer
         d3d_device_context->OMSetRenderTargets(1, &render_target_view, m_depth_buffer->get_depth_stencil());
         m_editor_scene->render_skybox(d3d_device_context, SimpleSkyboxEffect::get());
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void PBRViewer::set_shadow_paras()
+    {
+        using namespace DirectX;
+
+        static XMMATRIX s_transform = {
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
+        };
+
+        auto&& deferred_pbr_effect = DeferredPBREffect::get();
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+
+        std::array<XMFLOAT4, 8> scales = {};
+        std::array<XMFLOAT4, 8> offsets = {};
+        // From NDC [-1, 1]^2 to texture coordinates [0, 1]^2
+        for (size_t cascade_index = 0; cascade_index < cascade_shadow_manager.cascade_levels; ++cascade_index)
+        {
+            XMMATRIX shadow_texture = cascade_shadow_manager.get_shadow_project_xm(cascade_index) * s_transform;
+            scales[cascade_index].x  = XMVectorGetX(shadow_texture.r[0]);
+            scales[cascade_index].y = XMVectorGetY(shadow_texture.r[1]);
+            scales[cascade_index].z = XMVectorGetZ(shadow_texture.r[2]);
+            scales[cascade_index].w = 1.0f;
+            XMStoreFloat3((XMFLOAT3 *)(offsets.data() + cascade_index), shadow_texture.r[3]);
+        }
+
+        deferred_pbr_effect.set_cascade_frustums_eye_space_depths(cascade_shadow_manager.get_cascade_partitions());
+        deferred_pbr_effect.set_cascade_offsets(offsets.data());
+        deferred_pbr_effect.set_cascade_scales(scales.data());
+        deferred_pbr_effect.set_shadow_view_matrix(m_light_camera->get_view_xm());
+        deferred_pbr_effect.set_shadow_texture_array(cascade_shadow_manager.get_cascades_output());
+        deferred_pbr_effect.set_light_direction(m_light_camera->get_look_axis());
     }
 }
