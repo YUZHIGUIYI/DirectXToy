@@ -166,11 +166,6 @@ namespace toy
         pass_desc.nameVS = geometry_vs;
         pass_desc.namePS = gbuffer_ps;
         m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->geometry_pass, device, &pass_desc);
-        {
-            auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->geometry_pass);
-            // Reverse z >= GREATER_EQUAL
-            pass->set_depth_stencil_state(RenderStates::dss_less_equal.Get(), 0);
-        }
 
         pass_desc.nameVS = screen_triangle_vs;
         pass_desc.namePS = deferred_pbr_ps;
@@ -232,6 +227,7 @@ namespace toy
     void DeferredPBREffect::set_gbuffer_render()
     {
         m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->geometry_pass);
+        m_effect_impl->cur_effect_pass->set_depth_stencil_state(RenderStates::dss_greater_equal.Get(), 0);
         m_effect_impl->cur_vertex_layout = m_effect_impl->vertex_layout.Get();
         m_effect_impl->topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     }

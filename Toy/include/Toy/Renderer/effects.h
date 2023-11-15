@@ -479,6 +479,12 @@ namespace toy
         // * Note: called by render object automatically
         void set_material(const model::Material& material) override;
 
+        // * Set depth texture
+        void set_depth_texture(ID3D11ShaderResourceView * depth_srv);
+
+        // * Set scene texture
+        void set_scene_texture(ID3D11ShaderResourceView *scene_texture);
+
         // * Get mesh data
         // * Note: called by render object automatically
         MeshDataInput get_input_data(const model::MeshData& mesh_data) override;

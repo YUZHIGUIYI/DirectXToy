@@ -107,6 +107,16 @@ namespace toy
         }
     }
 
+    void SimpleSkyboxEffect::set_depth_texture(ID3D11ShaderResourceView *depth_srv)
+    {
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gDepthMap", depth_srv);
+    }
+
+    void SimpleSkyboxEffect::set_scene_texture(ID3D11ShaderResourceView *scene_texture)
+    {
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gSceneMap", scene_texture);
+    }
+
     MeshDataInput SimpleSkyboxEffect::get_input_data(const model::MeshData &mesh_data)
     {
         MeshDataInput input;

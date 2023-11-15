@@ -21,8 +21,6 @@ float4 DebugPS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) 
 {
     float depth = gAlbedoMap.Sample(gSamLinearWrap, texcoord).r;
 
-    depth = 1.0f - depth;
-
     return float4(depth.rrr, 1.0f);
 }
 

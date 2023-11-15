@@ -127,7 +127,7 @@ float3 clip_aabb(float3 cur_color, float3 pre_color, float2 texcoord)
 float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_Target
 {
     int x, y, i;
-    float closest_depth = gFarZ;  
+    float closest_depth = gFarZ; 
     float len_velocity = 0.0f;
     float2 velocity = float2(0.0f, 0.0f);
     float2 closest_offset = float2(0.0f, 0.0f);
@@ -143,10 +143,10 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
             float2 sample_uv = jittered_uv + sample_offset;
             sample_uv = saturate(sample_uv);
 
-            float neighborhood_depth_samp = gDepthMap.Sample(gSamLinearWrap, sample_uv).r;
-            neighborhood_depth_samp = linear_depth(neighborhood_depth_samp);    // Handle reverse z
+            float neighborhood_depth_samp = gDepthMap.Sample(gSamPointClamp, sample_uv).r;
+            neighborhood_depth_samp = linear_depth(neighborhood_depth_samp);
 
-            if (neighborhood_depth_samp < closest_depth)
+            if (neighborhood_depth_samp > closest_depth)
             {
                 closest_depth = neighborhood_depth_samp;
                 closest_offset = sample_offset;

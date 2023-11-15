@@ -98,21 +98,31 @@ namespace toy
         }
     }
 
-    void Scene::render_static_mesh(ID3D11DeviceContext* device_context, IEffect &effect, bool exclude_illuminant)
+    void Scene::render_static_mesh_shadow(ID3D11DeviceContext *device_context, IEffect &effect)
     {
-        // General model
+        // Exclude illuminant
+        auto view = registry_handle.view<TransformComponent, StaticMeshComponent>();
+        for (auto entity : view)
+        {
+            const auto [transform_component, static_mesh_component] = view.get<TransformComponent, StaticMeshComponent>(entity);
+            if (!static_mesh_component.is_camera)
+            {
+                static_mesh_component.render(device_context, effect, transform_component.transform);
+            }
+        }
+    }
+
+    void Scene::render_static_mesh(ID3D11DeviceContext* device_context, IEffect &effect)
+    {
+        // Static mesh in viewer
         auto view = registry_handle.view<TransformComponent, StaticMeshComponent>();
         for (auto entity : entities_in_viewer)
         {
             const auto [transform_component, static_mesh_component] = view.get<TransformComponent, StaticMeshComponent>(entity);
-            if (exclude_illuminant && static_mesh_component.is_camera) continue;
             static_mesh_component.render(device_context, effect, transform_component.transform);
         }
 
-        if (!exclude_illuminant)
-        {
-            adjust_illuminant();
-        }
+        adjust_illuminant();
     }
 
     bool Scene::pick_entity(Entity& selected_entity, const camera_c &camera, float mouse_pos_x, float mouse_pos_y)

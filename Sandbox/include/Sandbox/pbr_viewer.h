@@ -76,6 +76,7 @@ namespace toy::viewer
         std::unique_ptr<Depth2D> m_depth_buffer;                                    // Depth buffer
         std::unique_ptr<Texture2D> m_history_buffer;                                // History frame buffer
         std::unique_ptr<Texture2D> m_cur_buffer;                                    // Current frame buffer
+        std::unique_ptr<Texture2D> m_taa_buffer;                                    // Frame buffer for TAA pass
         com_ptr<ID3D11DepthStencilView> m_depth_buffer_read_only_dsv;               // Read-only depth stencil view
         std::vector<std::unique_ptr<Texture2D>> m_gbuffers;                         // G-Buffers
 

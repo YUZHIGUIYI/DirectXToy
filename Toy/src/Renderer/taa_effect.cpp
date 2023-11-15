@@ -64,12 +64,13 @@ namespace toy
                                                                 "PS", "ps_5_0");
 
         // Create geometry and deferred lighting passes
-        EffectPassDesc pass_desc{};
+        EffectPassDesc pass_desc = {};
         pass_desc.nameVS = screen_triangle_vs;
         pass_desc.namePS = taa_ps;
         m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->taa_pass, device, &pass_desc);
 
         // Set sampler state
+        m_effect_impl->effect_helper->set_sampler_state_by_name("gSamPointClamp", RenderStates::ss_point_clamp.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamLinearWrap", RenderStates::ss_linear_wrap.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamLinearClamp", RenderStates::ss_linear_clamp.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamAnisotropicWrap", RenderStates::ss_anisotropic_wrap_16x.Get());

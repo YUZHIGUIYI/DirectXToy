@@ -133,7 +133,7 @@ namespace toy::viewer
         auto aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
         m_camera->set_frustum(XM_PI / 3.0f, aspect_ratio, 0.5f, 300.0f);
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-        DeferredPBREffect::get().set_proj_matrix(m_camera->get_proj_xm(false));
+        DeferredPBREffect::get().set_proj_matrix(m_camera->get_proj_xm(true));
         DeferredPBREffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
         TAAEffect::get().set_viewer_size(width, height);
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
@@ -241,9 +241,9 @@ namespace toy::viewer
 
         if (ImGuizmo::IsUsing())
         {
-            std::array<float, 3> translation_vector{};
-            std::array<float, 3> rotation_vector{};
-            std::array<float, 3> scale_vector{};
+            std::array<float, 3> translation_vector = {};
+            std::array<float, 3> rotation_vector = {};
+            std::array<float, 3> scale_vector = {};
             ImGuizmo::DecomposeMatrixToComponents((float *)&transform_matrix, translation_vector.data(), rotation_vector.data(), scale_vector.data());
             update_transform(transform_component, translation_vector, rotation_vector, scale_vector, gizmo_type);
         }
@@ -288,18 +288,18 @@ namespace toy::viewer
         m_light_camera = light_camera;
 
         m_light_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
-        m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1200.0f);
+        m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
         light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
         m_camera_controller.init(camera.get());
         m_camera_controller.set_move_speed(25.0f);
 
-        // Initialize effects
+        // Note: Initialize effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
         deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
         //// reverse z - currently prohibited
-        deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(false));
+        deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(true));
         deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
         deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.pcf_kernel_size);
@@ -315,10 +315,6 @@ namespace toy::viewer
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
         ShadowEffect::get().set_view_matrix(m_light_camera->get_view_xm());
-
-        // Skybox texture
-        model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/Clouds.dds");
-        model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/bricks.dds");
 
         // Initialize models
         model::ModelManager::get().create_from_geometry("skyboxCube", geometry::create_box());
@@ -344,7 +340,7 @@ namespace toy::viewer
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
         // TODO: Debug - end
 
-        // ECS
+        // Note: ECS
         m_editor_scene = std::make_shared<Scene>();
 
         auto skybox_entity = m_editor_scene->create_entity("Skybox");
@@ -352,7 +348,6 @@ namespace toy::viewer
         auto& skybox_mesh = skybox_entity.add_component<StaticMeshComponent>();
         skybox_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
         skybox_mesh.is_skybox = true;
-        skybox_mesh.model_asset->materials[0].set<std::string>("$Skybox", DXTOY_HOME "data/textures/Clouds.dds");
 
         //// TODO: Debug - Test entity one
         using namespace toy::model;
@@ -459,6 +454,7 @@ namespace toy::viewer
         // TAA effect input
         m_history_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
         m_cur_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+        m_taa_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
 
         // Shadow effect debug
         m_shadow_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
@@ -466,14 +462,14 @@ namespace toy::viewer
 
     void PBRViewer::on_render(float dt)
     {
-        // Cascaded shadow pass
-        render_shadow();
-
         // Update
         on_update(dt);
 
         ID3D11Device* d3d_device = m_d3d_app->get_device();
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
+
+        // Cascaded shadow pass
+        render_shadow();
 
         // Geometry pass
         render_gbuffer();
@@ -553,7 +549,7 @@ namespace toy::viewer
         DeferredPBREffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
 
         // Update collision
-        BoundingFrustum frustum{};
+        BoundingFrustum frustum = {};
         BoundingFrustum::CreateFromMatrix(frustum, m_camera->get_proj_xm());
         frustum.Transform(frustum, m_camera->get_local_to_world_xm());
 
@@ -598,7 +594,7 @@ namespace toy::viewer
             XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
             shadow_effect.set_proj_matrix(shadow_proj);
 
-            m_editor_scene->render_static_mesh(d3d_device_context, shadow_effect, true);
+            m_editor_scene->render_static_mesh_shadow(d3d_device_context, shadow_effect);
         }
     }
 
@@ -614,7 +610,7 @@ namespace toy::viewer
             d3d_device_context->ClearRenderTargetView(rtv, s_color);
         }
 
-        d3d_device_context->ClearDepthStencilView(m_depth_buffer->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+        d3d_device_context->ClearDepthStencilView(m_depth_buffer->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
         d3d_device_context->RSSetViewports(1, &viewport);
@@ -633,24 +629,24 @@ namespace toy::viewer
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
 
         set_shadow_paras();
+
+        DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
+                                                        m_gbuffer_srvs.data(), m_camera->get_viewport());
+
         if (first_frame)
         {
-            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
-                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
             TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
                                     m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
-                                    m_viewer_buffer->get_render_target(), viewport);
+                                    m_taa_buffer->get_render_target(), viewport);
             first_frame = false;
         } else
         {
-            DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
-                                                            m_gbuffer_srvs.data(), m_camera->get_viewport());
             TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
                                     m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
-                                    m_viewer_buffer->get_render_target(), viewport);
+                                    m_taa_buffer->get_render_target(), viewport);
         }
 
-        d3d_device_context->CopyResource(m_history_buffer->get_texture(), m_cur_buffer->get_texture());
+        d3d_device_context->CopyResource(m_history_buffer->get_texture(), m_taa_buffer->get_texture());
 
         taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }
@@ -667,11 +663,15 @@ namespace toy::viewer
 
         SimpleSkyboxEffect::get().set_skybox_render();
         SimpleSkyboxEffect::get().set_view_matrix(m_camera->get_view_xm());
-        SimpleSkyboxEffect::get().set_proj_matrix(m_camera->get_proj_xm());
+        SimpleSkyboxEffect::get().set_proj_matrix(m_camera->get_proj_xm(true));
+        SimpleSkyboxEffect::get().set_depth_texture(m_depth_buffer->get_shader_resource());
+        SimpleSkyboxEffect::get().set_scene_texture(m_taa_buffer->get_shader_resource());
         SimpleSkyboxEffect::get().apply(d3d_device_context);
 
-        d3d_device_context->OMSetRenderTargets(1, &render_target_view, m_depth_buffer->get_depth_stencil());
+        d3d_device_context->OMSetRenderTargets(1, &render_target_view, nullptr);
         m_editor_scene->render_skybox(d3d_device_context, SimpleSkyboxEffect::get());
+        SimpleSkyboxEffect::get().set_depth_texture(nullptr);
+        SimpleSkyboxEffect::get().set_scene_texture(nullptr);
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 
@@ -679,7 +679,7 @@ namespace toy::viewer
     {
         using namespace DirectX;
 
-        static XMMATRIX s_transform = {
+        static const XMMATRIX s_transform = {
             0.5f, 0.0f, 0.0f, 0.0f,
             0.0f, -0.5f, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f, 0.0f,

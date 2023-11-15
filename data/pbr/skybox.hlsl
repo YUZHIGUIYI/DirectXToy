@@ -1,6 +1,8 @@
 #include "samplers.hlsl"
 
 TextureCube<float4> gSkyboxMap : register(t0);
+Texture2D           gDepthMap  : register(t1);
+Texture2D           gSceneMap  : register(t2);
 
 cbuffer CBPerObject : register(b0)
 {
@@ -33,9 +35,18 @@ SkyboxOutput VS(SkyboxInput vin)
 float4 PS(SkyboxOutput pin) : SV_Target
 {
     float3 lit = float3(0.0f, 0.0f, 0.0f);
+    int2 coords = pin.view_position.xy;
 
-    float3 skybox = gSkyboxMap.SampleLevel(gSamAnisotropicWrap, pin.skybox_coord, 0.0f).rgb;
-    lit += skybox;
+    float depth = gDepthMap.Load(int3(coords, 0)).r;
+    if (depth <= 0.0f)
+    {
+        float3 skybox = gSkyboxMap.SampleLevel(gSamAnisotropicWrap, pin.skybox_coord, 0.0f).rgb;
+        lit += skybox;
+    } else 
+    {
+        lit += gSceneMap.Load(int3(coords, 0)).rgb;
+    }
+    
     
     return float4(lit, 1.0f);
 }

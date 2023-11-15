@@ -33,7 +33,9 @@ namespace toy
 
         void render_skybox(ID3D11DeviceContext *device_context, IEffect &effect);
 
-        void render_static_mesh(ID3D11DeviceContext *device_context, IEffect &effect, bool exclude_illuminant = false);
+        void render_static_mesh_shadow(ID3D11DeviceContext *device_context, IEffect &effect);
+
+        void render_static_mesh(ID3D11DeviceContext *device_context, IEffect &effect);
 
         bool pick_entity(Entity &selected_entity, const camera_c &camera, float mouse_pos_x, float mouse_pos_y);
 
