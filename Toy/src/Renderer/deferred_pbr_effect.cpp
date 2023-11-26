@@ -9,6 +9,7 @@
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Model/material.h>
 #include <Toy/Renderer/taa_settings.h>
+#include <Toy/Renderer/cascaded_shadow_defines.h>
 
 namespace toy
 {
@@ -37,7 +38,11 @@ namespace toy
         com_ptr<ID3D11InputLayout> vertex_layout = nullptr;
 
         std::string_view geometry_pass = {};
-        std::string_view deferred_lighting_pass = {};
+        std::string_view deferred_lighting_csm_pass = {};
+        std::string_view deferred_lighting_vsm_pass = {};
+        std::string_view deferred_lighting_esm_pass = {};
+        std::string_view deferred_lighting_evsm2_pass = {};
+        std::string_view deferred_lighting_evsm4_pass = {};
 
         DirectX::XMFLOAT4X4 world_matrix = {};
         DirectX::XMFLOAT4X4 view_matrix = {};
@@ -52,13 +57,13 @@ namespace toy
 
         // For cascaded shadow map
         int32_t cascade_level = 0;
-        int32_t derivative_offset = 0;
-        int32_t cascade_blend = 0;
         int32_t cascade_selection = 0;
         int32_t pcf_kernel_size = 1;
         int32_t shadow_size = 1024;
 
         D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+        ShadowType shadow_type = ShadowType::ShadowType_EVSM4;
 
         void set_material(const model::Material &material, model::MaterialSemantics material_semantics) const
         {
@@ -128,16 +133,24 @@ namespace toy
         std::string_view geometry_vs = "GeometryVS";
         std::string_view gbuffer_ps = "GBufferPS";
         std::string_view screen_triangle_vs = "ScreenTriangleVS";
-        std::string_view deferred_pbr_ps = "DeferredPBRPS";
+        std::string_view deferred_pbr_ps0 = "DeferredPBRPS_CSM";
+        std::string_view deferred_pbr_ps1 = "DeferredPBRPS_VSM";
+        std::string_view deferred_pbr_ps2 = "DeferredPBRPS_ESM";
+        std::string_view deferred_pbr_ps3 = "DeferredPBRPS_EVSM2";
+        std::string_view deferred_pbr_ps4 = "DeferredPBRPS_EVSM4";
+
         m_effect_impl->geometry_pass = "GeometryPass";
-        m_effect_impl->deferred_lighting_pass = "DeferredLightingPass";
+        m_effect_impl->deferred_lighting_csm_pass = "DeferredLightingCSMPass";
+        m_effect_impl->deferred_lighting_vsm_pass = "DeferredLightingVSMPass";
+        m_effect_impl->deferred_lighting_esm_pass = "DeferredLightingESMPass";
+        m_effect_impl->deferred_lighting_evsm2_pass = "DeferredLightingEVSM2Pass";
+        m_effect_impl->deferred_lighting_evsm4_pass = "DeferredLightingEVSM4Pass";
 
         // Shader macro
-        std::array<D3D_SHADER_MACRO, 5> shader_defines = {
+        std::array<D3D_SHADER_MACRO, 4> shader_defines = {
+            D3D_SHADER_MACRO{ "SHADOW_TYPE", "0" },
             D3D_SHADER_MACRO{ "CASCADE_COUNT_FLAG", "4" },
-            D3D_SHADER_MACRO{ "USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG", "0" },
-            D3D_SHADER_MACRO{ "BLEND_BETWEEN_CASCADE_LAYERS_FLAG", "1" },
-            D3D_SHADER_MACRO{ "SELECT_CASCADE_BY_INTERVAL_FLAG", "1" },
+            D3D_SHADER_MACRO{ "SELECT_CASCADE_BY_INTERVAL_FLAG", "0" },
             D3D_SHADER_MACRO{ nullptr, nullptr }
         };
 
@@ -158,7 +171,20 @@ namespace toy
 
         m_effect_impl->effect_helper->create_shader_from_file(screen_triangle_vs, DXTOY_HOME L"data/pbr/screen_triangle_vs.hlsl", device,
                                                                 "VS", "vs_5_0", nullptr, blob.ReleaseAndGetAddressOf());
-        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
+        shader_defines[0].Definition = "0";
+        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps0, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
+                                                                "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
+        shader_defines[0].Definition = "1";
+        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps1, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
+                                                                "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
+        shader_defines[0].Definition = "2";
+        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps2, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
+                                                                "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
+        shader_defines[0].Definition = "3";
+        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps3, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
+                                                                "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
+        shader_defines[0].Definition = "4";
+        m_effect_impl->effect_helper->create_shader_from_file(deferred_pbr_ps4, DXTOY_HOME L"data/pbr/deferred_pbr.hlsl", device,
                                                                 "PS", "ps_5_0", shader_defines.data(), blob.ReleaseAndGetAddressOf());
 
         // Create geometry and deferred lighting passes
@@ -168,12 +194,25 @@ namespace toy
         m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->geometry_pass, device, &pass_desc);
 
         pass_desc.nameVS = screen_triangle_vs;
-        pass_desc.namePS = deferred_pbr_ps;
-        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_pass, device, &pass_desc);
+        pass_desc.namePS = deferred_pbr_ps0;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_csm_pass, device, &pass_desc);
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = deferred_pbr_ps1;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_vsm_pass, device, &pass_desc);
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = deferred_pbr_ps2;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_esm_pass, device, &pass_desc);
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = deferred_pbr_ps3;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_evsm2_pass, device, &pass_desc);
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = deferred_pbr_ps4;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->deferred_lighting_evsm4_pass, device, &pass_desc);
 
         // Set sampler state
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamLinearWrap", RenderStates::ss_linear_wrap.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamAnisotropicWrap", RenderStates::ss_anisotropic_wrap_16x.Get());
+        m_effect_impl->effect_helper->set_sampler_state_by_name("gSamAnisotropicClamp", RenderStates::ss_anisotropic_clamp_16x.Get());
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamShadow", RenderStates::ss_shadow_pcf.Get());
     }
 
@@ -284,6 +323,18 @@ namespace toy
         taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }
 
+    void DeferredPBREffect::set_lighting_pass_render()
+    {
+        switch (m_effect_impl->shadow_type)
+        {
+            case ShadowType::ShadowType_CSM: m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_csm_pass); break;
+            case ShadowType::ShadowType_VSM: m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_vsm_pass); break;
+            case ShadowType::ShadowType_ESM: m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_esm_pass); break;
+            case ShadowType::ShadowType_EVSM2: m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_evsm2_pass); break;
+            case ShadowType::ShadowType_EVSM4: m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_evsm4_pass); break;
+        }
+    }
+
     void DeferredPBREffect::deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
                                                     ID3D11ShaderResourceView **gbuffers, D3D11_VIEWPORT viewport)
     {
@@ -316,8 +367,7 @@ namespace toy
         device_context->OMSetRenderTargets(1, &lit_buffer_rtv, nullptr);
 
         // Apply pass and draw
-        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->deferred_lighting_pass);
-        pass->apply(device_context);
+        m_effect_impl->cur_effect_pass->apply(device_context);
         device_context->Draw(3, 0);
 
         // Clear bindings
@@ -328,22 +378,22 @@ namespace toy
         m_effect_impl->effect_helper->set_shader_resource_by_name("gPrefilteredSpecularMap", nullptr);
         m_effect_impl->effect_helper->set_shader_resource_by_name("gIrradianceMap", nullptr);
         m_effect_impl->effect_helper->set_shader_resource_by_name("gBRDFLUT", nullptr);
-        pass->apply(device_context);
+        m_effect_impl->cur_effect_pass->apply(device_context);
+    }
+
+    void DeferredPBREffect::set_shadow_type(uint8_t type)
+    {
+        if (type > 4)
+        {
+            DX_CORE_WARN("Unsupported shadow type");
+            return;
+        }
+        m_effect_impl->shadow_type = static_cast<ShadowType>(type);
     }
 
     void DeferredPBREffect::set_cascade_levels(int32_t cascade_levels)
     {
         m_effect_impl->cascade_level = cascade_levels;
-    }
-
-    void DeferredPBREffect::set_pcf_derivatives_offset_enabled(bool enable)
-    {
-        m_effect_impl->derivative_offset = enable;
-    }
-
-    void DeferredPBREffect::set_cascade_blend_enabled(bool enable)
-    {
-        m_effect_impl->cascade_blend = enable;
     }
 
     void DeferredPBREffect::set_cascade_interval_selection_enabled(bool enable)
@@ -354,6 +404,11 @@ namespace toy
     void DeferredPBREffect::set_cascade_visualization(bool enable)
     {
         m_effect_impl->effect_helper->get_constant_buffer_variable("gVisualizeCascades")->set_sint(enable);
+    }
+
+    void DeferredPBREffect::set_16_bit_format_shadow(bool enable)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("g16BitShadow")->set_sint(enable);
     }
 
     void DeferredPBREffect::set_cascade_offsets(const DirectX::XMFLOAT4 *offsets)
@@ -368,15 +423,17 @@ namespace toy
 
     void DeferredPBREffect::set_cascade_frustums_eye_space_depths(const float *depths)
     {
-        float depths_array[8][4] = { {depths[0]},{depths[1]}, {depths[2]}, {depths[3]},
-                                    {depths[4]}, {depths[5]}, {depths[6]}, {depths[7]} };
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsFloat")->set_raw(depths);
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsFloat4")->set_raw(depths_array);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsDate")->set_raw(depths);
     }
 
     void DeferredPBREffect::set_cascade_blend_area(float blend_area)
     {
         m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadeBlendArea")->set_float(blend_area);
+    }
+
+    void DeferredPBREffect::set_magic_power(float power)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gMagicPower")->set_float(power);
     }
 
     void DeferredPBREffect::set_pcf_kernel_size(int32_t size)
@@ -393,18 +450,18 @@ namespace toy
         m_effect_impl->effect_helper->get_constant_buffer_variable("gMaxBorderPadding")->set_float(1.0f - padding);
     }
 
-    void DeferredPBREffect::set_pcf_depth_offset(float offset)
+    void DeferredPBREffect::set_pcf_depth_bias(float bias)
     {
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gShadowBias")->set_float(offset);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gPCFDepthBias")->set_float(bias);
     }
 
     void DeferredPBREffect::set_shadow_size(int32_t size)
     {
         m_effect_impl->shadow_size = size;
 
-        float padding = static_cast<float>(m_effect_impl->pcf_kernel_size / 2) / static_cast<float>(size);
+        float padding = 1.0f / static_cast<float>(size);
 
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gTexelSize")->set_float(1.0f / static_cast<float>(size));
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gTexelSize")->set_float(padding);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gMinBorderPadding")->set_float(padding);
         m_effect_impl->effect_helper->get_constant_buffer_variable("gMaxBorderPadding")->set_float(1.0f - padding);
     }
@@ -412,6 +469,26 @@ namespace toy
     void DeferredPBREffect::set_shadow_texture_array(ID3D11ShaderResourceView *shadow_map)
     {
         m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", shadow_map);
+    }
+
+    void DeferredPBREffect::set_positive_exponent(float positive_exponent)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gEvsmPosExp")->set_float(positive_exponent);
+    }
+
+    void DeferredPBREffect::set_negative_exponent(float negative_exponent)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gEvsmNegExp")->set_float(negative_exponent);
+    }
+
+    void DeferredPBREffect::set_light_bleeding_reduction(float value)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gLightBleedingReduction")->set_float(value);
+    }
+
+    void DeferredPBREffect::set_cascade_sampler(ID3D11SamplerState *sampler)
+    {
+        m_effect_impl->effect_helper->set_sampler_state_by_name("gSamAnisotropicClamp", sampler);
     }
 
     void DeferredPBREffect::set_light_direction(const DirectX::XMFLOAT3 &direction)

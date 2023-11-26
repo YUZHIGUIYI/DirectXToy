@@ -94,6 +94,7 @@ namespace toy
                             ID3D11ShaderResourceView *cur_buffer_srv, ID3D11ShaderResourceView *motion_vector_srv,
                             ID3D11ShaderResourceView *depth_buffer_srv, ID3D11RenderTargetView *lit_buffer_rtv, D3D11_VIEWPORT viewport)
     {
+        static bool first_frame = true;
         static uint32_t taa_frame_counter = 0;
 
         // Jitter
@@ -108,6 +109,14 @@ namespace toy
         device_context->RSSetViewports(1, &viewport);
 
         m_effect_impl->effect_helper->get_constant_buffer_variable("gJitter")->set_float_vector(2, jitter);
+        if (first_frame)
+        {
+            m_effect_impl->effect_helper->get_constant_buffer_variable("gFirstFrame")->set_sint(1);
+            first_frame = false;
+        } else
+        {
+            m_effect_impl->effect_helper->get_constant_buffer_variable("gFirstFrame")->set_sint(0);
+        }
 
         auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->taa_pass);
         m_effect_impl->effect_helper->set_shader_resource_by_name("gHistoryFrameMap", history_buffer_srv);

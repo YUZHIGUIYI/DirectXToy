@@ -5,17 +5,13 @@
 #include "deferred_registers.hlsl"
 #include "samplers.hlsl"
 
-// 使用偏导，将shadow map中的texels映射到正在渲染的图元的观察空间平面上
-// 该深度将会用于比较并减少阴影走样
-// 这项技术是开销昂贵的，且假定对象是平面较多的时候才有效
-#ifndef USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG
-#define USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG 0
-#endif
-
-// 允许在不同级联之间对阴影值混合。当shadow maps比较小
-// 且artifacts在两个级联之间可见的时候最为有效
-#ifndef BLEND_BETWEEN_CASCADE_LAYERS_FLAG
-#define BLEND_BETWEEN_CASCADE_LAYERS_FLAG 0
+// 0 - Cascaded shadow map
+// 1 - Variance shadow map
+// 2 - Exponential shadow map
+// 3 - Exponential variance shadow map 2-component
+// 4 - Exponential variance shadow map 4-component
+#ifndef SHADOW_TYPE
+#define SHADOW_TYPE 4
 #endif
 
 // 有两种方法为当前像素片元选择合适的级联：
@@ -30,7 +26,7 @@
 #define CASCADE_COUNT_FLAG 3
 #endif
 
-// 在大多数情况下，使用3-4个级联，并开启BLEND_BETWEEN_CASCADE_LAYERS_FLAG，
+// 在大多数情况下，使用3-4个级联，
 // 可以适用于低端PC。高端PC可以处理更大的阴影，以及更大的混合地带
 // 在使用更大的PCF核时，可以给高端PC使用基于偏导的深度偏移
 
@@ -46,47 +42,56 @@ static const float4 s_cascaded_color_multiplier[8] =
     float4(0.5f, 3.5f, 0.75f, 1.0f)
 };
 
-//--------------------------------------------------------------------------------------
-// 为阴影空间的texels计算对应光照空间
-//--------------------------------------------------------------------------------------
-void calculate_right_and_up_texel_depth_deltas(float3 shadow_texel_ddx, float3 shadow_texel_ddy,
-                                                out float up_texel_depth_weight, 
-                                                out float right_texel_depth_weight)
+float linear_step(float a, float b, float v)
 {
-    // 这里使用X和Y中的偏导数来计算变换矩阵。我们需要逆矩阵将我们从阴影空间变换到屏幕空间，
-    // 因为这些导数能让我们从屏幕空间变换到阴影空间。新的矩阵允许我们从阴影图的texels映射
-    // 到屏幕空间。这将允许我们寻找对应深度像素的屏幕空间深度。
-    // 这不是一个完美的解决方案，因为它假定场景中的几何体是一个平面。
+    return saturate((v - a) / (b - a));
+}
 
-    // 在大多数情况下，使用偏移或方差阴影贴图是一种更好的、能够减少伪影的方法
+// 令 [0, amount] 的部分归零并将 (amount, 1] 重新映射到 (0, 1]
+float reduce_light_bleeding(float p_max, float amount)
+{
+    return linear_step(amount, 1.0f, p_max);
+}
 
-    float2x2 mat_screen_to_shadow = float2x2(shadow_texel_ddx.xy, shadow_texel_ddy.xy);
-    float det = determinant(mat_screen_to_shadow);
-    float inv_det = 1.0f / det;
-    float2x2 mat_shadow_to_screen = float2x2(
-        mat_screen_to_shadow._22 * inv_det,  mat_screen_to_shadow._12 * -inv_det,
-        mat_screen_to_shadow._21 * -inv_det, mat_screen_to_shadow._11 * inv_det
-    );
+float2 get_evsm_exponents(float positive_exponent, float negative_exponent, int is_16bit_shadow)
+{
+    const float max_exponent = (is_16bit_shadow ? 5.54f : 42.0f);
 
-    float2 right_shadow_texel_location = float2(gTexelSize, 0.0f);
-    float2 up_shadow_texel_location = float2(0.0f, gTexelSize);
+    float2 exponents = float2(positive_exponent, negative_exponent);
 
-    // 通过阴影空间到屏幕空间的矩阵变换右边的texel
-    float2 right_texel_depth_ratio = mul(right_shadow_texel_location, mat_shadow_to_screen);
-    float2 up_texel_depth_ratio = mul(up_shadow_texel_location, mat_shadow_to_screen);
+    // 限制指数范围，防止溢出
+    return min(exponents, max_exponent);
+}
 
-    // 现在可以计算在shadow map向右和向上移动时，深度的变化值
-    // 使用x方向和y方向变换的比值乘上屏幕空间x和y深度的导数来计算变化值
-    up_texel_depth_weight = up_texel_depth_ratio.x * shadow_texel_ddx.z + up_texel_depth_ratio.y * shadow_texel_ddy.z;
-    right_texel_depth_weight = right_texel_depth_ratio.x * shadow_texel_ddx.z + right_texel_depth_ratio.y * shadow_texel_ddy.z;
+// 要求输入的depth在 [0, 1] 范围内
+float2 apply_evsm_exponents(float depth, float2 exponents)
+{
+    depth = 2.0f * depth - 1.0f;
+    float2 exp_depth;
+    exp_depth.x = exp(exponents.x * depth);
+    exp_depth.y = -exp(-exponents.y * depth);
+
+    return exp_depth;
+}
+
+float chebyshev_upper_bound(float2 moments, float receiver_depth, float min_variance, float light_bleeding_reduction)
+{
+    float variance = moments.y - (moments.x * moments.x);
+    variance = max(variance, min_variance);
+
+    float d = receiver_depth - moments.x;
+    float p_max = variance / (variance + d * d);
+
+    p_max = reduce_light_bleeding(p_max, light_bleeding_reduction);
+
+    // 单边切比雪夫
+    return (receiver_depth <= moments.x ? 1.0f : p_max);
 }
 
 //--------------------------------------------------------------------------------------
 // 使用PCF采样深度图并返回着色百分比
 //--------------------------------------------------------------------------------------
-float calculate_pcf_percent_lit(int current_cascade_index, float4 shadow_texel_coord, 
-                                float right_texel_depth_delta, float up_texel_depth_delta,
-                                float blur_size)
+float calculate_pcf_percent_lit(int current_cascade_index, float4 shadow_texel_coord, float blur_size)
 {
     float percent_lit = 0.0f;
 
@@ -99,11 +104,7 @@ float calculate_pcf_percent_lit(int current_cascade_index, float4 shadow_texel_c
             // 解决PCF深度偏移问题 - 使用一个偏移值
             // 过大的偏移会导致Peter-panning（阴影跑出物体）
             // 过小的偏移会导致阴影失真
-            depth_cmp -= gShadowBias;
-            if (USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG)
-            {
-                depth_cmp += right_texel_depth_delta * (float)x + up_texel_depth_delta * (float)y;
-            }
+            depth_cmp -= gPCFDepthBias;
             // 将变换后的像素深度同阴影图中的深度进行比较
             percent_lit += gShadowMap.SampleCmpLevelZero(gSamShadow, 
                             float3(
@@ -115,6 +116,83 @@ float calculate_pcf_percent_lit(int current_cascade_index, float4 shadow_texel_c
         }
     }
     percent_lit /= blur_size;
+
+    return percent_lit;
+}
+
+//--------------------------------------------------------------------------------------
+// VSM：采样深度图并返回着色百分比
+//--------------------------------------------------------------------------------------
+float calculate_variance_shadow(int current_cascade_index, float4 shadow_texel_coord, float4 shadow_texel_coord_view_space)
+{
+    float percent_lit = 0.0f;
+    float2 moments = float2(0.0f, 0.0f);
+
+    // 为了将求导从动态控制流中拉出来，计算观察空间坐标的偏导
+    // 从而得到投影纹理空间坐标的偏导
+    float3 shadow_texel_coord_ddx = ddx(shadow_texel_coord_view_space).xyz;
+    float3 shadow_texel_coord_ddy = ddy(shadow_texel_coord_view_space).xyz;
+    shadow_texel_coord_ddx *= gCascadedScale[current_cascade_index].xyz;
+    shadow_texel_coord_ddy *= gCascadedScale[current_cascade_index].xyz;
+
+    moments += gShadowMap.SampleGrad(gSamAnisotropicClamp,
+                            float3(shadow_texel_coord.xy, (float)current_cascade_index),
+                            shadow_texel_coord_ddx.xy, shadow_texel_coord_ddy.xy).xy;
+
+    percent_lit = chebyshev_upper_bound(moments, shadow_texel_coord.z, 0.00001f, gLightBleedingReduction);
+
+    return percent_lit;
+}
+
+//--------------------------------------------------------------------------------------
+// ESM：采样深度图并返回着色百分比
+//--------------------------------------------------------------------------------------
+float calculate_exponential_shadow(int current_cascade_index, float4 shadow_texel_coord, float4 shadow_texel_coord_view_space)
+{
+    float percent_lit = 0.0f;
+    float occluder = 0.0f;
+
+    float3 shadow_texel_coord_ddx = ddx(shadow_texel_coord_view_space).xyz;
+    float3 shadow_texel_coord_ddy = ddy(shadow_texel_coord_view_space).xyz;
+    shadow_texel_coord_ddx *= gCascadedScale[current_cascade_index].xyz;
+    shadow_texel_coord_ddy *= gCascadedScale[current_cascade_index].xyz;
+
+    occluder += gShadowMap.SampleGrad(gSamAnisotropicClamp, 
+                                float3(shadow_texel_coord.xy, (float)current_cascade_index),
+                                shadow_texel_coord_ddx.xy, shadow_texel_coord_ddy.xy).x;
+
+    percent_lit = saturate(exp(occluder - gMagicPower * shadow_texel_coord.z));
+
+    return percent_lit;
+}
+
+//--------------------------------------------------------------------------------------
+// EVSM：采样深度图并返回着色百分比
+//--------------------------------------------------------------------------------------
+float calculate_exponential_variance_shadow(int current_cascade_index, float4 shadow_texel_coord, float4 shadow_texel_coord_view_space)
+{
+    float percent_lit = 0.0f;
+
+    float2 exponents = get_evsm_exponents(gEvsmPosExp, gEvsmNegExp, g16BitShadow);
+    float2 exp_depth = apply_evsm_exponents(shadow_texel_coord.z, exponents);
+    float4 moments = 0.0f;
+
+    float3 shadow_texel_coord_ddx = ddx(shadow_texel_coord_view_space).xyz;
+    float3 shadow_texel_coord_ddy = ddy(shadow_texel_coord_view_space).xyz;
+    shadow_texel_coord_ddx *= gCascadedScale[current_cascade_index].xyz;
+    shadow_texel_coord_ddy *= gCascadedScale[current_cascade_index].xyz;
+
+    moments += gShadowMap.SampleGrad(gSamAnisotropicClamp,
+                            float3(shadow_texel_coord.xy, (float)current_cascade_index),
+                            shadow_texel_coord_ddx.xy, shadow_texel_coord_ddy.xy);
+
+    percent_lit = chebyshev_upper_bound(moments.xy, exp_depth.x, 0.00001f, gLightBleedingReduction);
+
+    if (SHADOW_TYPE == 4)
+    {   
+        float neg = chebyshev_upper_bound(moments.zw, exp_depth.y, 0.00001f, gLightBleedingReduction);
+        percent_lit = min(percent_lit, neg);
+    }
 
     return percent_lit;
 }
@@ -137,13 +215,13 @@ void calculate_blend_amount_for_interval(int current_cascade_index, inout float 
 
     // 需要计算当前shadow map的边缘地带，在哪里将会淡化到下一个级联
     // 然后就可以提前脱离开销昂贵的PCF for循环
-    float blend_interval = gCascadedFrustumsEyeSpaceDepthsFloat4[current_cascade_index].x;
+    float blend_interval = gCascadedFrustumsEyeSpaceDepths[current_cascade_index];
 
     if (current_cascade_index > 0)
     {
         int blend_interval_below_index = current_cascade_index - 1;
-        pixel_depth -= gCascadedFrustumsEyeSpaceDepthsFloat4[blend_interval_below_index].x;
-        blend_interval -= gCascadedFrustumsEyeSpaceDepthsFloat4[blend_interval_below_index].x;
+        pixel_depth -= gCascadedFrustumsEyeSpaceDepths[blend_interval_below_index];
+        blend_interval -= gCascadedFrustumsEyeSpaceDepths[blend_interval_below_index];
     }
 
     // 当前像素的混合地带的位置
@@ -167,7 +245,7 @@ void calculate_blend_amount_for_map(float4 shadow_map_texel_coord,
     //         |  0.5  |
     //         |_______|
     //         0       0
-    // blend_band_location = min(tx, ty, 1.0 - tx, 1.0 - ty);
+    // blend_band_location = min(tx, ty, 1.0f - tx, 1.0f - ty);
     // blend_band_location位于 [0, gCascadeBlendArea] 时，进行[0, 1]的过渡
     float2 distance_to_one = float2(1.0f - shadow_map_texel_coord.x, 1.0f - shadow_map_texel_coord.y);
     current_pixels_blend_band_location = min(shadow_map_texel_coord.x, shadow_map_texel_coord.y);
@@ -235,8 +313,8 @@ float calculate_cascaded_shadow(float4 shadow_map_texel_coord_view_space,
         if (CASCADE_COUNT_FLAG > 1)
         {
             float4 current_pixel_depth_vec = current_pixel_depth;
-            float4 cmp_vec1 = (current_pixel_depth_vec > gCascadedFrustumsEyeSpaceDepthsFloat[0]);
-            float4 cmp_vec2 = (current_pixel_depth_vec > gCascadedFrustumsEyeSpaceDepthsFloat[1]);
+            float4 cmp_vec1 = (current_pixel_depth_vec > gCascadedFrustumsEyeSpaceDepthsDate[0]);
+            float4 cmp_vec2 = (current_pixel_depth_vec > gCascadedFrustumsEyeSpaceDepthsDate[1]);
             float index = dot(float4(CASCADE_COUNT_FLAG > 0,
                                     CASCADE_COUNT_FLAG > 1,
                                     CASCADE_COUNT_FLAG > 2,
@@ -280,56 +358,53 @@ float calculate_cascaded_shadow(float4 shadow_map_texel_coord_view_space,
     //
     // 计算当前级联的PCF
     // 
-    float3 shadow_map_texel_coord_ddx;
-    float3 shadow_map_texel_coord_ddy;
-    // 这些偏导用于计算投影纹理空间相邻texel对应到光照空间不同方向引起的深度变化
-    if (USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG)
-    {
-        // 计算光照空间的偏导映射到投影纹理空间的变化率
-        shadow_map_texel_coord_ddx = ddx(shadow_map_texel_coord_view_space);
-        shadow_map_texel_coord_ddy = ddy(shadow_map_texel_coord_view_space);
-
-        shadow_map_texel_coord_ddx *= gCascadedScale[current_cascade_index];
-        shadow_map_texel_coord_ddy *= gCascadedScale[current_cascade_index];
-
-        calculate_right_and_up_texel_depth_deltas(shadow_map_texel_coord_ddx, shadow_map_texel_coord_ddy,
-                                                up_texel_depth_weight, right_texel_depth_weight);
-    }
 
     visualize_cascade_color = s_cascaded_color_multiplier[current_cascade_index];
 
-    percent_lit = calculate_pcf_percent_lit(current_cascade_index, shadow_map_texel_coord,
-                                            right_texel_depth_weight, up_texel_depth_weight, blur_size);
+    if (SHADOW_TYPE == 0)
+    {
+        percent_lit = calculate_pcf_percent_lit(current_cascade_index, shadow_map_texel_coord, blur_size);
+    }
+    if (SHADOW_TYPE == 1)
+    {
+        percent_lit = calculate_variance_shadow(current_cascade_index, shadow_map_texel_coord, shadow_map_texel_coord_view_space);
+    }
+    if (SHADOW_TYPE == 2)
+    {
+        percent_lit = calculate_exponential_shadow(current_cascade_index, shadow_map_texel_coord, shadow_map_texel_coord_view_space);
+    }
+    if (SHADOW_TYPE >= 3)
+    {
+        percent_lit = calculate_exponential_variance_shadow(current_cascade_index, shadow_map_texel_coord, shadow_map_texel_coord_view_space);
+    }
 
     //
     // 在两个级联之间进行混合
     //
-    if (BLEND_BETWEEN_CASCADE_LAYERS_FLAG)
-    {
-        // 为下一个级联重复进行投影纹理坐标的计算
-        // 下一级联的索引用于在两个级联之间模糊
-        next_cascade_index = min(CASCADE_COUNT_FLAG - 1, current_cascade_index + 1);
-    }
+    
+    // 为下一个级联重复进行投影纹理坐标的计算
+    // 下一级联的索引用于在两个级联之间模糊
+    next_cascade_index = min(CASCADE_COUNT_FLAG - 1, current_cascade_index + 1);
 
     blend_between_cascades_amount = 1.0f;
     float current_pixels_blend_band_location = 1.0f;
     if (SELECT_CASCADE_BY_INTERVAL_FLAG)
     {
-        if (BLEND_BETWEEN_CASCADE_LAYERS_FLAG && CASCADE_COUNT_FLAG > 1)
+        if (CASCADE_COUNT_FLAG > 1)
         {
             calculate_blend_amount_for_interval(current_cascade_index, current_pixel_depth,
                                                 current_pixels_blend_band_location, blend_between_cascades_amount);
         }
     } else 
     {
-        if (BLEND_BETWEEN_CASCADE_LAYERS_FLAG)
+        if (CASCADE_COUNT_FLAG > 1)
         {
             calculate_blend_amount_for_map(shadow_map_texel_coord, 
                                             current_pixels_blend_band_location, blend_between_cascades_amount);
         }
     }
 
-    if (BLEND_BETWEEN_CASCADE_LAYERS_FLAG && CASCADE_COUNT_FLAG > 1)
+    if (CASCADE_COUNT_FLAG > 1)
     {
         if (current_pixels_blend_band_location < gCascadeBlendArea)
         {
@@ -339,14 +414,23 @@ float calculate_cascaded_shadow(float4 shadow_map_texel_coord_view_space,
             // 在级联之间混合时，为下一级联进行计算
             if (current_pixels_blend_band_location < gCascadeBlendArea)
             {
-                // 当前像素在混合地带内
-                if (USE_DERIVATIVES_FOR_DEPTH_OFFSET_FLAG)
+                if (SHADOW_TYPE == 0)
                 {
-                    calculate_right_and_up_texel_depth_deltas(shadow_map_texel_coord_ddx, shadow_map_texel_coord_ddy,
-                                                            up_texel_depth_weight_blend, right_texel_depth_weight_blend);
+                    percent_lit_blend = calculate_pcf_percent_lit(next_cascade_index, shadow_map_texel_coord_blend, blur_size);
                 }
-                percent_lit_blend = calculate_pcf_percent_lit(next_cascade_index, shadow_map_texel_coord_blend,
-                                                            right_texel_depth_weight_blend, up_texel_depth_weight_blend, blur_size);
+                if (SHADOW_TYPE == 1)
+                {
+                    percent_lit_blend = calculate_variance_shadow(next_cascade_index, shadow_map_texel_coord_blend, shadow_map_texel_coord_view_space);
+                }
+                if (SHADOW_TYPE == 2)
+                {
+                    percent_lit_blend = calculate_exponential_shadow(next_cascade_index, shadow_map_texel_coord_blend, shadow_map_texel_coord_view_space);
+                }
+                if (SHADOW_TYPE >= 3)
+                {
+                    percent_lit_blend = calculate_exponential_variance_shadow(next_cascade_index, shadow_map_texel_coord_blend, shadow_map_texel_coord_view_space);
+                }
+
                 // 对两个级联的PCF混合
                 percent_lit = lerp(percent_lit_blend, percent_lit, blend_between_cascades_amount);
             }

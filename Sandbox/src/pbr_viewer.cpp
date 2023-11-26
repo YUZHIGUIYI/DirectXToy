@@ -56,7 +56,7 @@ namespace toy::viewer
     {
     }
 
-    PBRViewer::~PBRViewer() = default;
+    PBRViewer::~PBRViewer() noexcept = default;
 
     bool PBRViewer::is_viewer_size_changed()
     {
@@ -131,7 +131,7 @@ namespace toy::viewer
         auto width = m_viewer_spec.width;
         auto height = m_viewer_spec.height;
         auto aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
-        m_camera->set_frustum(XM_PI / 3.0f, aspect_ratio, 0.5f, 300.0f);
+        m_camera->set_frustum(XM_PI / 3.0f, aspect_ratio, 0.5f, 360.0f);
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
         DeferredPBREffect::get().set_proj_matrix(m_camera->get_proj_xm(true));
         DeferredPBREffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
@@ -235,9 +235,9 @@ namespace toy::viewer
 
         bool keep_snap = DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::LeftControl);
         float snap_value = 5.0f;
-        float snap_values[3] = { snap_value, snap_value, snap_value };
+        std::array<float, 3> snap_values = { snap_value, snap_value, snap_value };
         ImGuizmo::Manipulate((float *)&camera_view, (float *)&camera_proj, (ImGuizmo::OPERATION)gizmo_type, ImGuizmo::LOCAL, (float *)&transform_matrix,
-                                nullptr, keep_snap ? snap_values : nullptr);
+                                nullptr, keep_snap ? snap_values.data() : nullptr);
 
         if (ImGuizmo::IsUsing())
         {
@@ -281,8 +281,8 @@ namespace toy::viewer
         m_camera = camera;
 
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
-        m_camera->set_frustum(XM_PI / 3.0f, m_viewer_spec.get_aspect_ratio(), 0.5f, 300.0f);
-        camera->look_at(XMFLOAT3(-60.0f, 10.0f, 2.5f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
+        m_camera->set_frustum(XM_PI / 3.0f, m_viewer_spec.get_aspect_ratio(), 0.5f, 360.0f);
+        camera->look_at(XMFLOAT3{-60.0f, 10.0f, 2.5f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
         auto light_camera = std::make_shared<first_person_camera_c>();
         m_light_camera = light_camera;
@@ -292,29 +292,36 @@ namespace toy::viewer
         light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
         m_camera_controller.init(camera.get());
-        m_camera_controller.set_move_speed(25.0f);
+        m_camera_controller.set_move_speed(30.0f);
 
         // Note: Initialize effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
         deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
-        //// reverse z - currently prohibited
+        //// reverse z
         deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(true));
         deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
-        deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.pcf_kernel_size);
-        deferred_pbr_effect.set_pcf_depth_offset(cascade_shadow_manager.pcf_depth_offset);
+        deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.blur_kernel_size);
+        deferred_pbr_effect.set_pcf_depth_bias(cascade_shadow_manager.pcf_depth_bias);
+        deferred_pbr_effect.set_shadow_type(static_cast<uint8_t>(cascade_shadow_manager.shadow_type));
         deferred_pbr_effect.set_shadow_size(cascade_shadow_manager.shadow_size);
-        deferred_pbr_effect.set_cascade_blend_enabled(cascade_shadow_manager.blend_between_cascades);
         deferred_pbr_effect.set_cascade_blend_area(cascade_shadow_manager.blend_between_cascades_range);
         deferred_pbr_effect.set_cascade_levels(cascade_shadow_manager.cascade_levels);
         deferred_pbr_effect.set_cascade_interval_selection_enabled(static_cast<bool>(cascade_shadow_manager.selected_cascade_selection));
-        deferred_pbr_effect.set_pcf_derivatives_offset_enabled(cascade_shadow_manager.derivative_based_offset);
+        deferred_pbr_effect.set_light_bleeding_reduction(cascade_shadow_manager.light_bleeding_reduction);
+        deferred_pbr_effect.set_magic_power(cascade_shadow_manager.magic_power);
+        deferred_pbr_effect.set_positive_exponent(cascade_shadow_manager.positive_exponent);
+        deferred_pbr_effect.set_negative_exponent(cascade_shadow_manager.negative_exponent);
+        deferred_pbr_effect.set_16_bit_format_shadow(false);
 
         TAAEffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
         ShadowEffect::get().set_view_matrix(m_light_camera->get_view_xm());
+        ShadowEffect::get().set_blur_kernel_size(cascade_shadow_manager.blur_kernel_size);
+        ShadowEffect::get().set_blur_sigma(cascade_shadow_manager.gaussian_blur_sigma);
+        ShadowEffect::get().set_16bit_format_shadow(false);
 
         // Initialize models
         model::ModelManager::get().create_from_geometry("skyboxCube", geometry::create_box());
@@ -393,7 +400,7 @@ namespace toy::viewer
         //// TODO: Debug: Test entity four
         auto test_entity_floor = m_editor_scene->create_entity("FloorWithoutTexture");
         auto& test_floor_transform = test_entity_floor.add_component<TransformComponent>();
-        test_floor_transform.transform.set_scale(80.0f, 1.0f, 80.0f);
+        test_floor_transform.transform.set_scale(100.0f, 1.0f, 100.0f);
         test_floor_transform.transform.set_position(0.0f, -25.0f, 0.0f);
         auto& test_floor_mesh = test_entity_floor.add_component<StaticMeshComponent>();
         test_floor_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
@@ -462,11 +469,10 @@ namespace toy::viewer
 
     void PBRViewer::on_render(float dt)
     {
+        ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
+
         // Update
         on_update(dt);
-
-        ID3D11Device* d3d_device = m_d3d_app->get_device();
-        ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
 
         // Cascaded shadow pass
         render_shadow();
@@ -513,8 +519,8 @@ namespace toy::viewer
         if (ImGui::Begin("Roughness"))
         {
             auto&& cascade_shadow_manager = CascadedShadowManager::get();
-            static const std::array<const char *, 7> cascade_level_selections{
-                "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7"
+            static const std::array<const char *, 8> cascade_level_selections{
+                "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8"
             };
             static int32_t cur_level_index = 0;
             ImGui::Combo("##1", &cur_level_index, cascade_level_selections.data(), cascade_shadow_manager.cascade_levels);
@@ -582,19 +588,72 @@ namespace toy::viewer
             cascade_shadow_manager.update_frame(*m_camera, *m_light_camera, bounding_box);
         });
 
-        shadow_effect.set_default_render();
         d3d_device_context->RSSetViewports(1, &viewport);
+
         for (size_t cascade_index = 0; cascade_index < cascade_shadow_manager.cascade_levels; ++cascade_index)
         {
-            ID3D11RenderTargetView* null_rtv = nullptr;
-            ID3D11DepthStencilView* dsv = cascade_shadow_manager.get_cascade_depth_stencil_view(cascade_index);
-            d3d_device_context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
-            d3d_device_context->OMSetRenderTargets(1, &null_rtv, dsv);
+            switch (cascade_shadow_manager.shadow_type)
+            {
+                case ShadowType::ShadowType_CSM: shadow_effect.set_default_render();
+                case ShadowType::ShadowType_VSM:
+                case ShadowType::ShadowType_ESM:
+                case ShadowType::ShadowType_EVSM2:
+                case ShadowType::ShadowType_EVSM4: shadow_effect.set_depth_only_render();
+            }
+
+            ID3D11RenderTargetView* depth_rtv = cascade_shadow_manager.get_cascade_render_target_view(cascade_index);
+            ID3D11DepthStencilView* depth_dsv = cascade_shadow_manager.get_depth_buffer_dsv();
+            d3d_device_context->ClearRenderTargetView(depth_rtv, s_color);
+            d3d_device_context->ClearDepthStencilView(depth_dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
+            if (cascade_shadow_manager.shadow_type != ShadowType::ShadowType_CSM) depth_rtv = nullptr;
+            d3d_device_context->OMSetRenderTargets(1, &depth_rtv, depth_dsv);
 
             XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
             shadow_effect.set_proj_matrix(shadow_proj);
 
             m_editor_scene->render_static_mesh_shadow(d3d_device_context, shadow_effect);
+
+            d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
+
+            if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM || cascade_shadow_manager.shadow_type >= ShadowType::ShadowType_EVSM2)
+            {
+                if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM)
+                {
+                    shadow_effect.render_variance_shadow(d3d_device_context, cascade_shadow_manager.get_depth_buffer_srv(),
+                                                        cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                } else
+                {
+                    shadow_effect.render_exponential_variance_shadow(d3d_device_context, cascade_shadow_manager.get_depth_buffer_srv(),
+                                                                cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport(),
+                                                                cascade_shadow_manager.positive_exponent,
+                                                                cascade_shadow_manager.shadow_type == ShadowType::ShadowType_EVSM4 ? &cascade_shadow_manager.negative_exponent : nullptr);
+                }
+                if (cascade_shadow_manager.blur_kernel_size > 1)
+                {
+                    shadow_effect.gaussian_blur_x(d3d_device_context, cascade_shadow_manager.get_cascade_output(cascade_index),
+                                                cascade_shadow_manager.get_temp_texture_rtv(), cascade_shadow_manager.get_shadow_viewport());
+                    shadow_effect.gaussian_blur_y(d3d_device_context, cascade_shadow_manager.get_temp_texture_output(),
+                                                cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                }
+            } else if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_ESM)
+            {
+                if (cascade_shadow_manager.blur_kernel_size > 1)
+                {
+                    shadow_effect.render_exponential_shadow(d3d_device_context, cascade_shadow_manager.get_depth_buffer_srv(),
+                                                        cascade_shadow_manager.get_temp_texture_rtv(), cascade_shadow_manager.get_shadow_viewport(), cascade_shadow_manager.magic_power);
+                    shadow_effect.log_gaussian_blur(d3d_device_context, cascade_shadow_manager.get_temp_texture_output(),
+                                                cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                } else
+                {
+                    shadow_effect.render_exponential_shadow(d3d_device_context, cascade_shadow_manager.get_depth_buffer_srv(),
+                                                        cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport(), cascade_shadow_manager.magic_power);
+                }
+            }
+        }
+
+        if ((cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM || cascade_shadow_manager.shadow_type >= ShadowType::ShadowType_EVSM2) && cascade_shadow_manager.generate_mips)
+        {
+            d3d_device_context->GenerateMips(cascade_shadow_manager.get_cascades_output());
         }
     }
 
@@ -629,7 +688,7 @@ namespace toy::viewer
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
 
         set_shadow_paras();
-
+        DeferredPBREffect::get().set_lighting_pass_render();
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                         m_gbuffer_srvs.data(), m_camera->get_viewport());
 

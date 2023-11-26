@@ -43,8 +43,7 @@ namespace toy
 
             if (static_mesh_component.is_camera) continue;
 
-            BoundingBox bounding_box = static_mesh_component.model_asset->bounding_box;
-            bounding_box.Transform(bounding_box, transform_component.transform.get_local_to_world_matrix_xm());
+            BoundingBox bounding_box = static_mesh_component.get_bounding_box(transform_component.transform);
             auto extents = bounding_box.Extents;
             auto volume = extents.x * extents.y * extents.z;
             if (volume > max_volume)

@@ -22,7 +22,35 @@ namespace toy
 
     void CascadedShadowManager::init(ID3D11Device *device)
     {
-        csm_texture_array = std::make_unique<Depth2DArray>(device, shadow_size, shadow_size, cascade_levels);
+        DXGI_FORMAT format = DXGI_FORMAT_R32_FLOAT;
+        if (shadow_bits == 4)
+        {
+            switch (shadow_type)
+            {
+                case ShadowType::ShadowType_ESM:
+                case ShadowType::ShadowType_CSM: format = DXGI_FORMAT_R32_FLOAT; break;
+                case ShadowType::ShadowType_VSM:
+                case ShadowType::ShadowType_EVSM2: format = DXGI_FORMAT_R32G32_FLOAT; break;
+                case ShadowType::ShadowType_EVSM4: format = DXGI_FORMAT_R32G32B32A32_FLOAT; break;
+            }
+        } else if (shadow_bits == 2)
+        {
+            switch (shadow_type)
+            {
+                case ShadowType::ShadowType_ESM: format = DXGI_FORMAT_R16_FLOAT; break;
+                case ShadowType::ShadowType_CSM: format = DXGI_FORMAT_R16_UNORM; break;
+                case ShadowType::ShadowType_VSM: format = DXGI_FORMAT_R16G16_UNORM; break;
+                case ShadowType::ShadowType_EVSM2: format = DXGI_FORMAT_R16G16_FLOAT; break;
+                case ShadowType::ShadowType_EVSM4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
+            }
+        }
+
+        auto mip_levels = static_cast<uint32_t>(std::log(static_cast<float>(shadow_size)) + 1.0f);
+        csm_texture_array = std::make_unique<Texture2DArray>(device, shadow_size, shadow_size, format,
+                                        static_cast<uint32_t>(cascade_levels), generate_mips ? mip_levels : 1);
+        csm_temp_texture = std::make_unique<Texture2D>(device, shadow_size, shadow_size, format,
+                                                        generate_mips ? mip_levels : 1);
+        csm_depth_buffer = std::make_unique<Depth2D>(device, shadow_size, shadow_size, DepthStencilBitsFlag::Depth_32Bits);
 
         shadow_viewport.TopLeftX = 0.0f;
         shadow_viewport.TopLeftY = 0.0f;
@@ -38,9 +66,9 @@ namespace toy
         return cascaded_shadow_manager;
     }
 
-    ID3D11DepthStencilView *CascadedShadowManager::get_cascade_depth_stencil_view(size_t cascade_index) const
+    ID3D11RenderTargetView *CascadedShadowManager::get_cascade_render_target_view(size_t cascade_index) const
     {
-        return csm_texture_array->get_depth_stencil(cascade_index);
+        return csm_texture_array->get_render_target(cascade_index);
     }
 
     ID3D11ShaderResourceView *CascadedShadowManager::get_cascades_output() const
@@ -51,6 +79,26 @@ namespace toy
     ID3D11ShaderResourceView *CascadedShadowManager::get_cascade_output(size_t cascade_index) const
     {
         return csm_texture_array->get_shader_resource(cascade_index);
+    }
+
+    ID3D11DepthStencilView *CascadedShadowManager::get_depth_buffer_dsv() const
+    {
+        return csm_depth_buffer->get_depth_stencil();
+    }
+
+    ID3D11ShaderResourceView *CascadedShadowManager::get_depth_buffer_srv() const
+    {
+        return csm_depth_buffer->get_shader_resource();
+    }
+
+    ID3D11RenderTargetView *CascadedShadowManager::get_temp_texture_rtv() const
+    {
+        return csm_temp_texture->get_render_target();
+    }
+
+    ID3D11ShaderResourceView *CascadedShadowManager::get_temp_texture_output() const
+    {
+        return csm_temp_texture->get_shader_resource();
     }
 
     const float *CascadedShadowManager::get_cascade_partitions() const
@@ -161,7 +209,7 @@ namespace toy
                 // 计算出的偏移量会填充正交投影
                 XMVECTOR borderOffsetVec = (lengthVec - (lightCameraOrthographicMaxVec - lightCameraOrthographicMinVec)) * g_XMOneHalf.v;
                 // 仅对XY方向进行填充
-                static const XMVECTORF32 xyzw1100Vec = { {1.0f, 1.0f, 0.0f, 0.0f} };
+                static const XMVECTORF32 xyzw1100Vec = { {1.0f, 1.0f, 0.0f, 0.0f } };
                 lightCameraOrthographicMaxVec += borderOffsetVec * xyzw1100Vec.v;
                 lightCameraOrthographicMinVec -= borderOffsetVec * xyzw1100Vec.v;
             }
@@ -169,7 +217,7 @@ namespace toy
             // 基于PCF核的大小再计算一个边界扩充值使得包围盒稍微放大一些。
             // 等比缩放不会影响前面固定大小的AABB
             {
-                float scaleDuetoBlur = static_cast<float>(pcf_kernel_size) / static_cast<float>(shadow_size);
+                float scaleDuetoBlur = static_cast<float>(blur_kernel_size) / static_cast<float>(shadow_size);
                 XMVECTORF32 scaleDuetoBlurVec = { {scaleDuetoBlur, scaleDuetoBlur, 0.0f, 0.0f} };
 
                 XMVECTOR borderOffsetVec = lightCameraOrthographicMaxVec - lightCameraOrthographicMinVec;
@@ -178,7 +226,6 @@ namespace toy
                 lightCameraOrthographicMaxVec += borderOffsetVec;
                 lightCameraOrthographicMinVec -= borderOffsetVec;
             }
-
 
             if (move_light_texel_size)
             {

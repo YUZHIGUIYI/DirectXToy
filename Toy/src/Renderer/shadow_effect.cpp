@@ -11,6 +11,25 @@
 
 namespace toy
 {
+    static void generate_gaussian_weights(std::array<float, 16> &weights, int32_t kernel_size, float sigma)
+    {
+        float two_sigma_sq = 2.0f * sigma * sigma;
+        float sum = 0.0f;
+        int32_t radius = kernel_size / 2;
+        for (int32_t i = -radius; i <= radius; ++i)
+        {
+            auto x = static_cast<float>(i);
+            auto temp_weight = std::exp(-x * x / two_sigma_sq);
+            sum += temp_weight;
+            weights[radius + i] = temp_weight;
+        }
+
+        for (int32_t i = 0; i <= kernel_size; ++i)
+        {
+            weights[i] /= sum;
+        }
+    }
+
     struct ShadowEffect::EffectImpl
     {
         EffectImpl() = default;
@@ -24,9 +43,20 @@ namespace toy
         DirectX::XMFLOAT4X4 view_matrix = {};
         DirectX::XMFLOAT4X4 proj_matrix = {};
 
+        std::string_view depth_only_pass = {};
         std::string_view shadow_pass = {};
-        std::string_view shadow_alpha_clip_pass = {};
-        std::string_view shadow_debug_pass = {};
+        std::string_view variance_shadow_pass = {};
+        std::string_view exponential_shadow_pass = {};
+        std::string_view evsm2_comp_pass = {};
+        std::string_view evsm4_comp_pass = {};
+        std::string_view debug_pass = {};
+        std::string_view gaussian_x_pass = {};
+        std::string_view gaussian_y_pass = {};
+        std::string_view log_gaussian_pass = {};
+
+        std::array<float, 16> weights = {};
+        int32_t blur_size = 5;
+        float blur_sigma = 1.0f;
 
         D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
     };
@@ -63,11 +93,30 @@ namespace toy
         std::string_view shadow_vs = "ShadowVS";
         std::string_view screen_triangle_vs = "ShadowScreenVS";
         std::string_view shadow_ps = "ShadowPS";
-        std::string_view debug_ps = "ShadowDebugPS";
+        std::string_view debug_ps = "DebugShadowPS";
+        std::string_view exponential_shadow_ps = "ExponentialShadowPS";
+        std::string_view evsm2_comp_ps = "EVSM2CompPS";
+        std::string_view evsm4_comp_ps = "EVSM4CompPS";
+        std::string_view variance_shadow_ps = "VarianceShadowPS_4xMSAA";
+        std::string_view gaussian_blurx_ps = "GaussianBlurXPS_9";
+        std::string_view gaussian_blury_ps = "GaussianBlurYPS_9";
+        std::string_view log_gaussian_blur_ps = "LogGaussianBlurPS_9";
 
         m_effect_impl->shadow_pass = "ShadowPass";
-        m_effect_impl->shadow_alpha_clip_pass = "ShadowAlphaClipPass";
-        m_effect_impl->shadow_debug_pass = "ShadowDebugPass";
+        m_effect_impl->depth_only_pass = "DepthOnlyPass";
+        m_effect_impl->variance_shadow_pass = "VarianceShadowPass";
+        m_effect_impl->exponential_shadow_pass = "ExponentialShadowPass";
+        m_effect_impl->evsm2_comp_pass = "EVSM2CompPass";
+        m_effect_impl->evsm4_comp_pass = "EVSM4CompPass";
+        m_effect_impl->debug_pass = "DebugPass";
+        m_effect_impl->gaussian_x_pass = "GaussianBlurXPass";
+        m_effect_impl->gaussian_y_pass = "GaussianBlurYPass";
+        m_effect_impl->log_gaussian_pass = "LogGaussianBlurPass";
+
+        const std::array<D3D_SHADER_MACRO, 2> defines = {
+            D3D_SHADER_MACRO{ "BLUR_KERNEL_SIZE", "9" },
+            D3D_SHADER_MACRO{ nullptr, nullptr }
+        };
 
         com_ptr<ID3DBlob> blob = nullptr;
 
@@ -80,27 +129,75 @@ namespace toy
                                                                 "VS", "vs_5_0");
 
         m_effect_impl->effect_helper->create_shader_from_file(shadow_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
-                                                                "PS", "ps_5_0");
+                                                                "ShadowPS", "ps_5_0");
         m_effect_impl->effect_helper->create_shader_from_file(debug_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
-                                                                "DebugPS", "ps_5_0");
+                                                                "DebugShadowPS", "ps_5_0");
+        m_effect_impl->effect_helper->create_shader_from_file(exponential_shadow_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "ExponentialShadowPS", "ps_5_0");
+        m_effect_impl->effect_helper->create_shader_from_file(evsm2_comp_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "EVSM2CompPS", "ps_5_0");
+        m_effect_impl->effect_helper->create_shader_from_file(evsm4_comp_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "EVSM4CompPS", "ps_5_0");
+        m_effect_impl->effect_helper->create_shader_from_file(variance_shadow_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "VarianceShadowPS", "ps_5_0");
+        m_effect_impl->effect_helper->create_shader_from_file(gaussian_blurx_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "GaussianBlurXPS", "ps_5_0", defines.data());
+        m_effect_impl->effect_helper->create_shader_from_file(gaussian_blury_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "GaussianBlurYPS", "ps_5_0", defines.data());
+        m_effect_impl->effect_helper->create_shader_from_file(log_gaussian_blur_ps, DXTOY_HOME L"data/pbr/shadow_ps.hlsl", device,
+                                                                "LogGaussianBlurPS", "ps_5_0", defines.data());
 
         EffectPassDesc pass_desc = {};
         pass_desc.nameVS = shadow_vs;
-        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->shadow_pass, device, &pass_desc);
-        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_pass);
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->depth_only_pass, device, &pass_desc);
+        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->depth_only_pass);
         pass->set_rasterizer_state(RenderStates::rs_shadow.Get());
 
-        pass_desc.nameVS = shadow_vs;
         pass_desc.namePS = shadow_ps;
-        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->shadow_alpha_clip_pass, device, &pass_desc);
-        pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_alpha_clip_pass);
-        pass->set_rasterizer_state(RenderStates::rs_no_cull.Get());
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->shadow_pass, device, &pass_desc);
+        pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_pass);
+        pass->set_rasterizer_state(RenderStates::rs_shadow.Get());
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = variance_shadow_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->variance_shadow_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = exponential_shadow_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->exponential_shadow_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = evsm2_comp_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->evsm2_comp_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = evsm4_comp_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->evsm4_comp_pass, device, &pass_desc);
 
         pass_desc.nameVS = screen_triangle_vs;
         pass_desc.namePS = debug_ps;
-        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->shadow_debug_pass, device, &pass_desc);
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->debug_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = gaussian_blurx_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->gaussian_x_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = gaussian_blury_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->gaussian_y_pass, device, &pass_desc);
+
+        pass_desc.nameVS = screen_triangle_vs;
+        pass_desc.namePS = log_gaussian_blur_ps;
+        m_effect_impl->effect_helper->add_effect_pass(m_effect_impl->log_gaussian_pass, device, &pass_desc);
 
         m_effect_impl->effect_helper->set_sampler_state_by_name("gSamLinearWrap", RenderStates::ss_linear_wrap.Get());
+        m_effect_impl->effect_helper->set_sampler_state_by_name("gSamPointClamp", RenderStates::ss_point_clamp.Get());
+    }
+
+    void ShadowEffect::set_depth_only_render()
+    {
+        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->depth_only_pass);
+        m_effect_impl->topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     }
 
     void ShadowEffect::set_default_render()
@@ -109,11 +206,73 @@ namespace toy
         m_effect_impl->topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     }
 
-    void ShadowEffect::set_alpha_clip_render(float alpha_clip_value)
+    void ShadowEffect::render_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport)
     {
-        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_alpha_clip_pass);
-        m_effect_impl->cur_effect_pass->get_ps_param_by_name("gClipValue")->set_float(alpha_clip_value);
-        m_effect_impl->topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        // TODO: select MSAA from texture sample count
+        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->variance_shadow_pass);
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->cur_effect_pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        auto srv_slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(srv_slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void ShadowEffect::render_exponential_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                                    ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport, float magic_power)
+    {
+        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->exponential_shadow_pass);
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->cur_effect_pass->get_ps_param_by_name("c")->set_float(magic_power);
+        m_effect_impl->cur_effect_pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        auto srv_slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(srv_slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void ShadowEffect::render_exponential_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                                            ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport,
+                                                            float pos_exp, float *opt_neg_exp)
+    {
+        std::array<float, 2> exps = { pos_exp, 0.0f };
+        if (opt_neg_exp)
+        {
+            m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->evsm4_comp_pass);
+            exps[1] = *opt_neg_exp;
+        } else
+        {
+            m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->evsm2_comp_pass);
+        }
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gEvsmExponents")->set_float_vector(2, exps.data());
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->cur_effect_pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        auto srv_slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(srv_slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 
     void ShadowEffect::render_depth_to_texture(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
@@ -121,15 +280,99 @@ namespace toy
     {
         device_context->IASetInputLayout(nullptr);
         device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->shadow_debug_pass);
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gAlbedoMap", input_srv);
+        m_effect_impl->cur_effect_pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->debug_pass);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
         m_effect_impl->cur_effect_pass->apply(device_context);
         device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
         device_context->RSSetViewports(1, &viewport);
         device_context->Draw(3, 0);
 
         // Clear
-        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gAlbedoMap");  // TODO: modify name
+        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void ShadowEffect::set_16bit_format_shadow(bool enable)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("g16BitShadow")->set_sint(enable);
+    }
+
+    void ShadowEffect::set_blur_kernel_size(int32_t size)
+    {
+        if (size % 2 == 0 || size > 15) return;
+
+        m_effect_impl->blur_size = size;
+        generate_gaussian_weights(m_effect_impl->weights, m_effect_impl->blur_size, m_effect_impl->blur_sigma);
+    }
+
+    void ShadowEffect::set_blur_sigma(float sigma)
+    {
+        if (sigma < 0.0f) return;
+
+        m_effect_impl->blur_sigma = sigma;
+        generate_gaussian_weights(m_effect_impl->weights, m_effect_impl->blur_size, m_effect_impl->blur_sigma);
+    }
+
+    void ShadowEffect::gaussian_blur_x(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport)
+    {
+        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->gaussian_x_pass);
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gBlurWeightsArray")->set_raw(m_effect_impl->weights.data());
+        pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        // Clear
+        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void ShadowEffect::gaussian_blur_y(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport)
+    {
+        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->gaussian_y_pass);
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gBlurWeightsArray")->set_raw(m_effect_impl->weights.data());
+        pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        // Clear
+        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");
+        input_srv = nullptr;
+        device_context->PSSetShaderResources(static_cast<uint32_t>(slot), 1, &input_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void ShadowEffect::log_gaussian_blur(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                            ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport)
+    {
+        auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->log_gaussian_pass);
+
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gShadowMap", input_srv);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gBlurWeightsArray")->set_raw(m_effect_impl->weights.data());
+        pass->apply(device_context);
+        device_context->OMSetRenderTargets(1, &output_rtv, nullptr);
+        device_context->RSSetViewports(1, &viewport);
+        device_context->Draw(3, 0);
+
+        // Clear
+        auto slot = m_effect_impl->effect_helper->map_shader_resource_slot("gShadowMap");  // TODO: modify name
         input_srv = nullptr;
         device_context->PSSetShaderResources(static_cast<uint32_t>(slot), 1, &input_srv);
         device_context->OMSetRenderTargets(0, nullptr, nullptr);

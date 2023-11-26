@@ -399,6 +399,10 @@ namespace toy
         // * Note: called by render object automatically
         void apply(ID3D11DeviceContext* device_context) override;
 
+        // * Note: called before deferred lighting render
+        // * Set render state for lighting pass - select pass
+        void set_lighting_pass_render();
+
         // * Render to lit texture
         // * Note: default method of deferred lighting pass
         void deferred_lighting_pass(ID3D11DeviceContext* device_context, ID3D11RenderTargetView* lit_buffer_rtv,
@@ -407,20 +411,25 @@ namespace toy
         // * Singleton
         static DeferredPBREffect &get();
 
+        // * Set shadow type
+        // * 0 - Cascade shadow map
+        // * 1 - Variance shadow map
+        // * 2 - Exponential shadow map
+        // * 3 - Exponential variance shadow map 2-component
+        // * 4 - Exponential variance shadow map 4-component
+        void set_shadow_type(uint8_t type);
+
         // * Cascade level
         void set_cascade_levels(int32_t cascade_levels);
-
-        // * Enable/disable PCF derivatives offset
-        void set_pcf_derivatives_offset_enabled(bool enable);
-
-        // * Enable/disable cascade blend
-        void set_cascade_blend_enabled(bool enable);
 
         // * Enable/disable cascade interval selection
         void set_cascade_interval_selection_enabled(bool enable);
 
         // * Enable/disable cascade visualization
         void set_cascade_visualization(bool enable);
+
+        // * Enable/disable 16-bit shadow format
+        void set_16_bit_format_shadow(bool enable);
 
         // * Cascade offsets - TODO: use std::span
         void set_cascade_offsets(const DirectX::XMFLOAT4 *offsets);
@@ -434,17 +443,31 @@ namespace toy
         // * Cascade blend area
         void set_cascade_blend_area(float blend_area);
 
-        // * PCF kernel size
+        // * Set positive exponent
+        void set_positive_exponent(float positive_exponent);
+
+        // * Set negative exponent
+        void set_negative_exponent(float negative_exponent);
+
+        // * Set light bleeding reduction
+        void set_light_bleeding_reduction(float value);
+
+        void set_cascade_sampler(ID3D11SamplerState *sampler);
+
+        // * For CSM - PCF kernel size
         void set_pcf_kernel_size(int32_t size);
 
-        // * PCF depth offset
-        void set_pcf_depth_offset(float offset);
+        // * For CSM - PCF depth offset
+        void set_pcf_depth_bias(float bias);
+
+        // * For VSM - magic power
+        void set_magic_power(float power);
 
         // * Shadow size
         void set_shadow_size(int32_t size);
 
         // * Shadow texture array
-        void set_shadow_texture_array(ID3D11ShaderResourceView * shadow_map);
+        void set_shadow_texture_array(ID3D11ShaderResourceView *shadow_map);
 
         // * Light direction
         void set_light_direction(const DirectX::XMFLOAT3 &direction);
@@ -557,12 +580,46 @@ namespace toy
 
         MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
 
+        // * Write only depth
+        void set_depth_only_render();
+
+        // * Draw depth to depth map
         void set_default_render();
 
-        void set_alpha_clip_render(float alpha_clip_value);
+        // * Generate variance shadow
+        void render_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                    ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
 
+        // * Generate exponential shadow
+        void render_exponential_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport, float magic_power);
+
+        // * Generate exponential variance shadow
+        void render_exponential_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport,
+                                                float pos_exp, float *opt_neg_exp = nullptr);
+
+        // * Draw depth to texture
         void render_depth_to_texture(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
                                         ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT  &viewport);
+
+        void set_16bit_format_shadow(bool enable);
+
+        void set_blur_kernel_size(int32_t size);
+
+        void set_blur_sigma(float sigma);
+
+        // * The width and height of input and output texture should be consistent
+        void gaussian_blur_x(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * The width and height of input and output texture should be consistent
+        void gaussian_blur_y(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * The width and height of input and output texture should be consistent
+        void log_gaussian_blur(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
 
         void apply(ID3D11DeviceContext *device_context) override;
 

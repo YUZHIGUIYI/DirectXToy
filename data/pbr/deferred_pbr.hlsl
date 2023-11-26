@@ -91,17 +91,17 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
     }
 
     // Lighting and shadow
-    float3 light_dirs[4] = {
-        float3(-1.0f, 1.0f, -1.0f),
-        float3(1.0f, 1.0f, -1.0f),
-        float3(0.0f, -1.0f, 0.0f),
-        float3(1.0f, 1.0f, 1.0f)
+    const float3 light_dirs[4] = {
+        float3(-1.0f,  1.0f, -1.0f),
+        float3( 1.0f,  1.0f, -1.0f),
+        float3( 0.0f, -1.0f,  0.0f),
+        float3( 1.0f,  1.0f,  1.0f)
     };
 
     float lighting = saturate(dot(light_dirs[0], world_normal)) * 0.05f +
-                    saturate(dot(light_dirs[1], world_normal)) * 0.05f +
-                    saturate(dot(light_dirs[2], world_normal)) * 0.05f +
-                    saturate(dot(light_dirs[3], world_normal)) * 0.05f;
+                     saturate(dot(light_dirs[1], world_normal)) * 0.05f +
+                     saturate(dot(light_dirs[2], world_normal)) * 0.05f +
+                     saturate(dot(light_dirs[3], world_normal)) * 0.05f;
 
     float shadow_lighting = lighting * 0.5f;
     lighting += saturate(dot(-gLightDir, world_normal));
