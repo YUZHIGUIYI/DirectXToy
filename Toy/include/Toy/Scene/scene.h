@@ -22,8 +22,6 @@ namespace toy
     public:
         Scene() = default;
 
-        Entity get_skybox_entity();
-
         Entity create_entity(std::string_view entity_name);
         void destroy_entity(const Entity &entity);
 
@@ -38,6 +36,10 @@ namespace toy
         void render_static_mesh(ID3D11DeviceContext *device_context, IEffect &effect);
 
         bool pick_entity(Entity &selected_entity, const camera_c &camera, float mouse_pos_x, float mouse_pos_y);
+
+        bool get_entity(Entity &selected_entity, uint32_t entity_id);
+
+        Entity get_skybox_entity();
 
     private:
         void adjust_illuminant();

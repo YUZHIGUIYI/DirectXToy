@@ -7,6 +7,7 @@
 #include <Toy/toy.h>
 #include <Sandbox/render_object.h>
 #include <Sandbox/scene_hierarchy_panel.h>
+#include <Sandbox/mouse_pick.h>
 
 namespace toy::viewer
 {
@@ -77,16 +78,16 @@ namespace toy::viewer
         std::unique_ptr<Texture2D> m_history_buffer;                                // History frame buffer
         std::unique_ptr<Texture2D> m_cur_buffer;                                    // Current frame buffer
         std::unique_ptr<Texture2D> m_taa_buffer;                                    // Frame buffer for TAA pass
+        com_ptr<ID3D11Texture2D> m_staging_texture;                                 // Staging texture
         com_ptr<ID3D11DepthStencilView> m_depth_buffer_read_only_dsv;               // Read-only depth stencil view
-        std::vector<std::unique_ptr<Texture2D>> m_gbuffers;                         // G-Buffers
+        GBufferDefinition m_gbuffer;
 
         std::unique_ptr<Texture2D> m_viewer_buffer;                                 // Viewer image buffer
 
         std::unique_ptr<Texture2D> m_shadow_buffer;
 
-        // Disposable
-        std::vector<ID3D11RenderTargetView *> m_gbuffer_rtvs;
-        std::vector<ID3D11ShaderResourceView *> m_gbuffer_srvs;
+        // Mouse pick helper
+        std::unique_ptr<MousePickHelper> m_mouse_pick_helper;
 
         // Camera
         std::shared_ptr<camera_c> m_light_camera;

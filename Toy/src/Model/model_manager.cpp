@@ -11,7 +11,7 @@
 
 namespace toy::model
 {
-    void Model::create_from_file(toy::model::Model &model, ID3D11Device *device, std::string_view file_name)
+    void Model::create_from_file(toy::model::Model &model, ID3D11Device *device, std::string_view file_name, uint32_t entity_id)
     {
         static_assert(sizeof(aiVector3D) == sizeof(DirectX::XMFLOAT3), "size of aiVector3D is not equal to sizeof DirectX::XMFLOAT3");
 
@@ -46,6 +46,14 @@ namespace toy::model
 
             CD3D11_BUFFER_DESC buffer_desc{ 0, D3D11_BIND_VERTEX_BUFFER };
             D3D11_SUBRESOURCE_DATA init_data{ nullptr, 0, 0 };
+
+            // Entity id
+            {
+                std::vector<uint32_t> entity_id_array(num_vertices, entity_id);
+                init_data.pSysMem = entity_id_array.data();
+                buffer_desc.ByteWidth = static_cast<uint32_t>(num_vertices * sizeof(uint32_t));
+                device->CreateBuffer(&buffer_desc, &init_data, mesh.entity_id_buffer.GetAddressOf());
+            }
             // Position
             if (ai_mesh->mNumVertices > 0)
             {
@@ -281,31 +289,38 @@ namespace toy::model
         buffer_desc.ByteWidth = (uint32_t)(data.vertices.size() * sizeof(XMFLOAT3));
         device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].vertices.GetAddressOf());
 
+        // Entity id buffer
+        {
+            init_data.pSysMem = data.entity_id_array.data();
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.entity_id_array.size() * sizeof(uint32_t));
+            device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].entity_id_buffer.GetAddressOf());
+        }
+
         if (!data.normals.empty())
         {
             init_data.pSysMem = data.normals.data();
-            buffer_desc.ByteWidth = (uint32_t)data.normals.size() * sizeof(XMFLOAT3);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.normals.size() * sizeof(XMFLOAT3));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].normals.GetAddressOf());
         }
 
         if (!data.texcoords.empty())
         {
             init_data.pSysMem = data.texcoords.data();
-            buffer_desc.ByteWidth = (uint32_t)data.texcoords.size() * sizeof(XMFLOAT2);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.texcoords.size() * sizeof(XMFLOAT2));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].texcoord_arrays[0].GetAddressOf());
         }
 
         if (!data.tangents.empty())
         {
             init_data.pSysMem = data.tangents.data();
-            buffer_desc.ByteWidth = (uint32_t)data.tangents.size() * sizeof(XMFLOAT4);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.tangents.size() * sizeof(XMFLOAT4));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].tangents.GetAddressOf());
         }
 
         if (!data.indices16.empty())
         {
             init_data.pSysMem = data.indices16.data();
-            buffer_desc = CD3D11_BUFFER_DESC((uint16_t)data.indices16.size() * sizeof(uint16_t), D3D11_BIND_INDEX_BUFFER);
+            buffer_desc = CD3D11_BUFFER_DESC(static_cast<uint16_t>(data.indices16.size() * sizeof(uint16_t)), D3D11_BIND_INDEX_BUFFER);
             buffer_desc.Usage = D3D11_USAGE_DEFAULT;
             buffer_desc.CPUAccessFlags = 0;
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].indices.GetAddressOf());
@@ -313,7 +328,7 @@ namespace toy::model
         else
         {
             init_data.pSysMem = data.indices32.data();
-            buffer_desc = CD3D11_BUFFER_DESC((uint32_t)data.indices32.size() * sizeof(uint32_t), D3D11_BIND_INDEX_BUFFER);
+            buffer_desc = CD3D11_BUFFER_DESC(static_cast<uint32_t>(data.indices32.size() * sizeof(uint32_t)), D3D11_BIND_INDEX_BUFFER);
             buffer_desc.Usage = D3D11_USAGE_DEFAULT;
             buffer_desc.CPUAccessFlags = 0;
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].indices.GetAddressOf());
@@ -337,16 +352,16 @@ namespace toy::model
         m_device_->GetImmediateContext(m_device_context_.ReleaseAndGetAddressOf());
     }
 
-    Model* ModelManager::create_from_file(std::string_view file_name)
+    Model* ModelManager::create_from_file(std::string_view file_name, uint32_t entity_id)
     {
-        return create_from_file(file_name, file_name);
+        return create_from_file(file_name, file_name, entity_id);
     }
 
-    Model* ModelManager::create_from_file(std::string_view name, std::string_view file_name)
+    Model* ModelManager::create_from_file(std::string_view name, std::string_view file_name, uint32_t entity_id)
     {
         XID model_id = string_to_id(name);
         auto& model = m_models[model_id];
-        Model::create_from_file(model, m_device_.Get(), file_name);
+        Model::create_from_file(model, m_device_.Get(), file_name, entity_id);
         return &model;
     }
 

@@ -24,7 +24,7 @@ namespace toy::model
         std::vector<MeshData> meshes;
         DirectX::BoundingBox bounding_box;
 
-        static void create_from_file(Model& model, ID3D11Device* device, std::string_view file_name);
+        static void create_from_file(Model& model, ID3D11Device* device, std::string_view file_name, uint32_t entity_id = 1);
         static void create_from_geometry(Model& model, ID3D11Device* device, const geometry::GeometryData& data, bool is_dynamic = false);
 
         void set_debug_object_name(std::string_view name);
@@ -43,8 +43,8 @@ namespace toy::model
 
         void init(ID3D11Device* device);
 
-        Model* create_from_file(std::string_view file_name);
-        Model* create_from_file(std::string_view name, std::string_view file_name);
+        Model* create_from_file(std::string_view file_name, uint32_t entity_id = 1);
+        Model* create_from_file(std::string_view name, std::string_view file_name, uint32_t entity_id = 1);
         Model* create_from_geometry(std::string_view name, const geometry::GeometryData& data, bool is_dynamic = false);
 
         [[nodiscard]] const Model* get_model(std::string_view name) const;

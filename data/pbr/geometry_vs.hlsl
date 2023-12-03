@@ -28,5 +28,7 @@ VertexShaderOutput VS(VertexShaderInput vin)
     vout.tangent = normalize(mul(vin.tangent, gWorld)).xyz;
     vout.bi_normal = cross(vout.world_normal, vout.tangent);
 
+    vout.entity_id = vin.entity_id;
+
     return vout;
 }

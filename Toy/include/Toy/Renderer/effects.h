@@ -362,6 +362,8 @@ namespace toy
         std::unique_ptr<EffectImpl> m_effect_impl;
     };
 
+    struct GBufferDefinition;
+
     // Deferred PBR effect
     class DeferredPBREffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
@@ -405,8 +407,8 @@ namespace toy
 
         // * Render to lit texture
         // * Note: default method of deferred lighting pass
-        void deferred_lighting_pass(ID3D11DeviceContext* device_context, ID3D11RenderTargetView* lit_buffer_rtv,
-                                    ID3D11ShaderResourceView** gbuffers, D3D11_VIEWPORT viewport);
+        void deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
+                                    const GBufferDefinition &gbuffer, D3D11_VIEWPORT viewport);
 
         // * Singleton
         static DeferredPBREffect &get();

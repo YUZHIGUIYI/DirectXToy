@@ -7,6 +7,7 @@ struct VertexShaderInput
     float3 normal    : NORMAL;
     float4 tangent   : TANGENT;
     float2 texcoord  : TEXCOORD;
+    uint   entity_id : ENTITY_ID;
 };
 
 struct VertexShaderOutput
@@ -18,6 +19,7 @@ struct VertexShaderOutput
     float3 tangent         : TANGENT;
     float3 bi_normal       : TBNOUT;
     float2 texcoord        : TEXCOORD;
+    uint   entity_id       : ENTITY_ID;
 
     // TODO: enable TAA
     float4 cur_vp_position : POSITION1;

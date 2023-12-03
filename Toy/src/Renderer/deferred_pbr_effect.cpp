@@ -10,6 +10,7 @@
 #include <Toy/Model/material.h>
 #include <Toy/Renderer/taa_settings.h>
 #include <Toy/Renderer/cascaded_shadow_defines.h>
+#include <Toy/Renderer/gbuffer_definition.h>
 
 namespace toy
 {
@@ -161,8 +162,8 @@ namespace toy
         m_effect_impl->effect_helper->create_shader_from_file(gbuffer_ps, DXTOY_HOME L"data/pbr/gbuffer.hlsl", device,
                                                                 "PS", "ps_5_0");
 
-        auto&& input_layout = VertexPosNormalTangentTex::get_input_layout();
-        device->CreateInputLayout(input_layout.data(), uint32_t(input_layout.size()), blob->GetBufferPointer(), blob->GetBufferSize(),
+        auto&& input_layout = VertexPosNormalTangentTexEntity::get_input_layout();
+        device->CreateInputLayout(input_layout.data(), static_cast<uint32_t>(input_layout.size()), blob->GetBufferPointer(), blob->GetBufferSize(),
                                     m_effect_impl->vertex_layout.ReleaseAndGetAddressOf());
         if (!m_effect_impl->vertex_layout)
         {
@@ -252,10 +253,11 @@ namespace toy
             mesh_data.vertices.Get(),
             mesh_data.normals.Get(),
             mesh_data.tangents.Get(),
-            mesh_data.texcoord_arrays.empty() ? nullptr : mesh_data.texcoord_arrays[0].Get()
+            (mesh_data.texcoord_arrays.empty() ? nullptr : mesh_data.texcoord_arrays[0].Get()),
+            mesh_data.entity_id_buffer.Get()
         };
-        input.strides = { 12, 12, 16, 8 };
-        input.offsets = { 0, 0, 0, 0 };
+        input.strides = { 12, 12, 16, 8, 4 };
+        input.offsets = { 0, 0, 0, 0, 0 };
 
         input.index_buffer = mesh_data.indices.Get();
         input.index_count = mesh_data.index_count;
@@ -336,7 +338,7 @@ namespace toy
     }
 
     void DeferredPBREffect::deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
-                                                    ID3D11ShaderResourceView **gbuffers, D3D11_VIEWPORT viewport)
+                                                    const GBufferDefinition &gbuffer, D3D11_VIEWPORT viewport)
     {
         // Clear render target view
         static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -349,9 +351,9 @@ namespace toy
         device_context->RSSetViewports(1, &viewport);
 
         // Bind GBuffer shader resource view
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryAlbedoMetalness", gbuffers[0]);
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryNormalRoughness", gbuffers[1]);
-        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryWorldPosition", gbuffers[2]);
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryAlbedoMetalness", gbuffer.albedo_metalness_buffer->get_shader_resource());
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryNormalRoughness", gbuffer.normal_roughness_buffer->get_shader_resource());
+        m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryWorldPosition", gbuffer.world_position_buffer->get_shader_resource());
         if (auto&& preprocess_effect = PreProcessEffect::get(); preprocess_effect.is_ready())
         {
             m_effect_impl->effect_helper->get_constant_buffer_variable("gNoPreprocess")->set_uint(0);

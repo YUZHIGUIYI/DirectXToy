@@ -18,6 +18,7 @@ namespace toy::model
         com_ptr<ID3D11Buffer> colors;
 
         com_ptr<ID3D11Buffer> indices;
+        com_ptr<ID3D11Buffer> entity_id_buffer;
 
         uint32_t vertex_count = 0;
         uint32_t index_count = 0;

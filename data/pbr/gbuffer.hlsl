@@ -9,6 +9,7 @@ struct GBuffer
     float4 NormalRoughness : SV_Target1;
     float4 WorldPosition   : SV_Target2;
     float2 MotionVector    : SV_Target3;
+    uint   EntityID        : SV_Target4;
 };
 
 static const float3 s_normal = float3(0.0f, 0.0f, 1.0f);
@@ -41,6 +42,8 @@ GBuffer PS(VertexShaderOutput pin)
     cur_vp_pos.xy = cur_vp_pos.xy / float2(2.0f, -2.0f) + float2(0.5f, 0.5f);
 
     gbuffer.MotionVector = float2(cur_vp_pos.x - pre_vp_pos.x, cur_vp_pos.y - pre_vp_pos.y);
+
+    gbuffer.EntityID = pin.entity_id;
 
     return gbuffer;
 }

@@ -144,6 +144,17 @@ namespace toy
         return pick_anything;
     }
 
+    bool Scene::get_entity(Entity &selected_entity, uint32_t entity_id)
+    {
+        // TODO: currently avoid zero entity id, zero entity id corresponds to skybox
+        if (entity_id == 0) return false;
+
+        auto entity = static_cast<entt::entity>(entity_id);
+        selected_entity = { entity, this };
+
+        return true;
+    }
+
     void Scene::adjust_illuminant()
     {
         // Adjust illuminant position, update view matrix

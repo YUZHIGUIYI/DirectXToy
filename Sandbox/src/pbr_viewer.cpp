@@ -107,6 +107,9 @@ namespace toy::viewer
         // Initialize shadow
         CascadedShadowManager::get().init(d3d_device);
 
+        // Initialize mouse pick helper
+        m_mouse_pick_helper = std::make_unique<MousePickHelper>();
+
         // Initialize resource
         init_resource();
 
@@ -179,7 +182,6 @@ namespace toy::viewer
         auto name = std::filesystem::path(filename).filename();
         if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
         {
-            // TODO: create scene
             model::ModelManager::get().create_from_file(filename);
 
             auto new_entity = m_editor_scene->create_entity(name.string());
@@ -277,6 +279,11 @@ namespace toy::viewer
     {
         // Initialize camera and controller
         using namespace DirectX;
+        using namespace toy::model;
+
+        auto d3d_device = m_d3d_app->get_device();
+        auto d3d_device_context = m_d3d_app->get_device_context();
+
         auto camera = std::make_shared<first_person_camera_c>();
         m_camera = camera;
 
@@ -297,8 +304,8 @@ namespace toy::viewer
         // Note: Initialize effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
+        //// 1. Deferred pbr effect
         deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
-        //// reverse z
         deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(true));
         deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
 
@@ -314,71 +321,62 @@ namespace toy::viewer
         deferred_pbr_effect.set_positive_exponent(cascade_shadow_manager.positive_exponent);
         deferred_pbr_effect.set_negative_exponent(cascade_shadow_manager.negative_exponent);
         deferred_pbr_effect.set_16_bit_format_shadow(false);
-
+        //// 2. TAA effect
         TAAEffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
         TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
-
+        //// 3. Shadow effect
         ShadowEffect::get().set_view_matrix(m_light_camera->get_view_xm());
         ShadowEffect::get().set_blur_kernel_size(cascade_shadow_manager.blur_kernel_size);
         ShadowEffect::get().set_blur_sigma(cascade_shadow_manager.gaussian_blur_sigma);
         ShadowEffect::get().set_16bit_format_shadow(false);
 
-        // Initialize models
-        model::ModelManager::get().create_from_geometry("skyboxCube", geometry::create_box());
-        // TODO: Debug - start
-        model::ModelManager::get().create_from_geometry("simpleBall", geometry::create_sphere());
-        model::ModelManager::get().create_from_geometry("simpleCylinder", geometry::create_cylinder(1.0f, 2.0f, 40, 20));
+        // Note: Initialize models and ECS
+        //// 1. Cube map, irradiance map, specular environment map, BRDF lut
+        PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, DXTOY_HOME "data/textures/environment.hdr");
+        PreProcessEffect::get().compute_sp_env_map(d3d_device, d3d_device_context);
+        PreProcessEffect::get().compute_irradiance_map(d3d_device, d3d_device_context);
+        PreProcessEffect::get().compute_brdf_lut(d3d_device, d3d_device_context);
+        //// 2. Texture assets
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_diffuse.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_normal.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_metallic.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_roughness.jpg");
 
-        auto d3d_device = m_d3d_app->get_device();
-        auto d3d_device_context = m_d3d_app->get_device_context();
-        PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, DXTOY_HOME "data/textures/environment.hdr");
-        PreProcessEffect::get().compute_sp_env_map(d3d_device, d3d_device_context);
-        PreProcessEffect::get().compute_irradiance_map(d3d_device, d3d_device_context);
-        PreProcessEffect::get().compute_brdf_lut(d3d_device, d3d_device_context);
-
-        model::ModelManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Cerberus_LP.fbx");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_A.tga", true, 1);
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_N.tga");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_M.tga");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
-        // TODO: Debug - end
-
-        // Note: ECS
+        //// 3. ECS
         m_editor_scene = std::make_shared<Scene>();
-
+        ///// 3.1 - Skybox entity
         auto skybox_entity = m_editor_scene->create_entity("Skybox");
+        model::ModelManager::get().create_from_geometry("SkyboxCube", geometry::create_box(static_cast<uint32_t>(skybox_entity.entity_handle)));
         skybox_entity.add_component<TransformComponent>();
         auto& skybox_mesh = skybox_entity.add_component<StaticMeshComponent>();
-        skybox_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
+        skybox_mesh.model_asset = model::ModelManager::get().get_model("SkyboxCube");
         skybox_mesh.is_skybox = true;
-
-        //// TODO: Debug - Test entity one
-        using namespace toy::model;
-        auto test_entity = m_editor_scene->create_entity("SphereWithTexture");
-        auto& test_transform = test_entity.add_component<TransformComponent>();
-        test_transform.transform.set_position(-15.0f, 15.0f, 10.0f);
-        test_transform.transform.set_scale(10.0f, 10.0f, 10.0f);
-        auto& test_mesh = test_entity.add_component<StaticMeshComponent>();
-        test_mesh.model_asset = model::ModelManager::get().get_model("simpleBall");
-        test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap),
+        ///// 3.2 - Sphere entity
+        auto sphere_entity = m_editor_scene->create_entity("SphereWithTexture");
+        model::ModelManager::get().create_from_geometry("SphereOne", geometry::create_sphere(static_cast<uint32_t>(sphere_entity.entity_handle)));
+        auto& sphere_transform = sphere_entity.add_component<TransformComponent>();
+        sphere_transform.transform.set_position(-15.0f, 15.0f, 10.0f);
+        sphere_transform.transform.set_scale(10.0f, 10.0f, 10.0f);
+        auto& sphere_mesh = sphere_entity.add_component<StaticMeshComponent>();
+        sphere_mesh.model_asset = model::ModelManager::get().get_model("SphereOne");
+        sphere_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_diffuse.jpg");
-        test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::NormalMap),
+        sphere_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::NormalMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_normal.jpg");
-        test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::MetalnessMap),
+        sphere_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::MetalnessMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_metallic.jpg");
-        test_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap),
+        sphere_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap),
                                                                 DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_roughness.jpg");
-
-        //// TODO: Debug: Test entity two
+        ///// 3.3 - Cerberus entity
         auto cerberus_entity = m_editor_scene->create_entity("Cerberus");
+        model::ModelManager::get().create_from_file(DXTOY_HOME "data/models/Cerberus/Cerberus_LP.fbx", static_cast<uint32_t>(cerberus_entity.entity_handle));
         auto& cerberus_transform = cerberus_entity.add_component<TransformComponent>();
         cerberus_transform.transform.set_scale(0.3f, 0.3f, 0.3f);
         cerberus_transform.transform.set_rotation(XM_PI / 2.0f, XM_PI, XM_PI / 2.0f);
-
         auto& cerberus_mesh = cerberus_entity.add_component<StaticMeshComponent>();
         cerberus_mesh.model_asset = model::ModelManager::get().get_model(DXTOY_HOME "data/models/Cerberus/Cerberus_LP.fbx");
         cerberus_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::DiffuseMap),
@@ -389,35 +387,32 @@ namespace toy::viewer
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_M.tga");
         cerberus_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(MaterialSemantics::RoughnessMap),
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
-
-        //// TODO: Debug: Test entity three
-        auto test_entity_two = m_editor_scene->create_entity("CylinderWithoutTexture");
-        auto& test_transform_two = test_entity_two.add_component<TransformComponent>();
-        test_transform_two.transform.set_scale(10.0f, 10.0f, 10.0f);
-        auto& test_mesh_two = test_entity_two.add_component<StaticMeshComponent>();
-        test_mesh_two.model_asset = model::ModelManager::get().get_model("simpleCylinder");
-
-        //// TODO: Debug: Test entity four
-        auto test_entity_floor = m_editor_scene->create_entity("FloorWithoutTexture");
-        auto& test_floor_transform = test_entity_floor.add_component<TransformComponent>();
-        test_floor_transform.transform.set_scale(100.0f, 1.0f, 100.0f);
-        test_floor_transform.transform.set_position(0.0f, -25.0f, 0.0f);
-        auto& test_floor_mesh = test_entity_floor.add_component<StaticMeshComponent>();
-        test_floor_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
-
-        // TODO: Debug - end
-
-        // TODO: camera component
-        auto test_entity_camera = m_editor_scene->create_entity("FirstIlluminant");
-        auto& test_camera_component = test_entity_camera.add_component<CameraComponent>();
-        test_camera_component.camera = m_light_camera;
-        auto& test_camera_transform = test_entity_camera.add_component<TransformComponent>();
-        test_camera_transform.transform.set_scale(3.0f, 3.0f, 3.0f);
-        test_camera_transform.transform.set_position(-15.0f, 55.0f, -10.0f);
-        auto& test_camera_mesh = test_entity_camera.add_component<StaticMeshComponent>();
-        test_camera_mesh.model_asset = model::ModelManager::get().get_model("skyboxCube");
-        test_camera_mesh.is_camera = true;
-        // TODO: end camera component
+        ///// 3.4 - Cylinder entity
+        auto cylinder_entity = m_editor_scene->create_entity("CylinderWithoutTexture");
+        model::ModelManager::get().create_from_geometry("CylinderOne", geometry::create_cylinder(static_cast<uint32_t>(cylinder_entity.entity_handle), 1.0f, 2.0f, 40, 20));
+        auto& cylinder_transform = cylinder_entity.add_component<TransformComponent>();
+        cylinder_transform.transform.set_scale(10.0f, 10.0f, 10.0f);
+        auto& cylinder_mesh = cylinder_entity.add_component<StaticMeshComponent>();
+        cylinder_mesh.model_asset = model::ModelManager::get().get_model("CylinderOne");
+        ///// 3.5 - Floor entity
+        auto floor_entity = m_editor_scene->create_entity("FloorWithoutTexture");
+        model::ModelManager::get().create_from_geometry("CubeOne", geometry::create_box(static_cast<uint32_t>(floor_entity.entity_handle)));
+        auto& floor_transform = floor_entity.add_component<TransformComponent>();
+        floor_transform.transform.set_scale(100.0f, 1.0f, 100.0f);
+        floor_transform.transform.set_position(0.0f, -25.0f, 0.0f);
+        auto& floor_mesh = floor_entity.add_component<StaticMeshComponent>();
+        floor_mesh.model_asset = model::ModelManager::get().get_model("CubeOne");
+        ///// 3.6 - Illuminant entity
+        auto illuminant_entity = m_editor_scene->create_entity("FirstIlluminant");
+        model::ModelManager::get().create_from_geometry("CubeTwo", geometry::create_box(static_cast<uint32_t>(illuminant_entity.entity_handle)));
+        auto& illuminant_camera_component = illuminant_entity.add_component<CameraComponent>();
+        illuminant_camera_component.camera = m_light_camera;
+        auto& illuminant_transform = illuminant_entity.add_component<TransformComponent>();
+        illuminant_transform.transform.set_scale(3.0f, 3.0f, 3.0f);
+        illuminant_transform.transform.set_position(-15.0f, 55.0f, -10.0f);
+        auto& illuminant_mesh = illuminant_entity.add_component<StaticMeshComponent>();
+        illuminant_mesh.model_asset = model::ModelManager::get().get_model("CubeTwo");
+        illuminant_mesh.is_camera = true;
 
         m_scene_hierarchy_panel.set_context(m_editor_scene);
     }
@@ -429,31 +424,22 @@ namespace toy::viewer
         // Initialize resources for deferred rendering
         m_depth_buffer = std::make_unique<Depth2D>(d3d_device, width, height, DepthStencilBitsFlag::Depth_32Bits);
 
-        // G-Buffer
-        m_gbuffers.clear();
+        // GBuffer
         // Albedo and metalness
-        m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM,
-                                                            1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
+        m_gbuffer.albedo_metalness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
         // Normal and roughness
-        m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                                            1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
+        m_gbuffer.normal_roughness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
         // World position
-        m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                                            1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
+        m_gbuffer.world_position_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
         // Motion vector
-        m_gbuffers.push_back(std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_UNORM,
-                                                            1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
-
-        // Set G-Buffer resource list
-        m_gbuffer_rtvs.resize(m_gbuffers.size(), 0);
-        m_gbuffer_srvs.resize(4, 0);
-        for (size_t i = 0; i < m_gbuffers.size(); ++i)
-        {
-            m_gbuffer_rtvs[i] = m_gbuffers[i]->get_render_target();
-            m_gbuffer_srvs[i] = m_gbuffers[i]->get_shader_resource();
-        }
-        // Depth buffer srv for reading
-        m_gbuffer_srvs.back() = m_depth_buffer->get_shader_resource();
+        m_gbuffer.motion_vector_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_UNORM,
+                                                                    1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        // Entity id
+        m_gbuffer.entity_id_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R32_UINT,
+                                                                    1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
 
         // Viewer buffer
         m_viewer_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
@@ -561,16 +547,20 @@ namespace toy::viewer
 
         m_editor_scene->frustum_culling(frustum);
 
-        // Pick entity
+        // Pick entity via entity id
         if (!ImGuizmo::IsUsing() && DX_INPUT::is_mouse_button_pressed(m_d3d_app->get_glfw_window(), mouse::ButtonLeft))
         {
             auto [mouse_pos_x, mouse_pos_y] = ImGui::GetMousePos();
             mouse_pos_x -= m_viewer_spec.lower_bound.x;
             mouse_pos_y -= m_viewer_spec.lower_bound.y;
-            auto pick_anything = m_editor_scene->pick_entity(m_selected_entity, *m_camera, mouse_pos_x, mouse_pos_y);
-            if (m_viewer_focused && m_viewer_hovered && pick_anything)
+
+            if (m_viewer_focused && m_viewer_hovered)
             {
-                m_scene_hierarchy_panel.set_selected_entity(m_selected_entity);
+                uint32_t entity_id = m_mouse_pick_helper->pick_entity(m_d3d_app->get_device(), m_d3d_app->get_device_context(),
+                                                m_gbuffer.entity_id_buffer->get_texture(), static_cast<int32_t>(mouse_pos_x), static_cast<int32_t>(mouse_pos_y));
+                bool is_valid = m_editor_scene->get_entity(m_selected_entity, entity_id);
+                DX_CORE_INFO("Mouse: {} + {}, Pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
+                if (is_valid) m_scene_hierarchy_panel.set_selected_entity(m_selected_entity);
             }
         }
     }
@@ -594,11 +584,11 @@ namespace toy::viewer
         {
             switch (cascade_shadow_manager.shadow_type)
             {
-                case ShadowType::ShadowType_CSM: shadow_effect.set_default_render();
+                case ShadowType::ShadowType_CSM: shadow_effect.set_default_render(); break;
                 case ShadowType::ShadowType_VSM:
                 case ShadowType::ShadowType_ESM:
                 case ShadowType::ShadowType_EVSM2:
-                case ShadowType::ShadowType_EVSM4: shadow_effect.set_depth_only_render();
+                case ShadowType::ShadowType_EVSM4: shadow_effect.set_depth_only_render(); break;
             }
 
             ID3D11RenderTargetView* depth_rtv = cascade_shadow_manager.get_cascade_render_target_view(cascade_index);
@@ -659,23 +649,22 @@ namespace toy::viewer
 
     void PBRViewer::render_gbuffer()
     {
+        static const std::array<float, 4> blank = { 0.0f, 0.0f, 0.0f, 0.0f };
         ID3D11DeviceContext* d3d_device_context = m_d3d_app->get_device_context();
-
-        // Only need to clear depth buffer, since we use skybox sampling to replace no-written pixel(far plane)
-        // Use depth buffer to reconstruct position, only position in frustum can be draw
-        // Reverse z-buffer, far plane is 0.0
-        for (auto rtv : m_gbuffer_rtvs)
-        {
-            d3d_device_context->ClearRenderTargetView(rtv, s_color);
-        }
-
-        d3d_device_context->ClearDepthStencilView(m_depth_buffer->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
-
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
-        d3d_device_context->RSSetViewports(1, &viewport);
+        std::array<ID3D11RenderTargetView *, 5> gbuffer_rtvs{
+            m_gbuffer.albedo_metalness_buffer->get_render_target(),
+            m_gbuffer.normal_roughness_buffer->get_render_target(),
+            m_gbuffer.world_position_buffer->get_render_target(),
+            m_gbuffer.motion_vector_buffer->get_render_target(),
+            m_gbuffer.entity_id_buffer->get_render_target()
+        };
 
+        d3d_device_context->ClearRenderTargetView(m_gbuffer.entity_id_buffer->get_render_target(), blank.data());
+        d3d_device_context->ClearDepthStencilView(m_depth_buffer->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
+        d3d_device_context->RSSetViewports(1, &viewport);
         DeferredPBREffect::get().set_gbuffer_render();
-        d3d_device_context->OMSetRenderTargets(static_cast<uint32_t>(m_gbuffers.size()), m_gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
+        d3d_device_context->OMSetRenderTargets(static_cast<uint32_t>(gbuffer_rtvs.size()), gbuffer_rtvs.data(), m_depth_buffer->get_depth_stencil());
         m_editor_scene->render_static_mesh(d3d_device_context, DeferredPBREffect::get());
         d3d_device_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
@@ -690,18 +679,18 @@ namespace toy::viewer
         set_shadow_paras();
         DeferredPBREffect::get().set_lighting_pass_render();
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
-                                                        m_gbuffer_srvs.data(), m_camera->get_viewport());
+                                                        m_gbuffer, m_camera->get_viewport());
 
         if (first_frame)
         {
             TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
-                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
+                                    m_gbuffer.motion_vector_buffer->get_shader_resource(), m_depth_buffer->get_shader_resource(),
                                     m_taa_buffer->get_render_target(), viewport);
             first_frame = false;
         } else
         {
             TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
-                                    m_gbuffers[3]->get_shader_resource(), m_depth_buffer->get_shader_resource(),
+                                    m_gbuffer.motion_vector_buffer->get_shader_resource(), m_depth_buffer->get_shader_resource(),
                                     m_taa_buffer->get_render_target(), viewport);
         }
 
