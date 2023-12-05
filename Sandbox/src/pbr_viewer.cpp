@@ -11,45 +11,8 @@
 
 namespace toy::viewer
 {
-    // Alias
-    using Vec3f = std::array<float, 3>;
-
     // Color to clear rtv
     const float s_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-    // Update transform
-    std::variant<std::true_type, std::false_type> bool_variant(bool cond)
-    {
-        if (cond) return std::true_type{};
-        else return std::false_type{};
-    }
-
-    void update_transform(TransformComponent& transform_comp, Vec3f& translation, Vec3f& rotation, Vec3f& scale, ImGuizmo::OPERATION operation_type)
-    {
-        auto change_translation = bool_variant(operation_type == ImGuizmo::OPERATION::TRANSLATE);
-        auto change_rotation = bool_variant(operation_type == ImGuizmo::OPERATION::ROTATE);
-        auto change_scale = bool_variant(operation_type == ImGuizmo::OPERATION::SCALE);
-        std::visit([&transform_comp, &translation, &rotation, &scale] (auto translation_changed, auto rotation_changed, auto scale_changed) {
-            if constexpr (translation_changed)
-            {
-                transform_comp.transform.set_position(translation[0], translation[1], translation[2]);
-            } else if constexpr (rotation_changed)
-            {
-                for (auto& each_rotation : rotation)
-                {
-                    each_rotation = DirectX::XMConvertToRadians(each_rotation);
-                }
-                transform_comp.transform.set_rotation(rotation[0], rotation[1], rotation[2]);
-            } else if constexpr (scale_changed)
-            {
-                for (auto& each_scale : scale)
-                {
-                    each_scale = std::clamp(each_scale, 0.1f, 10.0f);
-                }
-                transform_comp.transform.set_scale(scale[0], scale[1], scale[2]);
-            }
-        }, change_translation, change_rotation, change_scale);
-    }
 
     PBRViewer::PBRViewer(std::string_view viewer_name)
             : m_viewer_name(viewer_name)
@@ -107,8 +70,10 @@ namespace toy::viewer
         // Initialize shadow
         CascadedShadowManager::get().init(d3d_device);
 
-        // Initialize mouse pick helper
+        // Initialize mouse pick helper, scene hierarchy panel and gizmos
         m_mouse_pick_helper = std::make_unique<MousePickHelper>();
+        m_scene_hierarchy_panel = std::make_unique<SceneHierarchyPanel>();
+        m_gizmos = std::make_unique<Gizmos>(app);
 
         // Initialize resource
         init_resource();
@@ -206,51 +171,6 @@ namespace toy::viewer
         m_busy.store(false);
     }
 
-    void PBRViewer::on_gizmo_render(toy::Entity &selected_entity)
-    {
-        // TODO: Begin ImGui Gizmos
-        static ImGuizmo::OPERATION gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-        bool shift_pressed = DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::LeftShift);
-        if (shift_pressed && !ImGuizmo::IsUsing())
-        {
-            if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F1))
-            {
-                gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-            } else if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F2))
-            {
-                gizmo_type = ImGuizmo::OPERATION::SCALE;
-            } else if (DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::F3))
-            {
-                gizmo_type = ImGuizmo::OPERATION::ROTATE;
-            }
-        }
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist();
-        ImGuizmo::SetRect(m_viewer_spec.lower_bound.x, m_viewer_spec.lower_bound.y,
-                            m_viewer_spec.upper_bound.x - m_viewer_spec.lower_bound.x, m_viewer_spec.upper_bound.y - m_viewer_spec.lower_bound.y);
-
-        auto camera_proj = m_camera->get_proj_xm();
-        auto camera_view = m_camera->get_view_xm();
-
-        auto& transform_component = selected_entity.get_component<TransformComponent>();
-        auto transform_matrix = transform_component.transform.get_local_to_world_matrix_xm();
-
-        bool keep_snap = DX_INPUT::is_key_pressed(m_d3d_app->get_glfw_window(), key::LeftControl);
-        float snap_value = 5.0f;
-        std::array<float, 3> snap_values = { snap_value, snap_value, snap_value };
-        ImGuizmo::Manipulate((float *)&camera_view, (float *)&camera_proj, (ImGuizmo::OPERATION)gizmo_type, ImGuizmo::LOCAL, (float *)&transform_matrix,
-                                nullptr, keep_snap ? snap_values.data() : nullptr);
-
-        if (ImGuizmo::IsUsing())
-        {
-            std::array<float, 3> translation_vector = {};
-            std::array<float, 3> rotation_vector = {};
-            std::array<float, 3> scale_vector = {};
-            ImGuizmo::DecomposeMatrixToComponents((float *)&transform_matrix, translation_vector.data(), rotation_vector.data(), scale_vector.data());
-            update_transform(transform_component, translation_vector, rotation_vector, scale_vector, gizmo_type);
-        }
-    }
-
     void PBRViewer::on_ui_render()
     {
         // Rendering viewport
@@ -265,14 +185,14 @@ namespace toy::viewer
         // Rendering Gizmo
         if (m_viewer_focused && m_selected_entity.is_valid())
         {
-            on_gizmo_render(m_selected_entity);
+            m_gizmos->on_gizmos_render(m_selected_entity, m_viewer_spec, m_camera);
         }
 
         ImGui::End();
         ImGui::PopStyleVar();
 
         // Rendering scene hierarchy panel
-        m_scene_hierarchy_panel.on_ui_render();
+        m_scene_hierarchy_panel->on_ui_render();
     }
 
     void PBRViewer::init_resource()
@@ -414,7 +334,7 @@ namespace toy::viewer
         illuminant_mesh.model_asset = model::ModelManager::get().get_model("CubeTwo");
         illuminant_mesh.is_camera = true;
 
-        m_scene_hierarchy_panel.set_context(m_editor_scene);
+        m_scene_hierarchy_panel->set_context(m_editor_scene);
     }
 
     void PBRViewer::resize_buffers(uint32_t width, uint32_t height)
@@ -536,10 +456,6 @@ namespace toy::viewer
             m_camera_controller.update(dt, glfw_window);
         }
 
-        DeferredPBREffect::get().set_view_matrix(m_camera->get_view_xm());
-        DeferredPBREffect::get().set_camera_position(m_camera->get_position());
-        DeferredPBREffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
-
         // Update collision
         BoundingFrustum frustum = {};
         BoundingFrustum::CreateFromMatrix(frustum, m_camera->get_proj_xm());
@@ -559,8 +475,8 @@ namespace toy::viewer
                 uint32_t entity_id = m_mouse_pick_helper->pick_entity(m_d3d_app->get_device(), m_d3d_app->get_device_context(),
                                                 m_gbuffer.entity_id_buffer->get_texture(), static_cast<int32_t>(mouse_pos_x), static_cast<int32_t>(mouse_pos_y));
                 bool is_valid = m_editor_scene->get_entity(m_selected_entity, entity_id);
-                DX_CORE_INFO("Mouse: {} + {}, Pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
-                if (is_valid) m_scene_hierarchy_panel.set_selected_entity(m_selected_entity);
+                DX_CORE_INFO("Mouse position: {} + {}, pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
+                if (is_valid) m_scene_hierarchy_panel->set_selected_entity(m_selected_entity);
             }
         }
     }
@@ -677,26 +593,26 @@ namespace toy::viewer
         D3D11_VIEWPORT viewport = m_camera->get_viewport();
 
         set_shadow_paras();
+        DeferredPBREffect::get().set_view_matrix(m_camera->get_view_xm());
+        DeferredPBREffect::get().set_camera_position(m_camera->get_position());
+        DeferredPBREffect::get().set_viewer_size(m_viewer_spec.width, m_viewer_spec.height);
         DeferredPBREffect::get().set_lighting_pass_render();
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                         m_gbuffer, m_camera->get_viewport());
 
         if (first_frame)
         {
-            TAAEffect::get().render(d3d_device_context, m_cur_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
-                                    m_gbuffer.motion_vector_buffer->get_shader_resource(), m_depth_buffer->get_shader_resource(),
-                                    m_taa_buffer->get_render_target(), viewport);
+            d3d_device_context->CopyResource(m_taa_buffer->get_texture(), m_cur_buffer->get_texture());
             first_frame = false;
         } else
         {
             TAAEffect::get().render(d3d_device_context, m_history_buffer->get_shader_resource(), m_cur_buffer->get_shader_resource(),
                                     m_gbuffer.motion_vector_buffer->get_shader_resource(), m_depth_buffer->get_shader_resource(),
                                     m_taa_buffer->get_render_target(), viewport);
+            taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
         }
 
         d3d_device_context->CopyResource(m_history_buffer->get_texture(), m_taa_buffer->get_texture());
-
-        taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
     }
 
     void PBRViewer::render_skybox()

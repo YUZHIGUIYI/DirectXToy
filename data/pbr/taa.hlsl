@@ -19,9 +19,6 @@ cbuffer CBPerPass : register(b0)
 
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
-
-    int    gFirstFrame;
-    int3   gFirstFramePadding;
 }
 
 // Constants
@@ -159,7 +156,6 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
     velocity = gVelocityMap.Sample(gSamLinearWrap, jittered_uv + closest_offset).rg;
     len_velocity = length(velocity);
 
-    float first_frame = (float)gFirstFrame;
     float2 cur_sample_uv = texcoord;
     float3 cur_color = gCurrentFrameMap.Sample(gSamLinearWrap, cur_sample_uv).rgb;
 
@@ -173,9 +169,6 @@ float4 PS(float4 homog_position : SV_Position, float2 texcoord : TEXCOORD) : SV_
 
     prev_color = untonemap(YCoCgR_To_RGB(prev_color));
     cur_color = untonemap(YCoCgR_To_RGB(cur_color));
-
-    // Handle first frame
-    prev_color = lerp(prev_color, cur_color, float3(first_frame, first_frame, first_frame));
 
     const float weight = 0.05f;
     float3 final_color = weight * cur_color + (1.0f - weight) * prev_color;

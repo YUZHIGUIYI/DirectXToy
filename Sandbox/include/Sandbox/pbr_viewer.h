@@ -4,28 +4,13 @@
 
 #pragma once
 
-#include <Toy/toy.h>
-#include <Sandbox/render_object.h>
 #include <Sandbox/scene_hierarchy_panel.h>
+#include <Sandbox/gizmos.h>
 #include <Sandbox/mouse_pick.h>
 
 namespace toy::viewer
 {
-    struct ViewerSpecification
-    {
-        int32_t width = 640;
-        int32_t height = 360;
-
-        DirectX::XMFLOAT2 lower_bound{};
-        DirectX::XMFLOAT2 upper_bound{};
-
-        [[nodiscard]] float get_aspect_ratio() const
-        {
-            return static_cast<float>(width) / static_cast<float>(height);
-        }
-    };
-
-    class PBRViewer final : public ILayer
+    struct PBRViewer final : public ILayer
     {
     public:
         explicit PBRViewer(std::string_view viewer_name);
@@ -61,8 +46,6 @@ namespace toy::viewer
         void render_skybox();
 
         void set_shadow_paras();
-
-        void on_gizmo_render(Entity& selected_entity);
 
         void on_update(float dt);
 
@@ -104,7 +87,10 @@ namespace toy::viewer
         // Scene control via ECS
         std::shared_ptr<Scene> m_editor_scene = nullptr;
         Entity m_selected_entity{};
-        SceneHierarchyPanel m_scene_hierarchy_panel{};
+        
+        // UI components
+        std::unique_ptr<SceneHierarchyPanel> m_scene_hierarchy_panel = nullptr;
+        std::unique_ptr<Gizmos> m_gizmos = nullptr;
     };
 }
 

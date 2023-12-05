@@ -2,7 +2,6 @@
 // Created by ZHIKANG on 2023/5/17.
 //
 
-#include <Sandbox/viewer.h>
 #include <Sandbox/pbr_viewer.h>
 #include <Sandbox/default_menu.h>
 
@@ -28,7 +27,6 @@ int main()
     d3d_app->init();
 
     // Create layers of d3d application
-//    d3d_app->add_layer(std::make_shared<toy::Viewer>("Viewport"));
     d3d_app->add_layer(std::make_shared<toy::viewer::PBRViewer>("PBRViewer"));
     d3d_app->add_layer(std::make_shared<toy::DefaultMenu>());
 

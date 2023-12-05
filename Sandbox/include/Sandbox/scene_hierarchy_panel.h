@@ -8,7 +8,7 @@
 
 namespace toy
 {
-    class SceneHierarchyPanel
+    struct SceneHierarchyPanel
     {
     public:
         SceneHierarchyPanel() = default;
