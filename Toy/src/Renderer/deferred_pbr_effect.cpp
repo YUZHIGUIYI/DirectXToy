@@ -338,7 +338,7 @@ namespace toy
     }
 
     void DeferredPBREffect::deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
-                                                    const GBufferDefinition &gbuffer, D3D11_VIEWPORT viewport)
+                                                    const GBufferDefinition &gbuffer, const D3D11_VIEWPORT &viewport)
     {
         // Clear render target view
         static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -413,19 +413,19 @@ namespace toy
         m_effect_impl->effect_helper->get_constant_buffer_variable("g16BitShadow")->set_sint(enable);
     }
 
-    void DeferredPBREffect::set_cascade_offsets(const DirectX::XMFLOAT4 *offsets)
+    void DeferredPBREffect::set_cascade_offsets(std::span<DirectX::XMFLOAT4> offsets)
     {
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedOffset")->set_raw(offsets);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedOffset")->set_raw(offsets.data());
     }
 
-    void DeferredPBREffect::set_cascade_scales(const DirectX::XMFLOAT4 *scales)
+    void DeferredPBREffect::set_cascade_scales(std::span<DirectX::XMFLOAT4> scales)
     {
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedScale")->set_raw(scales);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedScale")->set_raw(scales.data());
     }
 
-    void DeferredPBREffect::set_cascade_frustums_eye_space_depths(const float *depths)
+    void DeferredPBREffect::set_cascade_frustums_eye_space_depths(std::span<float> depths)
     {
-        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsDate")->set_raw(depths);
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gCascadedFrustumsEyeSpaceDepthsDate")->set_raw(depths.data());
     }
 
     void DeferredPBREffect::set_cascade_blend_area(float blend_area)

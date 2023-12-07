@@ -342,16 +342,16 @@ namespace toy
         void compute_brdf_lut(ID3D11Device *device, ID3D11DeviceContext *device_context);
 
         // * Get environment map shader resource view
-        ID3D11ShaderResourceView* get_environment_srv() const;
+        [[nodiscard]] ID3D11ShaderResourceView* get_environment_srv() const;
 
         // * Get irradiance map shader resource view
-        ID3D11ShaderResourceView* get_irradiance_srv() const;
+        [[nodiscard]] ID3D11ShaderResourceView* get_irradiance_srv() const;
 
         // * Get BRDF shader resource view
-        ID3D11ShaderResourceView* get_brdf_srv() const;
+        [[nodiscard]] ID3D11ShaderResourceView* get_brdf_srv() const;
 
         // * Check whether pre-process has been completed
-        bool is_ready() const;
+        [[nodiscard]] bool is_ready() const;
 
         // * Singleton
         static PreProcessEffect& get();
@@ -408,7 +408,7 @@ namespace toy
         // * Render to lit texture
         // * Note: default method of deferred lighting pass
         void deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
-                                    const GBufferDefinition &gbuffer, D3D11_VIEWPORT viewport);
+                                    const GBufferDefinition &gbuffer, const D3D11_VIEWPORT &viewport);
 
         // * Singleton
         static DeferredPBREffect &get();
@@ -433,14 +433,14 @@ namespace toy
         // * Enable/disable 16-bit shadow format
         void set_16_bit_format_shadow(bool enable);
 
-        // * Cascade offsets - TODO: use std::span
-        void set_cascade_offsets(const DirectX::XMFLOAT4 *offsets);
+        // * Cascade offsets
+        void set_cascade_offsets(std::span<DirectX::XMFLOAT4> offsets);
 
-        // * Cascade scales - TODO: use std::span
-        void set_cascade_scales(const DirectX::XMFLOAT4 *scales);
+        // * Cascade scales
+        void set_cascade_scales(std::span<DirectX::XMFLOAT4> scales);
 
-        // * Cascade frustums eye space depths - TODO: use std::span
-        void set_cascade_frustums_eye_space_depths(const float *depths);
+        // * Cascade frustums eye space depths
+        void set_cascade_frustums_eye_space_depths(std::span<float> depths);
 
         // * Cascade blend area
         void set_cascade_blend_area(float blend_area);
@@ -505,7 +505,7 @@ namespace toy
         void set_material(const model::Material& material) override;
 
         // * Set depth texture
-        void set_depth_texture(ID3D11ShaderResourceView * depth_srv);
+        void set_depth_texture(ID3D11ShaderResourceView *depth_srv);
 
         // * Set scene texture
         void set_scene_texture(ID3D11ShaderResourceView *scene_texture);
@@ -556,7 +556,7 @@ namespace toy
         // * Render
         void render(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *history_buffer_srv, ID3D11ShaderResourceView *cur_buffer_srv,
                     ID3D11ShaderResourceView *motion_vector_srv, ID3D11ShaderResourceView *depth_buffer_srv,
-                    ID3D11RenderTargetView *lit_buffer_rtv, D3D11_VIEWPORT viewport);
+                    ID3D11RenderTargetView *lit_buffer_rtv, const D3D11_VIEWPORT &viewport);
 
         // * Singleton
         static TAAEffect &get();

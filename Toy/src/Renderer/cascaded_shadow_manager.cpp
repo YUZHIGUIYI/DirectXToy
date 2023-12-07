@@ -101,9 +101,9 @@ namespace toy
         return csm_temp_texture->get_shader_resource();
     }
 
-    const float *CascadedShadowManager::get_cascade_partitions() const
+    std::span<float> CascadedShadowManager::get_cascade_partitions()
     {
-        return cascade_partitions_frustum.data();
+        return std::span{ cascade_partitions_frustum.data(), cascade_partitions_frustum.size() };
     }
 
     void CascadedShadowManager::get_cascade_partitions(float *output) const

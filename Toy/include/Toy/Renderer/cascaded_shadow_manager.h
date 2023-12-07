@@ -38,7 +38,7 @@ namespace toy
         [[nodiscard]] ID3D11RenderTargetView *get_temp_texture_rtv() const;
         [[nodiscard]] ID3D11ShaderResourceView *get_temp_texture_output() const;
 
-        [[nodiscard]] const float *get_cascade_partitions() const;
+        [[nodiscard]] std::span<float> get_cascade_partitions();
         void get_cascade_partitions(float *output) const;
 
         [[nodiscard]] DirectX::XMMATRIX get_shadow_project_xm(size_t cascade_index) const;

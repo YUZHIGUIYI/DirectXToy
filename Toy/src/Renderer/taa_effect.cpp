@@ -92,7 +92,7 @@ namespace toy
 
     void TAAEffect::render(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *history_buffer_srv,
                             ID3D11ShaderResourceView *cur_buffer_srv, ID3D11ShaderResourceView *motion_vector_srv,
-                            ID3D11ShaderResourceView *depth_buffer_srv, ID3D11RenderTargetView *lit_buffer_rtv, D3D11_VIEWPORT viewport)
+                            ID3D11ShaderResourceView *depth_buffer_srv, ID3D11RenderTargetView *lit_buffer_rtv, const D3D11_VIEWPORT &viewport)
     {
         static uint32_t taa_frame_counter = 0;
 

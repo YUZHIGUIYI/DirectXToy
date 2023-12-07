@@ -26,6 +26,8 @@
 #include <stdexcept>
 #include <cassert>
 #include <cstdio>
+#include <span>
+#include <concepts>
 
 #include <Windows.h>
 #include <wrl/client.h>

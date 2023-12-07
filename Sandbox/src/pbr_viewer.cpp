@@ -667,8 +667,8 @@ namespace toy::viewer
         }
 
         deferred_pbr_effect.set_cascade_frustums_eye_space_depths(cascade_shadow_manager.get_cascade_partitions());
-        deferred_pbr_effect.set_cascade_offsets(offsets.data());
-        deferred_pbr_effect.set_cascade_scales(scales.data());
+        deferred_pbr_effect.set_cascade_offsets(std::span{ offsets.data(), offsets.size() });
+        deferred_pbr_effect.set_cascade_scales(std::span{ scales.data(), scales.size() });
         deferred_pbr_effect.set_shadow_view_matrix(m_light_camera->get_view_xm());
         deferred_pbr_effect.set_shadow_texture_array(cascade_shadow_manager.get_cascades_output());
         deferred_pbr_effect.set_light_direction(m_light_camera->get_look_axis());
