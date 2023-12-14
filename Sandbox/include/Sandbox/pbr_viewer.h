@@ -7,6 +7,7 @@
 #include <Sandbox/scene_hierarchy_panel.h>
 #include <Sandbox/gizmos.h>
 #include <Sandbox/mouse_pick.h>
+#include <Sandbox/content_browser.h>
 
 namespace toy::viewer
 {
@@ -16,7 +17,7 @@ namespace toy::viewer
         explicit PBRViewer(std::string_view viewer_name);
         ~PBRViewer() override;
 
-        void on_attach(d3d_application_c* app) override;
+        void on_attach(D3DApplication* app) override;
 
         void on_detach() override;
 
@@ -50,7 +51,7 @@ namespace toy::viewer
         void on_update(float dt);
 
     private:
-        d3d_application_c* m_d3d_app = nullptr;
+        D3DApplication* m_d3d_app = nullptr;
         std::string_view m_viewer_name;
 
         // Viewer specification
@@ -91,6 +92,7 @@ namespace toy::viewer
         // UI components
         std::unique_ptr<SceneHierarchyPanel> m_scene_hierarchy_panel = nullptr;
         std::unique_ptr<Gizmos> m_gizmos = nullptr;
+        std::unique_ptr<ContentBrowser> m_content_browser = nullptr;
     };
 }
 

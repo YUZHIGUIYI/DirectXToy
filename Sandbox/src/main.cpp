@@ -23,7 +23,7 @@ int main()
     }
 
     // Create and initialize d3d application
-    auto d3d_app = std::make_unique<toy::d3d_application_c>(window, window_size.first, window_size.second);
+    auto d3d_app = std::make_unique<toy::D3DApplication>(window, window_size.first, window_size.second);
     d3d_app->init();
 
     // Create layers of d3d application

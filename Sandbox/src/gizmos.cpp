@@ -39,7 +39,7 @@ namespace toy
         }, change_translation, change_rotation, change_scale);
     }
 
-    Gizmos::Gizmos(toy::d3d_application_c *d3d_application)
+    Gizmos::Gizmos(toy::D3DApplication *d3d_application)
     : d3d_app(d3d_application)
     {
 

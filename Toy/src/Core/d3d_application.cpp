@@ -7,7 +7,7 @@
 
 namespace toy
 {
-    d3d_application_c::d3d_application_c(GLFWwindow* window, int32_t init_width, int32_t init_height)
+    D3DApplication::D3DApplication(GLFWwindow* window, int32_t init_width, int32_t init_height)
     : m_glfw_window(window),
     m_client_width(init_width),
     m_client_height(init_height),
@@ -19,7 +19,7 @@ namespace toy
         m_main_wnd = glfwGetWin32Window(m_glfw_window);
     }
 
-    d3d_application_c::~d3d_application_c()
+    D3DApplication::~D3DApplication()
     {
         ImGuiPass::release();
         if (m_d3d_immediate_context)
@@ -29,7 +29,7 @@ namespace toy
         DX_CORE_INFO("End DXToy engine");
     }
 
-    void d3d_application_c::init()
+    void D3DApplication::init()
     {
         DX_CORE_INFO("Initialize DXToy engine");
 
@@ -51,7 +51,7 @@ namespace toy
         });
         glfwSetDropCallback(m_glfw_window, [](GLFWwindow* window, int32_t path_count, const char** paths)
         {
-            auto* app = static_cast<d3d_application_c *>(glfwGetWindowUserPointer(window));
+            auto* app = static_cast<D3DApplication *>(glfwGetWindowUserPointer(window));
             for (int32_t i = 0; i < path_count; i++)
             {
                 app->on_file_drop(paths[i]);
@@ -59,7 +59,7 @@ namespace toy
         });
     }
 
-    void d3d_application_c::on_resize(const event_t &event)
+    void D3DApplication::on_resize(const event_t &event)
     {
         auto&& window_resize_event = std::get<window_resize_event_c>(event);
 
@@ -100,12 +100,12 @@ namespace toy
         }
     }
 
-    void d3d_application_c::on_close(const event_t &event)
+    void D3DApplication::on_close(const event_t &event)
     {
         m_app_stopped = true;
     }
 
-    void d3d_application_c::tick()
+    void D3DApplication::tick()
     {
         float last_time = 0.0f;
         while (!m_app_stopped)
@@ -160,28 +160,28 @@ namespace toy
     }
 
     // Set render target view of back buffer to current render target view
-    void d3d_application_c::reset_render_target()
+    void D3DApplication::reset_render_target()
     {
         ID3D11RenderTargetView* rtv =  get_back_buffer_rtv();
         m_d3d_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
     }
 
     // Present back buffer view
-    void d3d_application_c::present()
+    void D3DApplication::present()
     {
         // Present
         m_swap_chain->Present(0, m_is_dxgi_flip_model ? DXGI_PRESENT_ALLOW_TEARING : 0);
     }
 
     // Add layer into engine
-    void d3d_application_c::add_layer(const std::shared_ptr<ILayer> &layer)
+    void D3DApplication::add_layer(const std::shared_ptr<ILayer> &layer)
     {
         m_layer_stack.emplace_back(layer);
         layer->on_attach(this);
     }
 
     // File drop operation
-    void d3d_application_c::on_file_drop(std::string_view filename)
+    void D3DApplication::on_file_drop(std::string_view filename)
     {
         for (auto& layer : m_layer_stack)
         {
@@ -190,7 +190,7 @@ namespace toy
     }
 
     // Create directX 3d device and device context
-    void d3d_application_c::init_d3d()
+    void D3DApplication::init_d3d()
     {
         HRESULT hr = S_OK;
 

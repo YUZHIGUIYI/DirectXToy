@@ -48,7 +48,7 @@ namespace toy::viewer
         return viewport_size_changed;
     }
 
-    void PBRViewer::on_attach(toy::d3d_application_c *app)
+    void PBRViewer::on_attach(toy::D3DApplication *app)
     {
         m_d3d_app = app;
 
@@ -74,6 +74,7 @@ namespace toy::viewer
         m_mouse_pick_helper = std::make_unique<MousePickHelper>();
         m_scene_hierarchy_panel = std::make_unique<SceneHierarchyPanel>();
         m_gizmos = std::make_unique<Gizmos>(app);
+        m_content_browser = std::make_unique<ContentBrowser>();
 
         // Initialize resource
         init_resource();
@@ -193,6 +194,9 @@ namespace toy::viewer
 
         // Rendering scene hierarchy panel
         m_scene_hierarchy_panel->on_ui_render();
+
+        // Rendering content browser
+        m_content_browser->on_browser_render();
     }
 
     void PBRViewer::init_resource()
@@ -395,34 +399,7 @@ namespace toy::viewer
         // Deferred rendering debug
         float aspect_ratio = m_viewer_spec.get_aspect_ratio();
 
-        if (ImGui::Begin("Albedo"))
-        {
-            static ID3D11ShaderResourceView* albedo_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_A.tga");
-            ImVec2 winSize = ImGui::GetWindowSize();
-            float smaller = (std::min)((winSize.x - 20) / aspect_ratio, winSize.y - 20);
-            ImGui::Image(albedo_srv, ImVec2(smaller * aspect_ratio, smaller));
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Normal"))
-        {
-            static ID3D11ShaderResourceView* normal_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_N.tga");
-            ImVec2 winSize = ImGui::GetWindowSize();
-            float smaller = (std::min)((winSize.x - 20.0f) / aspect_ratio, winSize.y - 20.0f);
-            ImGui::Image(normal_srv, ImVec2(smaller * aspect_ratio, smaller));
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Metalness"))
-        {
-            static ID3D11ShaderResourceView* metalness_srv = model::TextureManager::get().get_texture(DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_M.tga");
-            ImVec2 winSize = ImGui::GetWindowSize();
-            float smaller = (std::min)((winSize.x - 20.0f) / aspect_ratio, winSize.y - 20.0f);
-            ImGui::Image(metalness_srv, ImVec2(smaller * aspect_ratio, smaller));
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Roughness"))
+        if (ImGui::Begin("Cascaded shadow"))
         {
             auto&& cascade_shadow_manager = CascadedShadowManager::get();
             static const std::array<const char *, 8> cascade_level_selections{
