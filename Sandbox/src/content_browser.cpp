@@ -5,6 +5,7 @@
 #include <Sandbox/content_browser.h>
 
 #include <imgui_internal.h>
+#include <imgui_user/imgui_user.h>
 
 namespace toy
 {
@@ -27,7 +28,7 @@ namespace toy
 
         ImGui::PushID(icon_name.data());
 
-        ImVec2 item_size = { 60.0f, 60.0f };
+        ImVec2 item_size = { 125.0f, 125.0f };
         ImVec2 texture_size = item_size;
         ImVec2 uv0 = { 0.0f, 0.0f };
         ImVec2 uv1 = { 1.0f, 1.0f };
@@ -40,11 +41,11 @@ namespace toy
         const int32_t padding = 15;
         auto cursor_position = ImGui::GetCursorScreenPos();
         cursor_position.y += item_size.y + padding * 2.0f;
-        if (ImGui::ImageButton(icon_view, texture_size, uv0, uv1, padding))
-        {
-            entry_action = EntryAction::CLICKED;
-        }
-//        ImGui::ImageButtonWithAspectAndTextDOWN(icon_view, std::string{ icon_name }, texture_size, item_size, uv0, uv1, padding);
+//        if (ImGui::ImageButton(icon_view, texture_size, uv0, uv1, padding))
+//        {
+//            entry_action = EntryAction::CLICKED;
+//        }
+        ImGui::ImageButtonWithAspectAndTextDOWN(icon_view, std::string{ icon_name }, texture_size, item_size, uv0, uv1, padding);
 
         ImGui::PopStyleColor(3);
 
