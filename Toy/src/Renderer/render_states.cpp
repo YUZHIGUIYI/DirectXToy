@@ -99,6 +99,7 @@ namespace toy
         device->CreateSamplerState(&sampler_desc, ss_anisotropic_wrap_16x.GetAddressOf());
 
         // Depth comparison and border mode
+        sampler_desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
         sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
         sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
         sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;

@@ -10,31 +10,34 @@
 
 namespace toy
 {
-    class d3d_application_c : public disable_copyable_c
+    class D3DApplication
     {
     public:
-        d3d_application_c(GLFWwindow* window, int32_t init_width, int32_t init_height);
-        virtual ~d3d_application_c();
+        D3DApplication(GLFWwindow* window, int32_t init_width, int32_t init_height);
+        ~D3DApplication();
+
+        D3DApplication(const D3DApplication &) = delete;
+        D3DApplication &operator=(const D3DApplication &) = delete;
+        D3DApplication(D3DApplication &&) = delete;
+        D3DApplication &operator=(D3DApplication &&) = delete;
 
     public:
         [[nodiscard]] HWND get_main_wnd() const { return m_main_wnd; }
         [[nodiscard]] float get_aspect_ratio() const { return static_cast<float>(m_client_width) / static_cast<float>(m_client_height); }
         [[nodiscard]] GLFWwindow* get_glfw_window() const { return m_glfw_window; }
 
-        ID3D11Device* get_device() { return m_d3d_device.Get(); }
-        ID3D11DeviceContext* get_device_context() { return m_d3d_immediate_context.Get(); }
+        [[nodiscard]] ID3D11Device* get_device() const { return m_d3d_device.Get(); }
+        [[nodiscard]] ID3D11DeviceContext* get_device_context() const { return m_d3d_immediate_context.Get(); }
 
-        ID3D11RenderTargetView* get_back_buffer_rtv() { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
+        [[nodiscard]] ID3D11RenderTargetView* get_back_buffer_rtv() const { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
 
     public:
-        // Client need to override
-        virtual void init();                                         // Init window and direct3D
-        virtual void update_scene(float dt) {};                      // Update per-frame
-        virtual void draw_scene() {};                                // Draw per-frame
+        void init();                                                // Init window and direct3D
 
         void on_resize(const event_t& event);                        // Call when resize window
         void on_close(const event_t& event);                         // Call when close window
         void tick();                                                 // Run application, and game-loop
+        void reset_render_target();                                  // Set render target view of back buffer to current render target view
         void present();                                              // Present back buffer view
 
         void add_layer(const std::shared_ptr<ILayer>& layer);       // Add layer into engine

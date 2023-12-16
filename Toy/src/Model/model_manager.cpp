@@ -11,7 +11,7 @@
 
 namespace toy::model
 {
-    void Model::create_from_file(toy::model::Model &model, ID3D11Device *device, std::string_view file_name)
+    void Model::create_from_file(toy::model::Model &model, ID3D11Device *device, std::string_view file_name, uint32_t entity_id)
     {
         static_assert(sizeof(aiVector3D) == sizeof(DirectX::XMFLOAT3), "size of aiVector3D is not equal to sizeof DirectX::XMFLOAT3");
 
@@ -24,6 +24,7 @@ namespace toy::model
         importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
         auto assimp_scene = importer.ReadFile(file_name.data(),
             aiProcess_ConvertToLeftHanded |     // Left hand coordinate
+            aiProcess_CalcTangentSpace |               // Tangent space
             aiProcess_GenBoundingBoxes |               // Generate bounding box
             aiProcess_Triangulate |                    // Polygon splitting
             aiProcess_ImproveCacheLocality |           // Improve cache locality
@@ -45,6 +46,14 @@ namespace toy::model
 
             CD3D11_BUFFER_DESC buffer_desc{ 0, D3D11_BIND_VERTEX_BUFFER };
             D3D11_SUBRESOURCE_DATA init_data{ nullptr, 0, 0 };
+
+            // Entity id
+            {
+                std::vector<uint32_t> entity_id_array(num_vertices, entity_id);
+                init_data.pSysMem = entity_id_array.data();
+                buffer_desc.ByteWidth = static_cast<uint32_t>(num_vertices * sizeof(uint32_t));
+                device->CreateBuffer(&buffer_desc, &init_data, mesh.entity_id_buffer.GetAddressOf());
+            }
             // Position
             if (ai_mesh->mNumVertices > 0)
             {
@@ -220,14 +229,33 @@ namespace toy::model
                 }
             };
 
-            // Create texture
-            try_create_texture(aiTextureType_DIFFUSE, "$Diffuse", true, 1);
-            try_create_texture(aiTextureType_NORMALS, "$Normal");
-            try_create_texture(aiTextureType_BASE_COLOR, "$Albedo", true, 1);
-            try_create_texture(aiTextureType_NORMAL_CAMERA, "$NormalCamera");
-            try_create_texture(aiTextureType_METALNESS, "$Metalness");
-            try_create_texture(aiTextureType_DIFFUSE_ROUGHNESS, "$Roughness");
-            try_create_texture(aiTextureType_AMBIENT_OCCLUSION, "$AmbientOcclusion");
+            // Create textures
+            try_create_texture(aiTextureType_DIFFUSE, material_semantics_name(MaterialSemantics::DiffuseMap), true, 1);
+            try_create_texture(aiTextureType_SPECULAR, material_semantics_name(MaterialSemantics::SpecularMap), true, 1);
+            try_create_texture(aiTextureType_NORMALS, material_semantics_name(MaterialSemantics::NormalMap));
+            try_create_texture(aiTextureType_BASE_COLOR, material_semantics_name(MaterialSemantics::AlbedoMap), true, 1);
+            try_create_texture(aiTextureType_NORMAL_CAMERA, material_semantics_name(MaterialSemantics::NormalCameraMap));
+            try_create_texture(aiTextureType_METALNESS, material_semantics_name(MaterialSemantics::MetalnessMap));
+            try_create_texture(aiTextureType_DIFFUSE_ROUGHNESS, material_semantics_name(MaterialSemantics::RoughnessMap));
+            try_create_texture(aiTextureType_AMBIENT_OCCLUSION, material_semantics_name(MaterialSemantics::AmbientOcclusionMap));
+
+            // Set diffuse color and opacity and metalness and roughness material properties
+            if (auto diffuse_color_name = material_semantics_name(MaterialSemantics::DiffuseColor); !material.has_property(diffuse_color_name))
+            {
+                material.set<XMFLOAT4>(diffuse_color_name, XMFLOAT4{ 0.8f, 0.8f, 0.8f, 1.0f });
+            }
+            if (auto opacity_name = material_semantics_name(MaterialSemantics::Opacity); !material.has_property(opacity_name))
+            {
+                material.set<float>(opacity_name, 1.0f);
+            }
+            if (auto metalness_name = material_semantics_name(MaterialSemantics::Metalness); !material.has_property(metalness_name))
+            {
+                material.set<float>(metalness_name, 0.5f);
+            }
+            if (auto roughness_name = material_semantics_name(MaterialSemantics::Roughness); !material.has_property(roughness_name))
+            {
+                material.set<float>(roughness_name, 0.5f);
+            }
         }
     }
 
@@ -237,11 +265,13 @@ namespace toy::model
         using namespace DirectX;
         // Default material
         model.materials.resize(1);
-        model.materials[0].set<XMFLOAT4>("$AmbientColor", XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
-        model.materials[0].set<XMFLOAT4>("$DiffuseColor", XMFLOAT4{0.8f, 0.8f, 0.8f, 1.0f });
-        model.materials[0].set<XMFLOAT4>("$SpecularColor", XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
-        model.materials[0].set<float>("$SpecularFactor", 10.0f);
-        model.materials[0].set<float>("$Opacity", 1.0f);
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::AmbientColor), XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::DiffuseColor), XMFLOAT4{0.8f, 0.8f, 0.8f, 1.0f });
+        model.materials[0].set<XMFLOAT4>(material_semantics_name(MaterialSemantics::SpecularColor), XMFLOAT4{0.2f, 0.2f, 0.2f, 1.0f });
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::SpecularFactor), 10.0f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Opacity), 1.0f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Metalness), 0.5f);
+        model.materials[0].set<float>(material_semantics_name(MaterialSemantics::Roughness), 0.5f);
 
         model.meshes.resize(1);
         model.meshes[0].texcoord_arrays.resize(1);
@@ -259,31 +289,38 @@ namespace toy::model
         buffer_desc.ByteWidth = (uint32_t)(data.vertices.size() * sizeof(XMFLOAT3));
         device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].vertices.GetAddressOf());
 
+        // Entity id buffer
+        {
+            init_data.pSysMem = data.entity_id_array.data();
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.entity_id_array.size() * sizeof(uint32_t));
+            device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].entity_id_buffer.GetAddressOf());
+        }
+
         if (!data.normals.empty())
         {
             init_data.pSysMem = data.normals.data();
-            buffer_desc.ByteWidth = (uint32_t)data.normals.size() * sizeof(XMFLOAT3);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.normals.size() * sizeof(XMFLOAT3));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].normals.GetAddressOf());
         }
 
         if (!data.texcoords.empty())
         {
             init_data.pSysMem = data.texcoords.data();
-            buffer_desc.ByteWidth = (uint32_t)data.texcoords.size() * sizeof(XMFLOAT2);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.texcoords.size() * sizeof(XMFLOAT2));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].texcoord_arrays[0].GetAddressOf());
         }
 
         if (!data.tangents.empty())
         {
             init_data.pSysMem = data.tangents.data();
-            buffer_desc.ByteWidth = (uint32_t)data.tangents.size() * sizeof(XMFLOAT4);
+            buffer_desc.ByteWidth = static_cast<uint32_t>(data.tangents.size() * sizeof(XMFLOAT4));
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].tangents.GetAddressOf());
         }
 
         if (!data.indices16.empty())
         {
             init_data.pSysMem = data.indices16.data();
-            buffer_desc = CD3D11_BUFFER_DESC((uint16_t)data.indices16.size() * sizeof(uint16_t), D3D11_BIND_INDEX_BUFFER);
+            buffer_desc = CD3D11_BUFFER_DESC(static_cast<uint16_t>(data.indices16.size() * sizeof(uint16_t)), D3D11_BIND_INDEX_BUFFER);
             buffer_desc.Usage = D3D11_USAGE_DEFAULT;
             buffer_desc.CPUAccessFlags = 0;
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].indices.GetAddressOf());
@@ -291,7 +328,7 @@ namespace toy::model
         else
         {
             init_data.pSysMem = data.indices32.data();
-            buffer_desc = CD3D11_BUFFER_DESC((uint32_t)data.indices32.size() * sizeof(uint32_t), D3D11_BIND_INDEX_BUFFER);
+            buffer_desc = CD3D11_BUFFER_DESC(static_cast<uint32_t>(data.indices32.size() * sizeof(uint32_t)), D3D11_BIND_INDEX_BUFFER);
             buffer_desc.Usage = D3D11_USAGE_DEFAULT;
             buffer_desc.CPUAccessFlags = 0;
             device->CreateBuffer(&buffer_desc, &init_data, model.meshes[0].indices.GetAddressOf());
@@ -315,16 +352,16 @@ namespace toy::model
         m_device_->GetImmediateContext(m_device_context_.ReleaseAndGetAddressOf());
     }
 
-    Model* ModelManager::create_from_file(std::string_view file_name)
+    Model* ModelManager::create_from_file(std::string_view file_name, uint32_t entity_id)
     {
-        return create_from_file(file_name, file_name);
+        return create_from_file(file_name, file_name, entity_id);
     }
 
-    Model* ModelManager::create_from_file(std::string_view name, std::string_view file_name)
+    Model* ModelManager::create_from_file(std::string_view name, std::string_view file_name, uint32_t entity_id)
     {
         XID model_id = string_to_id(name);
         auto& model = m_models[model_id];
-        Model::create_from_file(model, m_device_.Get(), file_name);
+        Model::create_from_file(model, m_device_.Get(), file_name, entity_id);
         return &model;
     }
 

@@ -8,12 +8,12 @@
 
 namespace toy
 {
-    class d3d_application_c;
+    class D3DApplication;
 
     struct ILayer
     {
         // Interface
-        virtual void on_attach(d3d_application_c* app) {}                   // Called once at start
+        virtual void on_attach(D3DApplication* app) {}                   // Called once at start
         virtual void on_detach() {}                                         // Called before destroying the application
         virtual void on_resize() {}                                         // Called when the viewport size is changing
         virtual void on_ui_render() {}                                      // Called for anything related to UI

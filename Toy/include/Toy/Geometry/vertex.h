@@ -8,122 +8,56 @@
 
 namespace toy
 {
-    struct vertex_pos_s
+    struct VertexPos
     {
-        vertex_pos_s() = default;
-
-        vertex_pos_s(const vertex_pos_s&) = default;
-        vertex_pos_s& operator=(const vertex_pos_s&) = default;
-
-        vertex_pos_s(vertex_pos_s&&) = default;
-        vertex_pos_s& operator=(vertex_pos_s&&) = default;
-
-        static const std::array<D3D11_INPUT_ELEMENT_DESC, 1>& get_input_layout();
-
         DirectX::XMFLOAT3 pos;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 1> &get_input_layout();
     };
 
-    using VertexPos = vertex_pos_s;
-
-    struct vertex_pos_tex_s
+    struct VertexPosTex
     {
-        vertex_pos_tex_s() = default;
-
-        vertex_pos_tex_s(const vertex_pos_tex_s&) = default;
-        vertex_pos_tex_s& operator=(const vertex_pos_tex_s&) = default;
-
-        vertex_pos_tex_s(vertex_pos_tex_s&&) = default;
-        vertex_pos_tex_s& operator=(vertex_pos_tex_s&&) = default;
-
-        constexpr vertex_pos_tex_s(const DirectX::XMFLOAT3& _pos, const DirectX::XMFLOAT2& _tex)
-        : pos(_pos), tex(_tex)
-        {
-
-        }
-
-        static const std::array<D3D11_INPUT_ELEMENT_DESC, 2>& get_input_layout();
-
         DirectX::XMFLOAT3 pos;
         DirectX::XMFLOAT2 tex;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 2> &get_input_layout();
     };
 
-    using VertexPosTex = vertex_pos_tex_s;
-
-    struct vertex_pos_color_s
+    struct VertexPosColor
     {
-        vertex_pos_color_s() = default;
-
-        vertex_pos_color_s(const vertex_pos_color_s&) = default;
-        vertex_pos_color_s& operator=(const vertex_pos_color_s&) = default;
-
-        vertex_pos_color_s(vertex_pos_color_s&&) = default;
-        vertex_pos_color_s& operator=(vertex_pos_color_s&&) = default;
-
-        constexpr vertex_pos_color_s(const DirectX::XMFLOAT3& _pos, const DirectX::XMFLOAT4& _color)
-        : pos(_pos), color(_color)
-        {
-
-        }
-
-        static const std::array<D3D11_INPUT_ELEMENT_DESC, 2>& get_input_layout();
-
         DirectX::XMFLOAT3 pos;
         DirectX::XMFLOAT4 color;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 2> &get_input_layout();
     };
 
-    using VertexPosColor = vertex_pos_color_s;
-
-    struct vertex_pos_normal_tex_s
+    struct VertexPosNormalTex
     {
-        vertex_pos_normal_tex_s() = default;
-
-        vertex_pos_normal_tex_s(const vertex_pos_normal_tex_s&) = default;
-        vertex_pos_normal_tex_s& operator=(const vertex_pos_normal_tex_s&) = default;
-
-        vertex_pos_normal_tex_s(vertex_pos_normal_tex_s&&) = default;
-        vertex_pos_normal_tex_s& operator=(vertex_pos_normal_tex_s&&) = default;
-
-        constexpr vertex_pos_normal_tex_s(const DirectX::XMFLOAT3& _pos, const DirectX::XMFLOAT3& _normal,
-                                            const DirectX::XMFLOAT2& _tex)
-        : pos(_pos), normal(_normal), tex(_tex)
-        {
-
-        }
-
-        static const std::array<D3D11_INPUT_ELEMENT_DESC, 3>& get_input_layout();
-
         DirectX::XMFLOAT3 pos;
         DirectX::XMFLOAT3 normal;
         DirectX::XMFLOAT2 tex;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 3> &get_input_layout();
     };
 
-    using VertexPosNormalTex = vertex_pos_normal_tex_s;
-
-    struct vertex_pos_normal_tangent_tex_s
+    struct VertexPosNormalTangentTex
     {
-        vertex_pos_normal_tangent_tex_s() = default;
-
-        vertex_pos_normal_tangent_tex_s(const vertex_pos_normal_tangent_tex_s&) = default;
-        vertex_pos_normal_tangent_tex_s& operator=(const vertex_pos_normal_tangent_tex_s&) = default;
-
-        vertex_pos_normal_tangent_tex_s(vertex_pos_normal_tangent_tex_s&&) = default;
-        vertex_pos_normal_tangent_tex_s& operator=(vertex_pos_normal_tangent_tex_s&&) = default;
-
-        constexpr vertex_pos_normal_tangent_tex_s(const DirectX::XMFLOAT3& _pos, const DirectX::XMFLOAT3& _normal,
-                                            const DirectX::XMFLOAT4& _tangent, const DirectX::XMFLOAT2& _tex)
-        : pos(_pos), normal(_normal), tangent(_tangent), tex(_tex)
-        {
-
-        }
-
-        static const std::array<D3D11_INPUT_ELEMENT_DESC, 4>& get_input_layout();
-
         DirectX::XMFLOAT3 pos;
         DirectX::XMFLOAT3 normal;
         DirectX::XMFLOAT4 tangent;
         DirectX::XMFLOAT2 tex;
-        static const D3D11_INPUT_ELEMENT_DESC inputLayout[4];
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC, 4> &get_input_layout();
     };
 
-    using VertexPosNormalTangentTex = vertex_pos_normal_tangent_tex_s;
+    struct VertexPosNormalTangentTexEntity
+    {
+        DirectX::XMFLOAT3 pos;
+        DirectX::XMFLOAT3 normal;
+        DirectX::XMFLOAT4 tangent;
+        DirectX::XMFLOAT2 tex;
+        uint32_t          entity_id;
+
+        static const std::array<D3D11_INPUT_ELEMENT_DESC , 5> &get_input_layout();
+    };
 }

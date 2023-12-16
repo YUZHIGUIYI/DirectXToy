@@ -71,7 +71,7 @@ namespace toy
 
         void init(ID3D11Device* device);
 
-        // Useless
+        // * Currently useless
         void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
         void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
         void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
@@ -329,10 +329,10 @@ namespace toy
         PreProcessEffect(PreProcessEffect&& other) noexcept;
         PreProcessEffect& operator=(PreProcessEffect&& other) noexcept;
 
-        // Initialize all resources
+        // * Initialize all resources
         void init(ID3D11Device* device);
 
-        // Convert HDR image to cube map
+        // * Convert HDR image to cube map
         void compute_cubemap(ID3D11Device *device, ID3D11DeviceContext *device_context, std::string_view file_path);
 
         void compute_sp_env_map(ID3D11Device *device, ID3D11DeviceContext *device_context);
@@ -341,16 +341,301 @@ namespace toy
 
         void compute_brdf_lut(ID3D11Device *device, ID3D11DeviceContext *device_context);
 
-        // Get environment map shader resource view
-        ID3D11ShaderResourceView* get_environment_srv() const;
+        // * Get environment map shader resource view
+        [[nodiscard]] ID3D11ShaderResourceView* get_environment_srv() const;
 
-        // Singleton
+        // * Get irradiance map shader resource view
+        [[nodiscard]] ID3D11ShaderResourceView* get_irradiance_srv() const;
+
+        // * Get BRDF shader resource view
+        [[nodiscard]] ID3D11ShaderResourceView* get_brdf_srv() const;
+
+        // * Check whether pre-process has been completed
+        [[nodiscard]] bool is_ready() const;
+
+        // * Singleton
         static PreProcessEffect& get();
 
     private:
         struct EffectImpl;
 
         std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    struct GBufferDefinition;
+
+    // Deferred PBR effect
+    class DeferredPBREffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        DeferredPBREffect();
+        ~DeferredPBREffect() override;
+
+        DeferredPBREffect(DeferredPBREffect&& other) noexcept;
+        DeferredPBREffect& operator=(DeferredPBREffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        // * Set material for geometry pass
+        // * Note: called by render object automatically
+        void set_material(const model::Material& material) override;
+
+        // * Get mesh data
+        // * Note: called by render object automatically
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        // * Set viewer size
+        void set_viewer_size(int32_t width, int32_t height);
+
+        // * Set camera near and far parameters for geometry pass
+        void set_camera_near_far(float nearz, float farz);
+
+        // * Set camera world position
+        void set_camera_position(DirectX::XMFLOAT3 camera_position);
+
+        // * Render GBuffer for geometry pass - set vertex layout and skybox pass and topology
+        void set_gbuffer_render();
+
+        // * Apply constant buffers and resources for geometry pass
+        // * Note: called by render object automatically
+        void apply(ID3D11DeviceContext* device_context) override;
+
+        // * Note: called before deferred lighting render
+        // * Set render state for lighting pass - select pass
+        void set_lighting_pass_render();
+
+        // * Render to lit texture
+        // * Note: default method of deferred lighting pass
+        void deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
+                                    const GBufferDefinition &gbuffer, const D3D11_VIEWPORT &viewport);
+
+        // * Singleton
+        static DeferredPBREffect &get();
+
+        // * Set shadow type
+        // * 0 - Cascade shadow map
+        // * 1 - Variance shadow map
+        // * 2 - Exponential shadow map
+        // * 3 - Exponential variance shadow map 2-component
+        // * 4 - Exponential variance shadow map 4-component
+        void set_shadow_type(uint8_t type);
+
+        // * Cascade level
+        void set_cascade_levels(int32_t cascade_levels);
+
+        // * Enable/disable cascade interval selection
+        void set_cascade_interval_selection_enabled(bool enable);
+
+        // * Enable/disable cascade visualization
+        void set_cascade_visualization(bool enable);
+
+        // * Enable/disable 16-bit shadow format
+        void set_16_bit_format_shadow(bool enable);
+
+        // * Cascade offsets
+        void set_cascade_offsets(std::span<DirectX::XMFLOAT4> offsets);
+
+        // * Cascade scales
+        void set_cascade_scales(std::span<DirectX::XMFLOAT4> scales);
+
+        // * Cascade frustums eye space depths
+        void set_cascade_frustums_eye_space_depths(std::span<float> depths);
+
+        // * Cascade blend area
+        void set_cascade_blend_area(float blend_area);
+
+        // * Set positive exponent
+        void set_positive_exponent(float positive_exponent);
+
+        // * Set negative exponent
+        void set_negative_exponent(float negative_exponent);
+
+        // * Set light bleeding reduction
+        void set_light_bleeding_reduction(float value);
+
+        void set_cascade_sampler(ID3D11SamplerState *sampler);
+
+        // * For CSM - PCF kernel size
+        void set_pcf_kernel_size(int32_t size);
+
+        // * For CSM - PCF depth offset
+        void set_pcf_depth_bias(float bias);
+
+        // * For VSM - magic power
+        void set_magic_power(float power);
+
+        // * Shadow size
+        void set_shadow_size(int32_t size);
+
+        // * Shadow texture array
+        void set_shadow_texture_array(ID3D11ShaderResourceView *shadow_map);
+
+        // * Light direction
+        void set_light_direction(const DirectX::XMFLOAT3 &direction);
+
+        // * Shadow view matrix
+        void XM_CALLCONV set_shadow_view_matrix(DirectX::FXMMATRIX shadow_view);
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    class SimpleSkyboxEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        SimpleSkyboxEffect();
+        ~SimpleSkyboxEffect() override;
+
+        SimpleSkyboxEffect(SimpleSkyboxEffect&& other) noexcept;
+        SimpleSkyboxEffect& operator=(SimpleSkyboxEffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        // * Set material for geometry pass
+        // * Note: called by render object automatically
+        void set_material(const model::Material& material) override;
+
+        // * Set depth texture
+        void set_depth_texture(ID3D11ShaderResourceView *depth_srv);
+
+        // * Set scene texture
+        void set_scene_texture(ID3D11ShaderResourceView *scene_texture);
+
+        // * Get mesh data
+        // * Note: called by render object automatically
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        // * Set vertex layout and skybox pass and topology
+        void set_skybox_render();
+
+        // * Apply constant buffers and resources for geometry pass
+        // * Note: called by render object automatically
+        void apply(ID3D11DeviceContext* device_context) override;
+
+        // * Singleton
+        static SimpleSkyboxEffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    class TAAEffect final
+    {
+    public:
+        TAAEffect();
+        ~TAAEffect();
+
+        TAAEffect(TAAEffect&& other) noexcept;
+        TAAEffect& operator=(TAAEffect&& other) noexcept;
+
+        // * Initialize all resources and shaders
+        void init(ID3D11Device* device);
+
+        // * Set camera near far
+        void set_camera_near_far(float nearz, float farz);
+
+        // * Set render target size
+        void set_viewer_size(int32_t width, int32_t height);
+
+        // * Render
+        void render(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *history_buffer_srv, ID3D11ShaderResourceView *cur_buffer_srv,
+                    ID3D11ShaderResourceView *motion_vector_srv, ID3D11ShaderResourceView *depth_buffer_srv,
+                    ID3D11RenderTargetView *lit_buffer_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * Singleton
+        static TAAEffect &get();
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl;
+    };
+
+    class ShadowEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
+    {
+    public:
+        ShadowEffect();
+        ~ShadowEffect() override;
+
+        ShadowEffect(ShadowEffect &&other) noexcept;
+        ShadowEffect &operator=(ShadowEffect &&other) noexcept;
+
+        void init(ID3D11Device *device);
+
+        void set_material(const model::Material &material) override;
+
+        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
+
+        // * Write only depth
+        void set_depth_only_render();
+
+        // * Draw depth to depth map
+        void set_default_render();
+
+        // * Generate variance shadow
+        void render_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                    ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * Generate exponential shadow
+        void render_exponential_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport, float magic_power);
+
+        // * Generate exponential variance shadow
+        void render_exponential_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport,
+                                                float pos_exp, float *opt_neg_exp = nullptr);
+
+        // * Draw depth to texture
+        void render_depth_to_texture(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                        ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT  &viewport);
+
+        void set_16bit_format_shadow(bool enable);
+
+        void set_blur_kernel_size(int32_t size);
+
+        void set_blur_sigma(float sigma);
+
+        // * The width and height of input and output texture should be consistent
+        void gaussian_blur_x(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * The width and height of input and output texture should be consistent
+        void gaussian_blur_y(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        // * The width and height of input and output texture should be consistent
+        void log_gaussian_blur(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
+                                ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);
+
+        void apply(ID3D11DeviceContext *device_context) override;
+
+        static ShadowEffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl = nullptr;
     };
 }
 

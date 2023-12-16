@@ -9,6 +9,41 @@
 
 namespace toy::model
 {
+#define FOREACH_MATERIAL_SEMANTICS(func) \
+    func(DiffuseMap)                     \
+    func(SpecularMap)                    \
+    func(AlbedoMap)                      \
+    func(NormalMap)                      \
+    func(MetalnessMap)                   \
+    func(RoughnessMap)                   \
+    func(NormalCameraMap)                \
+    func(AmbientOcclusionMap)            \
+    func(DiffuseColor)                   \
+    func(AmbientColor)                   \
+    func(SpecularColor)                  \
+    func(SpecularFactor)                 \
+    func(Opacity)                        \
+    func(Metalness)                      \
+    func(Roughness)
+
+    enum class MaterialSemantics : uint8_t
+    {
+#define MATERIAL_SEMANTICS_ENUM_FUNCTION(name) name,
+        FOREACH_MATERIAL_SEMANTICS(MATERIAL_SEMANTICS_ENUM_FUNCTION)
+#undef MATERIAL_SEMANTICS_ENUM_FUNCTION
+    };
+
+    inline std::string_view material_semantics_name(MaterialSemantics material_semantics)
+    {
+        switch (material_semantics)
+        {
+#define MATERIAL_SEMANTICS_ENUM_STRING(name) case MaterialSemantics::name: return "$"#name;
+            FOREACH_MATERIAL_SEMANTICS(MATERIAL_SEMANTICS_ENUM_STRING)
+#undef MATERIAL_SEMANTICS_ENUM_STRING
+            default: DX_CORE_CRITICAL("Unsupported material semantics enum");
+        }
+    }
+
     class Material
     {
     public:

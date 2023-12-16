@@ -10,7 +10,7 @@
 	branch = docking
 [submodule "external/assimp"]
 	path = external/assimp
-	url = https://github.com/assimp/assimp.git
+	url = https://github.com/YUZHIGUIYI/assimp.git
 [submodule "external/entt"]
 	path = external/entt
 	url = https://github.com/skypjack/entt.git

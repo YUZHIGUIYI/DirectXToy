@@ -8,10 +8,10 @@
 
 namespace toy
 {
-    class DefaultMenu final : public ILayer
+    struct DefaultMenu final : public ILayer
     {
     public:
-        void on_attach(d3d_application_c* app) override
+        void on_attach(D3DApplication* app) override
         {
             m_d3d_app = app;
         }
@@ -47,6 +47,6 @@ namespace toy
         }
 
     private:
-        d3d_application_c* m_d3d_app = nullptr;
+        D3DApplication* m_d3d_app = nullptr;
     };
 }

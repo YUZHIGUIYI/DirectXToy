@@ -14,6 +14,7 @@
 #include <Toy/Renderer/render_states.h>
 #include <Toy/Renderer/effect_interface.h>
 #include <Toy/Renderer/effects.h>
+#include <Toy/Renderer/gbuffer_definition.h>
 #include <Toy/Model/model_manager.h>
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Renderer/texture_2d.h>

@@ -7,7 +7,7 @@
 namespace toy::geometry
 {
     // Sphere
-    GeometryData create_sphere(float radius, uint32_t levels, uint32_t slices)
+    GeometryData create_sphere(uint32_t entity_id, float radius, uint32_t levels, uint32_t slices)
     {
         using namespace DirectX;
 
@@ -19,6 +19,7 @@ namespace toy::geometry
         geoData.normals.resize(vertexCount);
         geoData.texcoords.resize(vertexCount);
         geoData.tangents.resize(vertexCount);
+        geoData.entity_id_array.resize(vertexCount, entity_id);
         if (indexCount > 65535)
             geoData.indices32.resize(indexCount);
         else
@@ -135,7 +136,7 @@ namespace toy::geometry
     }
 
     // Box
-    GeometryData create_box(float width, float height, float depth)
+    GeometryData create_box(uint32_t entity_id, float width, float height, float depth)
     {
         using namespace DirectX;
 
@@ -145,6 +146,7 @@ namespace toy::geometry
         geoData.normals.resize(24);
         geoData.tangents.resize(24);
         geoData.texcoords.resize(24);
+        geoData.entity_id_array.resize(24, entity_id);
 
         float w2 = width / 2.0f, h2 = height / 2.0f, d2 = depth / 2.0f;
 
@@ -224,7 +226,7 @@ namespace toy::geometry
         return geoData;
     }
 
-    GeometryData create_cylinder(float radius, float height, uint32_t slices, uint32_t stacks, float texU, float texV)
+    GeometryData create_cylinder(uint32_t entity_id, float radius, float height, uint32_t slices, uint32_t stacks, float texU, float texV)
     {
         using namespace DirectX;
 
@@ -236,6 +238,7 @@ namespace toy::geometry
         geoData.normals.resize(vertexCount);
         geoData.tangents.resize(vertexCount);
         geoData.texcoords.resize(vertexCount);
+        geoData.entity_id_array.resize(vertexCount, entity_id);
 
         if (indexCount > 65535)
             geoData.indices32.resize(indexCount);
@@ -383,7 +386,7 @@ namespace toy::geometry
     }
 
     // Cone
-    GeometryData create_cone(float radius, float height, uint32_t slices)
+    GeometryData create_cone(uint32_t entity_id, float radius, float height, uint32_t slices)
     {
         using namespace DirectX;
 
@@ -395,6 +398,7 @@ namespace toy::geometry
         geoData.normals.resize(vertexCount);
         geoData.tangents.resize(vertexCount);
         geoData.texcoords.resize(vertexCount);
+        geoData.entity_id_array.resize(vertexCount, entity_id);
 
         if (indexCount > 65535)
             geoData.indices32.resize(indexCount);
@@ -497,12 +501,12 @@ namespace toy::geometry
     }
 
     // Plane
-    GeometryData create_plane(const DirectX::XMFLOAT2& planeSize, const DirectX::XMFLOAT2& maxTexCoord)
+    GeometryData create_plane(uint32_t entity_id, const DirectX::XMFLOAT2& planeSize, const DirectX::XMFLOAT2& maxTexCoord)
     {
-        return create_plane(planeSize.x, planeSize.y, maxTexCoord.x, maxTexCoord.y);
+        return create_plane(entity_id, planeSize.x, planeSize.y, maxTexCoord.x, maxTexCoord.y);
     }
 
-    GeometryData create_plane(float width, float depth, float texU, float texV)
+    GeometryData create_plane(uint32_t entity_id, float width, float depth, float texU, float texV)
     {
         using namespace DirectX;
 
@@ -512,6 +516,7 @@ namespace toy::geometry
         geoData.normals.resize(4);
         geoData.tangents.resize(4);
         geoData.texcoords.resize(4);
+        geoData.entity_id_array.resize(4, entity_id);
 
 
         uint32_t vIndex = 0;
@@ -540,7 +545,7 @@ namespace toy::geometry
         return geoData;
     }
 
-    GeometryData create_grid(const DirectX::XMFLOAT2& gridSize, const DirectX::XMUINT2& slices, const DirectX::XMFLOAT2& maxTexCoord,
+    GeometryData create_grid(uint32_t entity_id, const DirectX::XMFLOAT2& gridSize, const DirectX::XMUINT2& slices, const DirectX::XMFLOAT2& maxTexCoord,
                             const std::function<float(float, float)>& heightFunc,
                             const std::function<DirectX::XMFLOAT3(float, float)>& normalFunc,
                             const std::function<DirectX::XMFLOAT4(float, float)>& colorFunc)
@@ -554,6 +559,7 @@ namespace toy::geometry
         geoData.normals.resize(vertexCount);
         geoData.tangents.resize(vertexCount);
         geoData.texcoords.resize(vertexCount);
+        geoData.entity_id_array.resize(vertexCount, entity_id);
         if (indexCount > 65535)
             geoData.indices32.resize(indexCount);
         else
