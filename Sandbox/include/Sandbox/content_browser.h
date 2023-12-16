@@ -16,12 +16,10 @@ namespace toy
         void on_browser_render();
 
     private:
-        void set_cache_path(const std::filesystem::path &path);
+        void set_browser_cache_path(const std::filesystem::path &path);
 
     private:
-        std::filesystem::directory_iterator cache_iter;
-        std::filesystem::path cache_path;
-        std::filesystem::path root_path;
-        float icon_scale = 0.75f;
+        std::filesystem::path browser_cache_path;
+        float icon_scale = 0.78f;
     };
 }

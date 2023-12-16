@@ -11,7 +11,7 @@ namespace toy
 {
     enum class IconType : uint16_t
     {
-        Folder, Scene, Mesh, Material, Shader, Prefab, Sound
+        Folder, Scene, Mesh, Material, Shader, Prefab, Sound, Text
     };
 
     enum class EntryAction
@@ -19,17 +19,46 @@ namespace toy
         NONE, CLICKED, DOUBLE_CLICKED, RENAMED, DELETED
     };
 
-    static std::unordered_map<IconType, ID3D11ShaderResourceView *> icon_view_map = {};
+    struct ShadowResourceViewInfo
+    {
+        ID3D11ShaderResourceView* shader_resource_view = nullptr;
+        float width = 0.0f;
+        float height = 0.0f;
+    };
 
-    static bool draw_entry(IconType icon_type, std::string_view icon_name)
+    static std::unordered_map<IconType, ShadowResourceViewInfo> icon_view_map = {};
+    static const auto s_browser_root_path = std::filesystem::path{ "/Content" };
+    static const auto s_root_path = std::filesystem::path{ DXTOY_HOME "data/textures" };
+
+    static void store_shader_resource_view_info(IconType icon_type, ID3D11ShaderResourceView *shader_resource_view)
+    {
+        if (!shader_resource_view)
+        {
+            DX_CRITICAL("Invalid shader resource view input");
+        }
+
+        com_ptr<ID3D11Texture2D> temp_texture = nullptr;
+        shader_resource_view->GetResource(reinterpret_cast<ID3D11Resource **>(temp_texture.GetAddressOf()));
+        if (!temp_texture)
+        {
+            DX_CRITICAL("Current shader resource view failed to get its ID3D11Resource");
+        }
+        D3D11_TEXTURE2D_DESC temp_texture_desc = {};
+        temp_texture->GetDesc(&temp_texture_desc);
+
+        icon_view_map.try_emplace(icon_type, shader_resource_view, static_cast<float>(temp_texture_desc.Width), static_cast<float>(temp_texture_desc.Height));
+    }
+
+    static bool draw_entry(IconType icon_type, const float size, const std::filesystem::path &icon_path, std::function<void(const std::filesystem::path &path)> &&on_clicked = {})
     {
         EntryAction entry_action = EntryAction::NONE;
-        auto icon_view = icon_view_map[icon_type];
+        auto&& icon_info = icon_view_map[icon_type];
+        auto icon_name = icon_path.filename().string();
 
-        ImGui::PushID(icon_name.data());
+        ImGui::PushID(icon_name.c_str());
 
-        ImVec2 item_size = { 125.0f, 125.0f };
-        ImVec2 texture_size = item_size;
+        ImVec2 item_size = { size, size };
+        ImVec2 texture_size = { icon_info.width, icon_info.height };
         ImVec2 uv0 = { 0.0f, 0.0f };
         ImVec2 uv1 = { 1.0f, 1.0f };
 
@@ -41,13 +70,67 @@ namespace toy
         const int32_t padding = 15;
         auto cursor_position = ImGui::GetCursorScreenPos();
         cursor_position.y += item_size.y + padding * 2.0f;
-//        if (ImGui::ImageButton(icon_view, texture_size, uv0, uv1, padding))
-//        {
-//            entry_action = EntryAction::CLICKED;
-//        }
-        ImGui::ImageButtonWithAspectAndTextDOWN(icon_view, std::string{ icon_name }, texture_size, item_size, uv0, uv1, padding);
+        if (ImGui::ImageButtonWithAspectAndTextDOWN(icon_info.shader_resource_view, icon_name, texture_size, item_size, uv0, uv1, padding))
+        {
+            entry_action = EntryAction::CLICKED;
+        }
 
         ImGui::PopStyleColor(3);
+
+        if (ImGui::IsItemHovered())
+        {
+            if (ImGui::IsMouseDoubleClicked(0) && icon_type == IconType::Folder)
+            {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                entry_action = EntryAction::DOUBLE_CLICKED;
+            }
+            auto imgui_context = ImGui::GetCurrentContext();
+            if (!imgui_context->DragDropActive)
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextUnformatted(icon_name.data());
+                ImGui::EndTooltip();
+            }
+        }
+
+        if (ImGui::BeginPopupContextItem("ENTRY_CONTEXT_MENU"))
+        {
+            if (ImGui::MenuItem("RENAME", "F2"))
+            {
+                entry_action = EntryAction::RENAMED;
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("DELETE", "DEL"))
+            {
+                entry_action = EntryAction::DELETED;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        // Handle entry action
+        switch (entry_action)
+        {
+            case EntryAction::CLICKED:
+            {
+                break;
+            }
+            case EntryAction::DOUBLE_CLICKED:
+            {
+                on_clicked(icon_path);
+                break;
+            }
+            case EntryAction::RENAMED:
+            {
+                break;
+            }
+            case EntryAction::DELETED:
+            {
+                break;
+            }
+            default:
+                break;
+        }
 
         ImGui::PopID();
 
@@ -55,6 +138,7 @@ namespace toy
     }
 
     ContentBrowser::ContentBrowser()
+    : browser_cache_path(s_root_path)
     {
         using namespace toy::model;
 
@@ -66,34 +150,46 @@ namespace toy
         auto shader_srv = texture_manager.create_from_file(DXTOY_HOME "data/icons/shader.png");
         auto prefab_srv = texture_manager.create_from_file(DXTOY_HOME "data/icons/prefab.png");
         auto sound_srv = texture_manager.create_from_file(DXTOY_HOME "data/icons/sound.png");
+        auto text_srv = texture_manager.create_from_file(DXTOY_HOME "data/icons/copy.png");
 
-        icon_view_map.try_emplace(IconType::Folder, folder_srv);
-        icon_view_map.try_emplace(IconType::Scene, scene_srv);
-        icon_view_map.try_emplace(IconType::Mesh, mesh_srv);
-        icon_view_map.try_emplace(IconType::Material, material_srv);
-        icon_view_map.try_emplace(IconType::Shader, shader_srv);
-        icon_view_map.try_emplace(IconType::Prefab, prefab_srv);
-        icon_view_map.try_emplace(IconType::Sound, sound_srv);
-
-        root_path = std::filesystem::path{ DXTOY_HOME "data/textures" };
+        store_shader_resource_view_info(IconType::Folder, folder_srv);
+        store_shader_resource_view_info(IconType::Scene, scene_srv);
+        store_shader_resource_view_info(IconType::Mesh, mesh_srv);
+        store_shader_resource_view_info(IconType::Material, material_srv);
+        store_shader_resource_view_info(IconType::Shader, shader_srv);
+        store_shader_resource_view_info(IconType::Prefab, prefab_srv);
+        store_shader_resource_view_info(IconType::Sound, sound_srv);
+        store_shader_resource_view_info(IconType::Text, text_srv);
     }
 
     void ContentBrowser::on_browser_render()
     {
+        // Prohibit crossing root path
+        if (browser_cache_path == s_browser_root_path)
+        {
+            browser_cache_path = s_root_path.root_path();
+        }
+
+        const auto  browser_temp_path = browser_cache_path;
+        const auto hierarchy = std::filesystem::directory_iterator{ browser_temp_path };
         int32_t id = 0;
-        const auto temp_root_path = std::filesystem::path{ "/data" };
-        const auto hierarchy = std::filesystem::directory_iterator{ root_path };
+
+        // Store all director entries of current path
         std::vector<std::filesystem::directory_entry> directory_entries;
         for (auto&& directory_entry : hierarchy)
         {
             directory_entries.push_back(directory_entry);
         }
 
-//        if (root_path != temp_root_path || !std::filesystem::exists(cache_path))
-//        {
-//            root_path = temp_root_path;
-//            cache_iter = std::filesystem::directory_iterator{ root_path };
-//        }
+        // Split paths and store
+        std::vector<std::filesystem::path> split_paths;
+        auto split_path = browser_temp_path;
+        while (split_path.has_parent_path() && split_path.has_filename())
+        {
+            split_paths.emplace_back(split_path);
+            split_path = split_path.parent_path();
+        }
+        split_paths.emplace_back(s_browser_root_path);
 
         ImGui::Begin("Content browser");
 
@@ -112,44 +208,49 @@ namespace toy
             ImGui::EndTooltip();
         }
         ImGui::PopItemWidth();
-//        for (auto&& directory_entry : hierarchy)
-//        {
-//            if (!directory_entry.is_directory()) continue;
-//            ImGui::SameLine();
-//            ImGui::AlignTextToFramePadding();
-//            ImGui::TextUnformatted("/");
-//            ImGui::SameLine();
-//
-//            ImGui::PushID(id++);
-//            ImGui::Button(directory_entry.path().filename().string().c_str());
-//            ImGui::PopID();
-//        }
+        for (auto it = split_paths.crbegin(); it != split_paths.crend(); ++it)
+        {
+            ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("/");
+            ImGui::SameLine();
+
+            ImGui::PushID(id++);
+            bool clicked = ImGui::Button(it->filename().string().c_str());
+            ImGui::PopID();
+
+            if (clicked)
+            {
+                set_browser_cache_path(*it);
+                break;
+            }
+        }
         ImGui::Separator();
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
                                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
-        std::filesystem::path current_path = cache_path.root_path();
         if (ImGui::BeginChild("Asset content", ImGui::GetContentRegionAvail(), false, flags))
         {
-            auto process_cache_entry = [&] (const std::filesystem::directory_entry &cache_entry)
+            auto process_cache_entry = [this, size] (const std::filesystem::directory_entry &cache_entry)
             {
                 auto&& absolute_path = cache_entry.path();
                 auto file_extension = absolute_path.extension().string();
-                auto relative_path = absolute_path.relative_path();
-                auto filename = absolute_path.filename().string();
 
                 if (cache_entry.is_directory())
                 {
-                    draw_entry(IconType::Folder, filename);
-                } else if (file_extension == ".dds")
+                    draw_entry(IconType::Folder, size, absolute_path, [this] (const std::filesystem::path &path) { this->set_browser_cache_path(path); });
+                } else if (file_extension == ".hlsl" || file_extension == ".glsl")
                 {
-                    draw_entry(IconType::Shader, filename);
-                } else if (file_extension == ".png")
+                    draw_entry(IconType::Shader, size, absolute_path);
+                } else if (file_extension == ".png" || file_extension == ".jpg" || file_extension == ".dds")
                 {
-                    draw_entry(IconType::Scene, filename);
+                    draw_entry(IconType::Scene, size, absolute_path);
+                } else if (file_extension == ".txt" || file_extension == ".ini" || file_extension == ".log")
+                {
+                    draw_entry(IconType::Text, size, absolute_path);
                 } else
                 {
-                    draw_entry(IconType::Sound, filename);
+                    draw_entry(IconType::Sound, size, absolute_path);
                 }
             };
 
@@ -191,11 +292,12 @@ namespace toy
         ImGui::End();
     }
 
-    void ContentBrowser::set_cache_path(const std::filesystem::path &path)
+    void ContentBrowser::set_browser_cache_path(const std::filesystem::path &path)
     {
-        if (cache_path == path) return;
-        cache_path = path;
-        cache_iter = std::filesystem::directory_iterator{ path };
+        if (browser_cache_path != path)
+        {
+            browser_cache_path = path;
+        }
     }
 }
 
