@@ -21,8 +21,8 @@ namespace toy
         RenderObject& operator=(RenderObject&&) = default;
 
         // Object transform
-        transform_c& get_transform();
-        const transform_c& get_transform() const;
+        Transform& get_transform();
+        const Transform& get_transform() const;
 
         // Check insertion
         void frustum_culling(const DirectX::BoundingFrustum& frustum_in_world);
@@ -51,7 +51,7 @@ namespace toy
 
     public:
         std::vector<bool> m_submodel_in_frustum;
-        transform_c m_transform = {};
+        Transform m_transform = {};
         const model::Model* m_model = nullptr;
         bool m_in_frustum = true;
     };

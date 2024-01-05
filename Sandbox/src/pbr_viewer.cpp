@@ -73,7 +73,7 @@ namespace toy::viewer
         // Initialize mouse pick helper, scene hierarchy panel and gizmos
         m_mouse_pick_helper = std::make_unique<MousePickHelper>();
         m_scene_hierarchy_panel = std::make_unique<SceneHierarchyPanel>();
-        m_gizmos = std::make_unique<Gizmos>(app);
+        m_gizmos = std::make_unique<Gizmos>(m_d3d_app->get_glfw_window());
         m_content_browser = std::make_unique<ContentBrowser>();
 
         // Initialize resource
@@ -148,9 +148,9 @@ namespace toy::viewer
         auto name = std::filesystem::path(filename).filename();
         if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
         {
-            model::ModelManager::get().create_from_file(filename);
-
             auto new_entity = m_editor_scene->create_entity(name.string());
+            model::ModelManager::get().create_from_file(filename, static_cast<uint32_t>(new_entity.entity_handle));
+
             auto& new_transform = new_entity.add_component<TransformComponent>();
             new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
             auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
@@ -208,21 +208,21 @@ namespace toy::viewer
         auto d3d_device = m_d3d_app->get_device();
         auto d3d_device_context = m_d3d_app->get_device_context();
 
-        auto camera = std::make_shared<first_person_camera_c>();
+        auto camera = std::make_shared<FirstPersonCamera>();
         m_camera = camera;
 
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
         m_camera->set_frustum(XM_PI / 3.0f, m_viewer_spec.get_aspect_ratio(), 0.5f, 360.0f);
         camera->look_at(XMFLOAT3{-60.0f, 10.0f, 2.5f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
-        auto light_camera = std::make_shared<first_person_camera_c>();
+        auto light_camera = std::make_shared<FirstPersonCamera>();
         m_light_camera = light_camera;
 
         m_light_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
         m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
         light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
-        m_camera_controller.init(camera.get());
+        m_camera_controller.init(camera.get(), m_d3d_app->get_glfw_window());
         m_camera_controller.set_move_speed(30.0f);
 
         // Note: Initialize effects
@@ -426,11 +426,10 @@ namespace toy::viewer
     {
         using namespace DirectX;
 
-        GLFWwindow* glfw_window = m_d3d_app->get_glfw_window();
         // Update camera if viewer is focused and hovered
         if (m_viewer_focused && m_viewer_hovered)
         {
-            m_camera_controller.update(dt, glfw_window);
+            m_camera_controller.update(dt);
         }
 
         // Update collision

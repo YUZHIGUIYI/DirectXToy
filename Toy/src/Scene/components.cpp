@@ -7,7 +7,7 @@
 
 namespace toy
 {
-    void StaticMeshComponent::frustum_culling(const toy::transform_c &transform, const DirectX::BoundingFrustum &frustum_in_world)
+    void StaticMeshComponent::frustum_culling(const Transform &transform, const DirectX::BoundingFrustum &frustum_in_world)
     {
         size_t sz = model_asset->meshes.size();
         in_frustum = false;
@@ -22,7 +22,7 @@ namespace toy
         }
     }
 
-    void StaticMeshComponent::render(ID3D11DeviceContext *device_context, toy::IEffect &effect, const toy::transform_c &transform)
+    void StaticMeshComponent::render(ID3D11DeviceContext *device_context, IEffect &effect, const Transform &transform)
     {
         size_t sz = model_asset->meshes.size();
         size_t fsz = submodel_in_frustum.size();
@@ -80,7 +80,7 @@ namespace toy
         return model_asset->meshes[idx].bounding_box;
     }
 
-    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const transform_c& transform) const
+    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const Transform& transform) const
     {
         if (!model_asset)
         {
@@ -91,7 +91,7 @@ namespace toy
         return box;
     }
 
-    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const transform_c& transform, size_t idx) const
+    DirectX::BoundingBox StaticMeshComponent::get_bounding_box(const Transform& transform, size_t idx) const
     {
         if (!model_asset || model_asset->meshes.size() >= idx)
         {
@@ -102,7 +102,7 @@ namespace toy
         return box;
     }
 
-    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const transform_c& transform) const
+    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const Transform& transform) const
     {
         if (!model_asset)
         {
@@ -114,7 +114,7 @@ namespace toy
         return obb;
     }
 
-    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const transform_c& transform, size_t idx) const
+    DirectX::BoundingOrientedBox StaticMeshComponent::get_bounding_oriented_box(const Transform& transform, size_t idx) const
     {
         if (!model_asset || model_asset->meshes.size() >= idx)
         {

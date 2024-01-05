@@ -124,7 +124,7 @@ namespace toy
         adjust_illuminant();
     }
 
-    bool Scene::pick_entity(Entity& selected_entity, const camera_c &camera, float mouse_pos_x, float mouse_pos_y)
+    bool Scene::pick_entity(Entity& selected_entity, const Camera &camera, float mouse_pos_x, float mouse_pos_y)
     {
         Ray ray = Ray::screen_to_ray(camera, mouse_pos_x, mouse_pos_y);
 
@@ -163,10 +163,10 @@ namespace toy
         for (auto entity : illuminant_entities_in_viewer)
         {
             const auto [transform_component, camera_component] = view.get<TransformComponent, CameraComponent>(entity);
-            auto camera = dynamic_cast<first_person_camera_c *>(camera_component.camera.get());
+            auto camera = dynamic_cast<FirstPersonCamera *>(camera_component.camera.get());
             if (camera)
             {
-                camera->look_at(transform_component.transform.get_position(), XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+                camera->look_at(transform_component.transform.position, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
             }
         }
     }

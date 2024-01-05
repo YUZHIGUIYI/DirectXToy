@@ -8,6 +8,42 @@
 
 namespace toy
 {
+    namespace math
+    {
+        constexpr double pi_div_180 = 0.01745329251994329576923690768489;
+        constexpr double inv_pi_div_180 = 57.295779513082320876798154814105;
+
+        // Convert degree to radian
+        template <typename T>
+        requires std::is_floating_point_v<T>
+        T radians(T degrees)
+        {
+            return degrees * static_cast<T>(pi_div_180);
+        }
+
+        // Convert float3 degree to float3 radian
+        inline DirectX::XMFLOAT3 float3_radians(const DirectX::XMFLOAT3 &degrees)
+        {
+            return { degrees.x * static_cast<float>(pi_div_180), degrees.y * static_cast<float>(pi_div_180),
+                        degrees.z * static_cast<float>(pi_div_180) };
+        }
+
+        // Convert radian to degree
+        template <typename T>
+        requires std::is_floating_point_v<T>
+        T degrees(T radians)
+        {
+            return radians * static_cast<T>(inv_pi_div_180);
+        }
+
+        // Convert float3 radian to float3 degree
+        inline DirectX::XMFLOAT3 float3_degrees(const DirectX::XMFLOAT3 &radians)
+        {
+            return { radians.x * static_cast<float>(inv_pi_div_180), radians.y * static_cast<float>(inv_pi_div_180),
+                        radians.z * static_cast<float>(inv_pi_div_180) };
+        }
+    }
+
     // ------------------------------
     // create_shader_from_file function
     // ------------------------------

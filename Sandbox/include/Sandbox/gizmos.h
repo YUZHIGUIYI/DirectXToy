@@ -11,11 +11,11 @@ namespace toy
     struct Gizmos
     {
     public:
-        explicit Gizmos(D3DApplication *d3d_application);
+        explicit Gizmos(GLFWwindow *glfw_window);
 
-        void on_gizmos_render(Entity &selected_entity, const ViewerSpecification &viewer_specification, std::shared_ptr<camera_c> camera);
+        void on_gizmos_render(Entity &selected_entity, const ViewerSpecification &viewer_specification, std::shared_ptr<Camera> camera);
 
     private:
-        D3DApplication *d3d_app = nullptr;
+        GLFWwindow* m_glfw_window = nullptr;
     };
 }

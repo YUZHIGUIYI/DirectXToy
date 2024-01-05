@@ -154,9 +154,16 @@ namespace toy
 
             }
 
-            draw_vec3_control("Translation", transform_component.transform.get_position());
-            draw_vec3_control("Rotation", transform_component.transform.get_rotation());
-            draw_vec3_control("Scale", transform_component.transform.get_scale(), 1.0f);
+            auto position = transform_component.transform.position;
+            auto rotation = transform_component.transform.get_euler_angles();
+            auto scale = transform_component.transform.scale;
+            rotation = math::float3_degrees(rotation);
+            draw_vec3_control("Translation", position);
+            draw_vec3_control("Rotation", rotation);
+            draw_vec3_control("Scale", scale, 1.0f);
+            transform_component.transform.set_position(position);
+            transform_component.transform.set_rotation_in_degree(rotation);
+            transform_component.transform.set_scale(scale);
         }
     }
 }

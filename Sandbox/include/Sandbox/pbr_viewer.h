@@ -74,9 +74,9 @@ namespace toy::viewer
         std::unique_ptr<MousePickHelper> m_mouse_pick_helper;
 
         // Camera
-        std::shared_ptr<camera_c> m_light_camera;
-        std::shared_ptr<camera_c> m_camera;                                         // Camera
-        FirstPersonCameraController m_camera_controller;                            // Camera controller
+        std::shared_ptr<Camera> m_light_camera;
+        std::shared_ptr<Camera> m_camera;                                         // Camera
+        FirstPersonCameraController m_camera_controller;                          // Camera controller
 
         // Check whether load-file operation is currently executing
         std::atomic<bool> m_busy = false;

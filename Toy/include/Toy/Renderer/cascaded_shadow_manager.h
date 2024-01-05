@@ -26,7 +26,7 @@ namespace toy
 
         static CascadedShadowManager &get();
 
-        void update_frame(const camera_c &viewer_camera, const camera_c &light_camera, const DirectX::BoundingBox &scene_bounding_box);
+        void update_frame(const Camera &viewer_camera, const Camera &light_camera, const DirectX::BoundingBox &scene_bounding_box);
 
         [[nodiscard]] ID3D11RenderTargetView *get_cascade_render_target_view(size_t cascade_index) const;
         [[nodiscard]] ID3D11ShaderResourceView *get_cascades_output() const;

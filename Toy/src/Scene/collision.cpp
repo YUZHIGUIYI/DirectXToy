@@ -6,7 +6,6 @@
 
 namespace toy
 {
-    using namespace DirectX;
     // Ray
     Ray::Ray()
     : origin(), direction(0.0f, 0.0f, 1.0f)
@@ -16,13 +15,17 @@ namespace toy
     Ray::Ray(const DirectX::XMFLOAT3 &origin, const DirectX::XMFLOAT3 &direction)
     : origin(origin)
     {
+        using namespace DirectX;
+
         XMVECTOR dirVec = XMLoadFloat3(&direction);
         assert(XMVector3NotEqual(dirVec, g_XMZero));
         XMStoreFloat3(&this->direction, XMVector3Normalize(dirVec));
     }
 
-    Ray Ray::screen_to_ray(const camera_c &camera, float screenX, float screenY)
+    Ray Ray::screen_to_ray(const Camera &camera, float screenX, float screenY)
     {
+        using namespace DirectX;
+
         // 参考DirectX::XMVector3Unproject函数，并省略了从世界坐标系到局部坐标系的变换
 
         // 将屏幕坐标点从视口变换回NDC坐标系
@@ -81,8 +84,9 @@ namespace toy
         return dist > maxDist ? false : res;
     }
 
-    bool XM_CALLCONV Ray::hit(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2, float * pOutDist, float maxDist)
+    bool XM_CALLCONV Ray::hit(DirectX::FXMVECTOR V0, DirectX::FXMVECTOR V1, DirectX::FXMVECTOR V2, float * pOutDist, float maxDist)
     {
+        using namespace DirectX;
         float dist;
         bool res = TriangleTests::Intersects(XMLoadFloat3(&origin), XMLoadFloat3(&direction), V0, V1, V2, dist);
         if (pOutDist)
@@ -93,6 +97,8 @@ namespace toy
     // Collision
     Collision::WireFrameData Collision::create_bounding_box(const DirectX::BoundingBox& box, const DirectX::XMFLOAT4& color)
     {
+        using namespace DirectX;
+
         XMFLOAT3 corners[8];
         box.GetCorners(corners);
         return create_from_corners(corners, color);
@@ -100,6 +106,8 @@ namespace toy
 
     Collision::WireFrameData Collision::create_bounding_oriented_box(const DirectX::BoundingOrientedBox& box, const DirectX::XMFLOAT4& color)
     {
+        using namespace DirectX;
+
         XMFLOAT3 corners[8];
         box.GetCorners(corners);
         return create_from_corners(corners, color);
@@ -107,6 +115,8 @@ namespace toy
 
     Collision::WireFrameData Collision::create_bounding_sphere(const DirectX::BoundingSphere& sphere, const DirectX::XMFLOAT4& color, int slices)
     {
+        using namespace DirectX;
+
         WireFrameData data;
         XMVECTOR center = XMLoadFloat3(&sphere.Center), posVec;
         XMFLOAT3 pos{};
@@ -142,15 +152,19 @@ namespace toy
 
     Collision::WireFrameData Collision::create_bounding_frustum(const DirectX::BoundingFrustum& frustum, const DirectX::XMFLOAT4& color)
     {
+        using namespace DirectX;
+
         XMFLOAT3 corners[8];
         frustum.GetCorners(corners);
         return create_from_corners(corners, color);
     }
 
-    std::vector<transform_c> XM_CALLCONV Collision::frustum_culling(
-            const std::vector<transform_c>& transforms, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj)
+    std::vector<Transform> XM_CALLCONV Collision::frustum_culling(
+            const std::vector<Transform>& transforms, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj)
     {
-        std::vector<transform_c> acceptedData;
+        using namespace DirectX;
+
+        std::vector<Transform> acceptedData;
 
         BoundingFrustum frustum;
         BoundingFrustum::CreateFromMatrix(frustum, Proj);
@@ -171,8 +185,10 @@ namespace toy
     }
 
     void XM_CALLCONV Collision::frustum_culling(
-            std::vector<transform_c>& dest, const std::vector<transform_c>& src, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj)
+            std::vector<Transform>& dest, const std::vector<Transform>& src, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj)
     {
+        using namespace DirectX;
+
         dest.clear();
 
         BoundingFrustum frustum;
