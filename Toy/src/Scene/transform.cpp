@@ -263,6 +263,28 @@ namespace toy
         XMStoreFloat3(&position, new_position);
     }
 
+    void Transform::move_local(const DirectX::XMFLOAT3 &magnitudes)
+    {
+        using namespace DirectX;
+
+        XMVECTOR new_position_vec = XMLoadFloat3(&position);
+
+        XMVECTOR x_axis_increment = XMVectorReplicate(magnitudes.x);
+        XMVECTOR y_axis_increment = XMVectorReplicate(magnitudes.y);
+        XMVECTOR z_axis_increment = XMVectorReplicate(magnitudes.z);
+
+        auto world_matrix = get_local_to_world_matrix_xm();
+        auto unit_x_axis= XMVector3Normalize(world_matrix.r[0]);
+        auto unit_y_axis = XMVector3Normalize(world_matrix.r[1]);
+        auto unit_z_axis = XMVector3Normalize(world_matrix.r[2]);
+
+        new_position_vec += (unit_x_axis * x_axis_increment);
+        new_position_vec += (unit_y_axis * y_axis_increment);
+        new_position_vec += (unit_z_axis * z_axis_increment);
+
+        XMStoreFloat3(&position, new_position_vec);
+    }
+
     void Transform::look_at(const DirectX::XMFLOAT3 &target, const DirectX::XMFLOAT3 &up)
     {
         using namespace DirectX;

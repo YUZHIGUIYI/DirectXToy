@@ -119,6 +119,11 @@ namespace toy
         return m_aspect;
     }
 
+    void Camera::move_local(const DirectX::XMFLOAT3 &magnitudes)
+    {
+        m_transform.move_local(magnitudes);
+    }
+
     void Camera::set_frustum(float fov_y, float aspect, float near_z, float far_z)
     {
         m_fov_y = fov_y;

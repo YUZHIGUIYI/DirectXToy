@@ -48,6 +48,9 @@ namespace toy
         [[nodiscard]] float get_fov_y() const;
         [[nodiscard]] float get_aspect_ratio() const;
 
+        // Move locally in x-y-z directions
+        void move_local(const DirectX::XMFLOAT3 &magnitudes);
+
         // Set frustum
         void set_frustum(float fov_y, float aspect, float near_z, float far_z);
 

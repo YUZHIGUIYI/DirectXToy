@@ -64,6 +64,9 @@ namespace toy
         // Translation in a certain direction
         void translate(const DirectX::XMFLOAT3 &direction, float magnitude);
 
+        // Move locally in x-y-z directions
+        void move_local(const DirectX::XMFLOAT3 &magnitudes);
+
         // Look at point
         void look_at(const DirectX::XMFLOAT3 &target, const DirectX::XMFLOAT3 &up = { 0.0f, 1.0f, 0.0f });
         // Look in a certain direction

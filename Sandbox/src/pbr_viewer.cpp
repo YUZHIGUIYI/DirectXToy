@@ -7,6 +7,8 @@
 #include <Toy/Renderer/taa_settings.h>
 #include <Toy/Renderer/cascaded_shadow_manager.h>
 
+#include <imgui_user/imgui_user.h>
+
 #include <IconsFontAwesome6.h>
 
 namespace toy::viewer
@@ -66,6 +68,7 @@ namespace toy::viewer
         SimpleSkyboxEffect::get().init(d3d_device);
         PreProcessEffect::get().init(d3d_device);
         TAAEffect::get().init(d3d_device);
+        GizmosWireEffect::get().init(d3d_device);
 
         // Initialize shadow
         CascadedShadowManager::get().init(d3d_device);
@@ -180,6 +183,10 @@ namespace toy::viewer
 
         m_viewer_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
         m_viewer_hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
+
+        ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyle().Colors[ImGuiCol_Button]);
+        ImGui::RenderFrameEx(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true, 0.0f, 2.0f);
+        ImGui::PopStyleColor();
 
         ImGui::Image(m_viewer_buffer->get_shader_resource(), ImGui::GetContentRegionAvail());
 
@@ -575,6 +582,20 @@ namespace toy::viewer
         DeferredPBREffect::get().set_lighting_pass_render();
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                         m_gbuffer, m_camera->get_viewport());
+
+        // TODO: test gizmos wire effect
+        if (m_selected_entity.is_valid())
+        {
+            auto&& gizmos_wire_effect = GizmosWireEffect::get();
+            auto& transform_component = m_selected_entity.get_component<TransformComponent>();
+            auto world_matrix = transform_component.transform.get_local_to_world_matrix_xm();
+            auto& static_mesh_component = m_selected_entity.get_component<StaticMeshComponent>();
+            gizmos_wire_effect.set_world_matrix(world_matrix);
+            gizmos_wire_effect.set_view_matrix(m_camera->get_view_xm());
+            gizmos_wire_effect.set_proj_matrix(m_camera->get_proj_xm(true));
+            gizmos_wire_effect.set_vertex_buffer(d3d_device_context, static_mesh_component.get_local_bounding_box());
+            gizmos_wire_effect.render(d3d_device_context, m_cur_buffer->get_render_target(), m_depth_buffer->get_depth_stencil(), m_camera->get_viewport());
+        }
 
         if (first_frame)
         {
