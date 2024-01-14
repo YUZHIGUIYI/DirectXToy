@@ -8,18 +8,16 @@
 
 namespace toy
 {
-    class window_close_event_c
+    class WindowCloseEvent
     {
     public:
-        window_close_event_c() = default;
-
         EVENT_CLASS_TYPE(WindowClose);
     };
 
-    class window_resize_event_c
+    class WindowResizeEvent
     {
     public:
-        window_resize_event_c(int32_t width, int32_t height)
+        explicit WindowResizeEvent(int32_t width, int32_t height)
         : window_width(width), window_height(height)
         {
         }
@@ -31,53 +29,152 @@ namespace toy
         int32_t window_height;
     };
 
-    class key_event_c
+    class KeyPressedEvent
     {
     public:
-        key_event_c(const key_code key_code_in)
-        : key_code_save(key_code_in)
-        {
-
-        }
-
-        key_code key_code_save;
-    };
-
-    class key_pressed_event_c : public key_event_c
-    {
-    public:
-        key_pressed_event_c(const key_code key_code_in, bool repeat_in = false)
-        : key_event_c(key_code_in), repeat(repeat_in)
+        explicit KeyPressedEvent(const key_code key_code_in, int32_t mods, bool repeat_in = false)
+        : key_code_save(key_code_in), mod_keys(mods), repeat(repeat_in)
         {
 
         }
 
         EVENT_CLASS_TYPE(KeyPressed);
 
+        key_code key_code_save;
+        int32_t mod_keys;
         bool repeat;
     };
 
-    class key_released_event_c : public key_event_c
+    class KeyReleasedEvent
     {
     public:
-        key_released_event_c(const key_code key_code_in)
-        : key_event_c(key_code_in)
+        explicit KeyReleasedEvent(const key_code key_code_in, int32_t mods)
+        : key_code_save(key_code_in), mod_keys(mods)
         {
 
         }
 
         EVENT_CLASS_TYPE(KeyReleased);
+
+        key_code key_code_save;
+        int32_t mod_keys;
     };
 
-    class key_typed_event_c : public key_event_c
+    class KeyTypedEvent
     {
     public:
-        key_typed_event_c(const key_code key_code_in)
-        : key_event_c(key_code_in)
+        explicit KeyTypedEvent(const key_code key_code_in, int32_t mods)
+        : key_code_save(key_code_in), mod_keys(mods)
         {
 
         }
 
         EVENT_CLASS_TYPE(KeyTyped)
+
+        key_code key_code_save;
+        int32_t mod_keys;
+    };
+
+    class MouseMovedEvent
+    {
+    public:
+        explicit MouseMovedEvent(const float x, const float y)
+        : mouse_x_pos(x), mouse_y_pos(y)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(MouseMoved)
+
+        float mouse_x_pos;
+        float mouse_y_pos;
+    };
+
+    class MouseScrolledEvent
+    {
+    public:
+        explicit MouseScrolledEvent(const float x_offset, const float y_offset)
+        : mouse_x_offset(x_offset), mouse_y_offset(y_offset)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(MouseScrolled)
+
+        float mouse_x_offset;
+        float mouse_y_offset;
+    };
+
+    class MouseButtonPressedEvent
+    {
+    public:
+        explicit MouseButtonPressedEvent(const mouse_code button, int32_t mods)
+        : mouse_button(button), mod_keys(mods)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(MouseButtonPressed)
+
+        mouse_code mouse_button;
+        int32_t mod_keys;
+    };
+
+    class MouseButtonReleasedEvent
+    {
+    public:
+        explicit MouseButtonReleasedEvent(const mouse_code button, int32_t mods)
+        : mouse_button(button), mod_keys(mods)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(MouseButtonReleased)
+
+        mouse_code mouse_button;
+        int32_t mod_keys;
+    };
+
+    class DropEvent
+    {
+    public:
+        explicit DropEvent(std::string_view filename)
+        : drop_filename(filename)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(Drop)
+
+        std::string_view drop_filename;
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

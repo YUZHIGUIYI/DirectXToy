@@ -42,7 +42,7 @@ namespace toy
 
             if (close_d3d_app)
             {
-                m_d3d_app->on_close(window_close_event_c{});
+                m_d3d_app->on_close(WindowCloseEvent{});
             }
         }
 

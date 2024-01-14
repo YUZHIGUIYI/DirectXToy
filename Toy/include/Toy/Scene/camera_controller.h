@@ -36,18 +36,9 @@ namespace toy
         FirstPersonCamera* m_camera = nullptr;
         GLFWwindow* m_glfw_window = nullptr;
 
-        float m_move_speed = 5.0f;
-        float m_mouse_sensitivity_x = 0.005f;
-        float m_mouse_sensitivity_y = 0.005f;
-
-        float m_current_yaw = 0.0f;
-        float m_current_pitch = 0.0f;
-
-        DirectX::XMFLOAT3 m_move_direction = {};
-        float m_move_velocity = 0.0f;
-        float m_velocity_drag = 0.0f;
-        float m_total_drag_time_to_zero = 0.25f;
-        float m_drag_timer = 0.0f;
+        float m_move_speed = 15.0f;
+        float m_mouse_sensitivity_x = 0.008f;
+        float m_mouse_sensitivity_y = 0.008f;
     };
 }
 

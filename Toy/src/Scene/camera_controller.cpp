@@ -18,43 +18,50 @@ namespace toy
         using namespace DirectX;
         ImGuiIO& io = ImGui::GetIO();
 
-        float yaw = 0.0f, pitch = 0.0f;
-        if (ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+        static constexpr float multiplier = 5.0f;
+        if (DX_INPUT::is_mouse_button_pressed(m_glfw_window, mouse::ButtonMiddle))
         {
-            yaw += io.MouseDelta.x * m_mouse_sensitivity_x;
-            pitch += io.MouseDelta.y * m_mouse_sensitivity_y;
-        }
-
-        int32_t forward = (
-            (DX_INPUT::is_key_pressed(m_glfw_window, key::W) ?  1 : 0) +
-            (DX_INPUT::is_key_pressed(m_glfw_window, key::S) ? -1 : 0));
-        int32_t strafe = (
-            (DX_INPUT::is_key_pressed(m_glfw_window, key::A) ? -1 : 0) +
-            (DX_INPUT::is_key_pressed(m_glfw_window, key::D) ?  1 : 0));
-        if (forward || strafe)
-        {
-            // Note: only state "using namespace DirectX" in advance, can you use operator*
-            XMVECTOR dir = m_camera->get_look_axis_xm() * static_cast<float>(forward) + m_camera->get_right_axis_xm() * static_cast<float>(strafe);
-            XMStoreFloat3(&m_move_direction, dir);
-            m_move_velocity = m_move_speed;
-            m_drag_timer = m_total_drag_time_to_zero;
-            m_velocity_drag = m_move_speed / m_drag_timer;
-        } else
-        {
-            if (m_drag_timer > 0.0f)
+            float delta_move_x = io.MouseDelta.x;
+            float delta_move_y = io.MouseDelta.y;
+            if (DX_INPUT::is_key_pressed(m_glfw_window, key::LeftShift))
             {
-                m_drag_timer -= delta_time;
-                m_move_velocity -= m_velocity_drag * delta_time;
-            } else
+                delta_move_x *= multiplier;
+                delta_move_y *= multiplier;
+            }
+            if (delta_move_x != 0.0f)
             {
-                m_move_velocity = 0.0f;
+                m_camera->move_local(DirectX::XMFLOAT3{ -1.0f * delta_move_x * m_mouse_sensitivity_x, 0.0f, 0.0f });
+            }
+            if (delta_move_y != 0.0f)
+            {
+                m_camera->move_local(DirectX::XMFLOAT3{ 0.0f, delta_move_y * m_mouse_sensitivity_y, 0.0f });
             }
         }
 
-        m_camera->rotate_y(yaw);
-        m_camera->pitch(pitch);
+        if (DX_INPUT::is_mouse_button_pressed(m_glfw_window, mouse::ButtonRight))
+        {
+            if (DX_INPUT::is_key_pressed(m_glfw_window, key::W))
+            {
+                m_camera->move_local(DirectX::XMFLOAT3{ 0.0f, 0.0f, m_move_speed * delta_time });
+            }
+            if (DX_INPUT::is_key_pressed(m_glfw_window, key::S))
+            {
+                m_camera->move_local(DirectX::XMFLOAT3{ 0.0f, 0.0f, -m_move_speed * delta_time });
+            }
+            if (DX_INPUT::is_key_pressed(m_glfw_window, key::A))
+            {
+                m_camera->move_local(DirectX::XMFLOAT3{ -m_move_speed * delta_time, 0.0f, 0.0f });
+            }
+            if (DX_INPUT::is_key_pressed(m_glfw_window, key::D))
+            {
+                m_camera->move_local(DirectX::XMFLOAT3{ m_move_speed * delta_time, 0.0f, 0.0f });
+            }
 
-        m_camera->translate(m_move_direction, m_move_velocity * delta_time);
+            float yaw = io.MouseDelta.x * m_mouse_sensitivity_x;
+            float pitch = io.MouseDelta.y * m_mouse_sensitivity_y;
+            m_camera->rotate_y(yaw);
+            m_camera->pitch(pitch);
+        }
     }
 
     void FirstPersonCameraController::set_mouse_sensitivity(float x, float y)

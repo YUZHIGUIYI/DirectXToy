@@ -9,7 +9,7 @@
 
 namespace toy
 {
-    class event_manager_c
+    class EventManager
     {
     public:
         // GLFW registers callbacks
@@ -21,8 +21,8 @@ namespace toy
          */
         static void update();
 
-        static uint32_t subscribe(event_type_e event_type, std::function<void(const event_t &)> &&event_callback);
+        static uint32_t subscribe(EventType event_type, std::function<void(const EngineEventVariant &)> &&event_callback);
 
-        static void unsubscribe(event_type_e event_type, uint32_t subscriber_id);
+        static void unsubscribe(EventType event_type, uint32_t subscriber_id);
     };
 }

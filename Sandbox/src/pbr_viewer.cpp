@@ -230,7 +230,6 @@ namespace toy::viewer
         light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
         m_camera_controller.init(camera.get(), m_d3d_app->get_glfw_window());
-        m_camera_controller.set_move_speed(30.0f);
 
         // Note: Initialize effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();

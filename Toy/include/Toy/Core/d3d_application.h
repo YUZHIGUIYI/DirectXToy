@@ -6,6 +6,7 @@
 
 #include <Toy/Core/base.h>
 #include <Toy/Core/layer.h>
+#include <Toy/Core/simulation.h>
 #include <Toy/Events/event_manager.h>
 
 namespace toy
@@ -31,11 +32,15 @@ namespace toy
 
         [[nodiscard]] ID3D11RenderTargetView* get_back_buffer_rtv() const { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
 
-    public:
-        void init();                                                // Init window and direct3D
+        [[nodiscard]] float get_delta_time() const { return m_simulation->get_delta_ime(); }
+        [[nodiscard]] uint32_t get_fps() const { return m_simulation->get_fps(); }
+        [[nodiscard]] std::chrono::steady_clock::duration get_time_since_launch() const { return m_simulation->get_time_since_launch(); }
 
-        void on_resize(const event_t& event);                        // Call when resize window
-        void on_close(const event_t& event);                         // Call when close window
+    public:
+        void init();                                                 // Init window and direct3D
+
+        void on_resize(const EngineEventVariant &event_variant);     // Call when resize window
+        void on_close(const EngineEventVariant &event_variant);      // Call when close window
         void tick();                                                 // Run application, and game-loop
         void reset_render_target();                                  // Set render target view of back buffer to current render target view
         void present();                                              // Present back buffer view
@@ -50,6 +55,8 @@ namespace toy
     protected:
         GLFWwindow* m_glfw_window;                                  // GLFW window
         HWND m_main_wnd;                                            // Main window handle
+
+        std::unique_ptr<Simulation> m_simulation = nullptr;         // Simulation subsystem
 
         // Direct3D 11
         com_ptr<ID3D11Device> m_d3d_device;                         // D3D11 Device
@@ -73,7 +80,6 @@ namespace toy
         bool m_app_stopped;                                         // Application pause
         bool m_window_minimized;                                    // Application minimized
         bool m_window_maximized;                                    // Application maximized
-        bool m_window_resized;                                      // Application resize
 
     private:
         std::vector<std::shared_ptr<ILayer>> m_layer_stack;

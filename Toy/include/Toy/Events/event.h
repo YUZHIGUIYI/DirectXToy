@@ -9,21 +9,31 @@
 
 namespace toy
 {
-    enum class event_type_e
+    enum class EventType
     {
         None = 0,
-        WindowClose = 1, WindowResize = 2, WindowFocus, WindowLostFocus, WindowMoved,
-        KeyPressed, KeyReleased, KeyTyped,
-        MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
+        WindowClose = 1, WindowResize = 2,
+        KeyPressed, KeyReleased,
+        MouseMoved, MouseScrolled, MouseButtonPressed, MouseButtonReleased,
+        Drop,
+        KeyTyped
     };
 
-#define EVENT_CLASS_TYPE(type) static event_type_e get_static_type() { return event_type_e::type; } \
-                                event_type_e get_event_type() const { return get_static_type(); } \
+#define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::type; } \
+                                EventType get_event_type() const { return get_static_type(); } \
                                 const char* get_name() const { return #type; }
 
-    class window_close_event_c;
-    class window_resize_event_c;
-    class key_event_c;
+    class WindowCloseEvent;
+    class WindowResizeEvent;
+    class KeyPressedEvent;
+    class KeyReleasedEvent;
+    class MouseMovedEvent;
+    class MouseScrolledEvent;
+    class MouseButtonPressedEvent;
+    class MouseButtonReleasedEvent;
+    class DropEvent;
 
-    using event_t = std::variant<window_close_event_c, window_resize_event_c, key_event_c>;
+    using EngineEventVariant = std::variant<WindowCloseEvent, WindowResizeEvent, KeyPressedEvent, KeyReleasedEvent,
+                                MouseMovedEvent, MouseScrolledEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent,
+                                DropEvent>;
 }
