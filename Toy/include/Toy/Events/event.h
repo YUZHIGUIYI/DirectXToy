@@ -13,10 +13,9 @@ namespace toy
     {
         None = 0,
         WindowClose = 1, WindowResize = 2,
-        KeyPressed, KeyReleased,
-        MouseMoved, MouseScrolled, MouseButtonPressed, MouseButtonReleased,
-        Drop,
-        KeyTyped
+        KeyTyped,
+        MouseMoved, MouseScrolled, MouseButton,
+        Drop
     };
 
 #define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::type; } \
@@ -25,15 +24,13 @@ namespace toy
 
     class WindowCloseEvent;
     class WindowResizeEvent;
-    class KeyPressedEvent;
-    class KeyReleasedEvent;
+    class KeyTypedEvent;
     class MouseMovedEvent;
     class MouseScrolledEvent;
-    class MouseButtonPressedEvent;
-    class MouseButtonReleasedEvent;
+    class MouseButtonEvent;
     class DropEvent;
 
-    using EngineEventVariant = std::variant<WindowCloseEvent, WindowResizeEvent, KeyPressedEvent, KeyReleasedEvent,
-                                MouseMovedEvent, MouseScrolledEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent,
+    using EngineEventVariant = std::variant<WindowCloseEvent, WindowResizeEvent, KeyTypedEvent,
+                                MouseMovedEvent, MouseScrolledEvent, MouseButtonEvent,
                                 DropEvent>;
 }

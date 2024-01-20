@@ -51,16 +51,16 @@ namespace toy
         using namespace DirectX;
 
         static ImGuizmo::OPERATION gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-        bool shift_pressed = DX_INPUT::is_key_pressed(m_glfw_window, key::LeftShift);
-        if (shift_pressed && !ImGuizmo::IsUsing())
+        auto&& input_controller = InputController::get();
+        if (!ImGuizmo::IsUsing())
         {
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::W))
+            if (input_controller.is_key_pressed_with_mod(key::W, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-            } else if (DX_INPUT::is_key_pressed(m_glfw_window, key::R))
+            } else if (input_controller.is_key_pressed_with_mod(key::R, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::SCALE;
-            } else if (DX_INPUT::is_key_pressed(m_glfw_window, key::E))
+            } else if (input_controller.is_key_pressed_with_mod(key::E, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::ROTATE;
             }

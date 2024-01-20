@@ -4,6 +4,7 @@
 
 #include <Toy/Core/d3d_application.h>
 #include <Toy/ImGui/imgui_pass.h>
+#include <Toy/Core/input.h>
 
 namespace toy
 {
@@ -34,6 +35,9 @@ namespace toy
 
         // Initialize simulation
         m_simulation = std::make_unique<Simulation>();
+
+        // Initialize input controller
+        InputController::get().register_event(m_glfw_window);
 
         // Initialize DirectX 11
         init_d3d();
@@ -112,6 +116,8 @@ namespace toy
             m_simulation->run_one_frame(true);
 
             EventManager::update();
+
+            InputController::get().update_state();
 
             if (!m_window_minimized)
             {

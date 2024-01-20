@@ -10,16 +10,14 @@ namespace toy
 
     void EventManager::init(GLFWwindow *glfw_window)
     {
-        event_delegate_factory.reserve(9);
+        event_delegate_factory.reserve(7);
         event_delegate_factory.emplace_back();  // 0 - Window close event
         event_delegate_factory.emplace_back();  // 1 - Window resize event
-        event_delegate_factory.emplace_back();  // 2 - Key pressed event
-        event_delegate_factory.emplace_back();  // 3 - Key released event
-        event_delegate_factory.emplace_back();  // 4 - Mouse moved event
-        event_delegate_factory.emplace_back();  // 5 - Mouse scrolled event
-        event_delegate_factory.emplace_back();  // 6 - Mouse button pressed event
-        event_delegate_factory.emplace_back();  // 7 - Mouse button released event
-        event_delegate_factory.emplace_back();  // 8 - Drop event
+        event_delegate_factory.emplace_back();  // 2 - Key typed event
+        event_delegate_factory.emplace_back();  // 3 - Mouse moved event
+        event_delegate_factory.emplace_back();  // 4 - Mouse scrolled event
+        event_delegate_factory.emplace_back();  // 5 - Mouse button event
+        event_delegate_factory.emplace_back();  // 6 - Drop event
 
         // Window close callback - 0
         glfwSetWindowCloseCallback(glfw_window, [](GLFWwindow* window)
@@ -40,29 +38,10 @@ namespace toy
         // Key callback - 2 && 3
 //        glfwSetKeyCallback(glfw_window, [](GLFWwindow* window, int32_t key_in, int32_t scan_code, int32_t action, int32_t mods)
 //        {
-//            switch (action)
-//            {
-//                case GLFW_PRESS:
-//                {
-//                    EngineEventVariant event = KeyPressedEvent{static_cast<key_code>(key_in), mods, false};
-//                    event_delegate_factory[event.index()].fire(event);
-//                    break;
-//                }
-//                case GLFW_RELEASE:
-//                {
-//                    EngineEventVariant event = KeyReleasedEvent{static_cast<key_code>(key_in), mods};
-//                    event_delegate_factory[event.index()].fire(event);
-//                    break;
-//                }
-//                case GLFW_REPEAT:
-//                {
-//                    EngineEventVariant event = KeyPressedEvent{static_cast<key_code>(key_in), mods, true};
-//                    event_delegate_factory[event.index()].fire(event);
-//                    break;
-//                }
-//                default:
-//                    break;
-//            }
+//            bool is_pressed = ((action & GLFW_PRESS) || (action & GLFW_REPEAT));
+//            bool is_repeat = (action & GLFW_REPEAT) != 0;
+//            EngineEventVariant event = KeyTypedEvent{ static_cast<key_code>(key_in), mods, is_pressed, is_repeat };
+//            event_delegate_factory[event.index()].fire(event);
 //        });
 
         // Mouse moved callback - 4
@@ -80,13 +59,8 @@ namespace toy
         // Mouse button callbacks - 6 && 7
 //        glfwSetMouseButtonCallback(glfw_window, [](GLFWwindow* window, int32_t button, int32_t action, int32_t mods)
 //        {
-//            switch (action)
-//            {
-//                case GLFW_PRESS:
-//                case GLFW_RELEASE:
-//                default:
-//                    break;
-//            }
+//            EngineEventVariant event = MouseButtonEvent{ static_cast<mouse_code>(button), mods };
+//            event_delegate_factory[event.index()].fire(event);
 //        });
 
         // Drop callback - 8

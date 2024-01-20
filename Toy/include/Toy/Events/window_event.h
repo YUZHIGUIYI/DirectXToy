@@ -29,50 +29,21 @@ namespace toy
         int32_t window_height;
     };
 
-    class KeyPressedEvent
-    {
-    public:
-        explicit KeyPressedEvent(const key_code key_code_in, int32_t mods, bool repeat_in = false)
-        : key_code_save(key_code_in), mod_keys(mods), repeat(repeat_in)
-        {
-
-        }
-
-        EVENT_CLASS_TYPE(KeyPressed);
-
-        key_code key_code_save;
-        int32_t mod_keys;
-        bool repeat;
-    };
-
-    class KeyReleasedEvent
-    {
-    public:
-        explicit KeyReleasedEvent(const key_code key_code_in, int32_t mods)
-        : key_code_save(key_code_in), mod_keys(mods)
-        {
-
-        }
-
-        EVENT_CLASS_TYPE(KeyReleased);
-
-        key_code key_code_save;
-        int32_t mod_keys;
-    };
-
     class KeyTypedEvent
     {
     public:
-        explicit KeyTypedEvent(const key_code key_code_in, int32_t mods)
-        : key_code_save(key_code_in), mod_keys(mods)
+        explicit KeyTypedEvent(const key_code key_code_in, int32_t mods, bool is_pressed, bool is_repeat = false)
+        : key_code_save(key_code_in), mod_keys(mods), pressed(is_pressed), repeat(is_repeat)
         {
 
         }
 
-        EVENT_CLASS_TYPE(KeyTyped)
+        EVENT_CLASS_TYPE(KeyTyped);
 
         key_code key_code_save;
         int32_t mod_keys;
+        bool pressed;
+        bool repeat;
     };
 
     class MouseMovedEvent
@@ -105,31 +76,16 @@ namespace toy
         float mouse_y_offset;
     };
 
-    class MouseButtonPressedEvent
+    class MouseButtonEvent
     {
     public:
-        explicit MouseButtonPressedEvent(const mouse_code button, int32_t mods)
+        explicit MouseButtonEvent(const mouse_code button, int32_t mods)
         : mouse_button(button), mod_keys(mods)
         {
 
         }
 
-        EVENT_CLASS_TYPE(MouseButtonPressed)
-
-        mouse_code mouse_button;
-        int32_t mod_keys;
-    };
-
-    class MouseButtonReleasedEvent
-    {
-    public:
-        explicit MouseButtonReleasedEvent(const mouse_code button, int32_t mods)
-        : mouse_button(button), mod_keys(mods)
-        {
-
-        }
-
-        EVENT_CLASS_TYPE(MouseButtonReleased)
+        EVENT_CLASS_TYPE(MouseButton)
 
         mouse_code mouse_button;
         int32_t mod_keys;

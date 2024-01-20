@@ -9,22 +9,41 @@
 
 namespace toy
 {
-    // TODO: will be reconstructed
-    class input_c
+    class InputController
     {
+    private:
+        InputController();
+
     public:
-        static bool is_key_pressed(GLFWwindow* glfw_window, key_code key_in);
+        InputController(const InputController &) = delete;
+        InputController &operator=(const InputController &) = delete;
 
-        static bool is_mouse_button_pressed(GLFWwindow* glfw_window, mouse_code button);
+        // Tick
+        void update_state();
 
-        static std::pair<float, float> get_mouse_position(GLFWwindow* glfw_window);
+        // Register
+        void register_event(GLFWwindow *glfw_window);
 
-        static float get_mouse_x(GLFWwindow* glfw_window);
+        [[nodiscard]] bool is_key_pressed(key_code key_in) const;
 
-        static float get_mouse_y(GLFWwindow* glfw_window);
+        // Require Shift, Control or Alt
+        [[nodiscard]] bool is_key_pressed_with_mod(key_code key_in, key_code key_mod) const;
+
+        [[nodiscard]] bool is_key_pressed_with_mouse(key_code key_in, mouse_code button) const;
+
+        [[nodiscard]] bool is_mouse_button_pressed(mouse_code button) const;
+
+        DirectX::XMFLOAT2 get_cursor_position();
+
+        static InputController &get();
+
+    private:
+        void reset_state();
+
+    private:
+        struct PrivateData;
+        std::unique_ptr<PrivateData> m_private_data;
     };
-
-    using DX_INPUT = input_c;
 }
 
 

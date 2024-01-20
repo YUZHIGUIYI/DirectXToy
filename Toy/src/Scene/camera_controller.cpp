@@ -16,14 +16,15 @@ namespace toy
     void FirstPersonCameraController::update(float delta_time)
     {
         using namespace DirectX;
+        auto&& input_controller = InputController::get();
         ImGuiIO& io = ImGui::GetIO();
 
         static constexpr float multiplier = 5.0f;
-        if (DX_INPUT::is_mouse_button_pressed(m_glfw_window, mouse::ButtonMiddle))
+        if (input_controller.is_mouse_button_pressed(mouse::ButtonMiddle))
         {
             float delta_move_x = io.MouseDelta.x;
             float delta_move_y = io.MouseDelta.y;
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::LeftShift))
+            if (input_controller.is_key_pressed(key::LeftShift))
             {
                 delta_move_x *= multiplier;
                 delta_move_y *= multiplier;
@@ -38,21 +39,21 @@ namespace toy
             }
         }
 
-        if (DX_INPUT::is_mouse_button_pressed(m_glfw_window, mouse::ButtonRight))
+        if (input_controller.is_mouse_button_pressed(mouse::ButtonRight))
         {
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::W))
+            if (input_controller.is_key_pressed(key::W))
             {
                 m_camera->move_local(DirectX::XMFLOAT3{ 0.0f, 0.0f, m_move_speed * delta_time });
             }
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::S))
+            if (input_controller.is_key_pressed(key::S))
             {
                 m_camera->move_local(DirectX::XMFLOAT3{ 0.0f, 0.0f, -m_move_speed * delta_time });
             }
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::A))
+            if (input_controller.is_key_pressed(key::A))
             {
                 m_camera->move_local(DirectX::XMFLOAT3{ -m_move_speed * delta_time, 0.0f, 0.0f });
             }
-            if (DX_INPUT::is_key_pressed(m_glfw_window, key::D))
+            if (input_controller.is_key_pressed(key::D))
             {
                 m_camera->move_local(DirectX::XMFLOAT3{ m_move_speed * delta_time, 0.0f, 0.0f });
             }

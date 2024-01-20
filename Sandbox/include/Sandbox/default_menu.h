@@ -34,8 +34,8 @@ namespace toy
             }
 
             // Shortcuts
-            GLFWwindow* glfw_window = m_d3d_app->get_glfw_window();
-            if (DX_INPUT::is_key_pressed(glfw_window, key::Q) && DX_INPUT::is_key_pressed(glfw_window, key::LeftControl))
+            auto&& input_controller = InputController::get();
+            if (input_controller.is_key_pressed_with_mod(key::Q, key::LeftControl))
             {
                 close_d3d_app = true;
             }

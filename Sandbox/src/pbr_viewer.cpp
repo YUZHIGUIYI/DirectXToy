@@ -129,10 +129,6 @@ namespace toy::viewer
 
         if (m_busy) return;
         auto glfw_window = m_d3d_app->get_glfw_window();
-        if (DX_INPUT::is_key_pressed(glfw_window, key::O) && DX_INPUT::is_key_pressed(glfw_window, key::LeftControl))
-        {
-            load_file = true;
-        }
 
         if (load_file)
         {
@@ -446,7 +442,8 @@ namespace toy::viewer
         m_editor_scene->frustum_culling(frustum);
 
         // Pick entity via entity id
-        if (!ImGuizmo::IsUsing() && DX_INPUT::is_mouse_button_pressed(m_d3d_app->get_glfw_window(), mouse::ButtonLeft))
+        auto&& input_controller = InputController::get();
+        if (!ImGuizmo::IsUsing() && input_controller.is_mouse_button_pressed(mouse::ButtonLeft))
         {
             auto [mouse_pos_x, mouse_pos_y] = ImGui::GetMousePos();
             mouse_pos_x -= m_viewer_spec.lower_bound.x;
