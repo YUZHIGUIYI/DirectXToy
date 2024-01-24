@@ -4,7 +4,6 @@
 
 #include <Toy/Core/logger.h>
 
-
 namespace toy
 {
     Logger& Logger::get()
@@ -34,5 +33,14 @@ namespace toy
         spdlog::register_logger(m_client_logger);
         m_client_logger->set_level(spdlog::level::trace);
         m_client_logger->flush_on(spdlog::level::trace);
+    }
+
+    void Logger::register_console_sink(const spdlog::sink_ptr &console_sink)
+    {
+        auto&& core_sinks_vec = m_core_logger->sinks();
+        auto&& client_sinks_vec = m_client_logger->sinks();
+
+        core_sinks_vec.push_back(console_sink);
+        client_sinks_vec.push_back(console_sink);
     }
 }

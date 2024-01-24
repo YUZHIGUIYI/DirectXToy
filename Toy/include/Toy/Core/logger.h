@@ -21,6 +21,7 @@ namespace toy
 
         static Logger &get();
 
+        void register_console_sink(const spdlog::sink_ptr &console_sink);
     public:
         std::shared_ptr<spdlog::logger> m_core_logger;
         std::shared_ptr<spdlog::logger> m_client_logger;

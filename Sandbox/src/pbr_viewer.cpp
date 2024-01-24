@@ -78,6 +78,7 @@ namespace toy::viewer
         m_scene_hierarchy_panel = std::make_unique<SceneHierarchyPanel>();
         m_gizmos = std::make_unique<Gizmos>(m_d3d_app->get_glfw_window());
         m_content_browser = std::make_unique<ContentBrowser>();
+        m_console_dock = std::make_unique<ConsoleDock>();
 
         // Initialize resource
         init_resource();
@@ -200,6 +201,9 @@ namespace toy::viewer
 
         // Rendering content browser
         m_content_browser->on_browser_render();
+
+        // Rendering console dock
+        m_console_dock->on_console_render();
     }
 
     void PBRViewer::init_resource()
