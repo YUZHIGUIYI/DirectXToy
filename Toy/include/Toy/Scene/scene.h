@@ -20,7 +20,7 @@ namespace toy
         std::vector<entt::entity> general_static_mesh_entities;
 
     public:
-        Scene() = default;
+        Scene();
 
         Entity create_entity(std::string_view entity_name);
         void destroy_entity(const Entity &entity);
@@ -37,7 +37,7 @@ namespace toy
 
         bool pick_entity(Entity &selected_entity, const Camera &camera, float mouse_pos_x, float mouse_pos_y);
 
-        bool get_entity(Entity &selected_entity, uint32_t entity_id);
+        Entity get_entity(uint32_t entity_id);
 
         Entity get_skybox_entity();
 
@@ -48,6 +48,7 @@ namespace toy
         std::vector<entt::entity> entities_in_viewer;
         std::vector<entt::entity> illuminant_entities_in_viewer;
         entt::entity skybox_entity = entt::null;
+        DirectX::BoundingBox scene_bounding_box = {};
     };
 }
 

@@ -457,9 +457,9 @@ namespace toy::viewer
             {
                 uint32_t entity_id = m_mouse_pick_helper->pick_entity(m_d3d_app->get_device(), m_d3d_app->get_device_context(),
                                                 m_gbuffer.entity_id_buffer->get_texture(), static_cast<int32_t>(mouse_pos_x), static_cast<int32_t>(mouse_pos_y));
-                bool is_valid = m_editor_scene->get_entity(m_selected_entity, entity_id);
-                DX_CORE_INFO("Mouse position: {} + {}, pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
-                if (is_valid) m_scene_hierarchy_panel->set_selected_entity(m_selected_entity);
+                m_selected_entity = m_editor_scene->get_entity(entity_id);
+                DX_INFO("Mouse position: {} + {}, pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
+                m_scene_hierarchy_panel->set_selected_entity(m_selected_entity);
             }
         }
     }
@@ -583,7 +583,7 @@ namespace toy::viewer
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                         m_gbuffer, m_camera->get_viewport());
 
-        // TODO: test gizmos wire effect
+        // TODO: gizmos wire effect test
         if (m_selected_entity.is_valid())
         {
             auto&& gizmos_wire_effect = GizmosWireEffect::get();

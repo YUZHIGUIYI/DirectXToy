@@ -48,6 +48,9 @@ namespace toy
         [[nodiscard]] float get_fov_y() const;
         [[nodiscard]] float get_aspect_ratio() const;
 
+        // Check dirty flag
+        [[nodiscard]] bool is_dirty() const;
+
         // Move locally in x-y-z directions
         void move_local(const DirectX::XMFLOAT3 &magnitudes);
 
@@ -57,6 +60,9 @@ namespace toy
         // Set viewport
         void set_viewport(const D3D11_VIEWPORT &viewPort);
         void set_viewport(float top_left_x, float top_left_y, float width, float height, float min_depth = 0.0f, float max_depth = 1.0f);
+
+        // Set dirty flag
+        void set_dirty_flag(bool is_dirty);
 
     private:
         Transform m_transform = {};
@@ -69,6 +75,9 @@ namespace toy
 
         // Current viewport
         D3D11_VIEWPORT m_viewport = {};
+
+        // Dirty flag
+        bool m_dirty = false;
 
         // Friends
         friend class FirstPersonCamera;

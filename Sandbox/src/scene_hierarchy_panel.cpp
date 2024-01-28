@@ -144,14 +144,15 @@ namespace toy
         auto& transform_component = entity.get_component<TransformComponent>();
         if (!static_mesh_component.is_skybox)
         {
-            auto& tag = entity.get_component<TagComponent>().tag;
+            auto& entity_tag = entity.get_component<TagComponent>().tag;
 
-            char buffer[256];
-            std::memset(buffer, 0, sizeof(buffer));
-            strncpy_s(buffer, sizeof(buffer), tag.data(), 256);
-            if (ImGui::InputText("##Tag", buffer, sizeof(buffer), ImGuiInputTextFlags_ReadOnly))
+            static std::array<char, 256> tag_buffer;
+            tag_buffer.fill(0);
+            size_t minimum_tag_size = std::min(entity_tag.size(), tag_buffer.size());
+            std::memcpy(tag_buffer.data(), entity_tag.data(), minimum_tag_size);
+            if (ImGui::InputText("##Tag", tag_buffer.data(), sizeof(tag_buffer), ImGuiInputTextFlags_EnterReturnsTrue))
             {
-
+                entity_tag.assign(tag_buffer.data(), tag_buffer.size());
             }
 
             auto position = transform_component.transform.position;

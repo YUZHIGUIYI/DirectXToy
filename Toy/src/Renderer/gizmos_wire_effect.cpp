@@ -131,22 +131,22 @@ namespace toy
     {
         using namespace DirectX;
 
-        std::vector<XMFLOAT3> temp_wire_cube_data;
-        temp_wire_cube_data.reserve(8);
+        static std::array<XMFLOAT3, 8> temp_wire_cube_data;
 
+        // Properly expand the size of bounding box
         auto&& bounding_center = bounding_box.Center;
-        auto half_width = bounding_box.Extents.x;
-        auto half_height = bounding_box.Extents.y;
-        auto half_depth = bounding_box.Extents.z;
+        auto half_width = bounding_box.Extents.x * 1.005f;
+        auto half_height = bounding_box.Extents.y * 1.005f;
+        auto half_depth = bounding_box.Extents.z * 1.005f;
 
-        temp_wire_cube_data.emplace_back(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z - half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z + half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x + half_width, bounding_center.y + half_height, bounding_center.z + half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x + half_width, bounding_center.y + half_height, bounding_center.z - half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x - half_width, bounding_center.y - half_height, bounding_center.z - half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x - half_width, bounding_center.y - half_height, bounding_center.z + half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x - half_width, bounding_center.y + half_height, bounding_center.z + half_depth);
-        temp_wire_cube_data.emplace_back(bounding_center.x - half_width, bounding_center.y + half_height, bounding_center.z - half_depth);
+        temp_wire_cube_data[0] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z - half_depth);
+        temp_wire_cube_data[1] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z + half_depth);
+        temp_wire_cube_data[2] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y + half_height, bounding_center.z + half_depth);
+        temp_wire_cube_data[3] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y + half_height, bounding_center.z - half_depth);
+        temp_wire_cube_data[4] = XMFLOAT3(bounding_center.x - half_width, bounding_center.y - half_height, bounding_center.z - half_depth);
+        temp_wire_cube_data[5] = XMFLOAT3(bounding_center.x - half_width, bounding_center.y - half_height, bounding_center.z + half_depth);
+        temp_wire_cube_data[6] = XMFLOAT3(bounding_center.x - half_width, bounding_center.y + half_height, bounding_center.z + half_depth);
+        temp_wire_cube_data[7] = XMFLOAT3(bounding_center.x - half_width, bounding_center.y + half_height, bounding_center.z - half_depth);
 
         D3D11_MAPPED_SUBRESOURCE mapped_resource = {};
         device_context->Map(m_effect_impl->vertex_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);

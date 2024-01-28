@@ -119,9 +119,15 @@ namespace toy
         return m_aspect;
     }
 
+    bool Camera::is_dirty() const
+    {
+        return m_dirty;
+    }
+
     void Camera::move_local(const DirectX::XMFLOAT3 &magnitudes)
     {
         m_transform.move_local(magnitudes);
+        set_dirty_flag(true);
     }
 
     void Camera::set_frustum(float fov_y, float aspect, float near_z, float far_z)
@@ -130,11 +136,13 @@ namespace toy
         m_aspect = aspect;
         m_near_z = near_z;
         m_far_z = far_z;
+        set_dirty_flag(true);
     }
 
     void Camera::set_viewport(const D3D11_VIEWPORT &viewPort)
     {
         m_viewport = viewPort;
+        set_dirty_flag(true);
     }
 
     void Camera::set_viewport(float top_left_x, float top_left_y, float width, float height, float min_depth, float max_depth)
@@ -145,34 +153,45 @@ namespace toy
         m_viewport.Height = height;
         m_viewport.MinDepth = min_depth;
         m_viewport.MaxDepth = max_depth;
+        set_dirty_flag(true);
+    }
+
+    void Camera::set_dirty_flag(bool is_dirty)
+    {
+        m_dirty = is_dirty;
     }
 
     // First person camera implementation
     void FirstPersonCamera::set_position(float x, float y, float z)
     {
         set_position(DirectX::XMFLOAT3{ x, y, z });
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::set_position(const DirectX::XMFLOAT3 &pos)
     {
         m_transform.set_position(pos);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::look_at(const DirectX::XMFLOAT3 &pos, const DirectX::XMFLOAT3 &target, const DirectX::XMFLOAT3 &up)
     {
         m_transform.set_position(pos);
         m_transform.look_at(target, up);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::look_to(const DirectX::XMFLOAT3 &pos, const DirectX::XMFLOAT3 &to, const DirectX::XMFLOAT3 &up)
     {
         m_transform.set_position(pos);
         m_transform.look_to(to, up);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::strafe(float delta)
     {
         m_transform.translate(m_transform.get_right_axis(), delta);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::walk(float delta)
@@ -183,16 +202,19 @@ namespace toy
         XMFLOAT3 front = {};
         XMStoreFloat3(&front, front_vec);
         m_transform.translate(front, delta);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::move_forward(float delta)
     {
         m_transform.translate(m_transform.get_forward_axis(), delta);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::translate(const DirectX::XMFLOAT3 &direction, float magnitude)
     {
         m_transform.translate(direction, magnitude);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::pitch(float radian)
@@ -204,6 +226,7 @@ namespace toy
         rotation.x = std::clamp(rotation.x, -XM_PI * 7.0f / 18.0f, XM_PI * 7.0f / 18.0f);
 
         m_transform.set_rotation(rotation);
+        set_dirty_flag(true);
     }
 
     void FirstPersonCamera::rotate_y(float radian)
@@ -212,6 +235,7 @@ namespace toy
         XMFLOAT3 rotation = m_transform.get_euler_angles();
         rotation.y = XMScalarModAngle(rotation.y + radian);
         m_transform.set_rotation(rotation);
+        set_dirty_flag(true);
     }
 
     // Third person camera implementation
@@ -237,6 +261,7 @@ namespace toy
         m_transform.set_rotation(rotation);
         m_transform.set_position(m_target);
         m_transform.translate(m_transform.get_forward_axis(), -m_distance);
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::rotate_y(float radian)
@@ -249,6 +274,8 @@ namespace toy
         m_transform.set_rotation(rotation);
         m_transform.set_position(m_target);
         m_transform.translate(m_transform.get_forward_axis(), -m_distance);
+
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::approach(float distance)
@@ -258,6 +285,7 @@ namespace toy
 
         m_transform.set_position(m_target);
         m_transform.translate(m_transform.get_forward_axis(), -m_distance);
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::set_rotation_x(float radian)
@@ -272,6 +300,8 @@ namespace toy
         m_transform.set_rotation(rotation);
         m_transform.set_position(m_target);
         m_transform.translate(m_transform.get_forward_axis(), -m_distance);
+
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::set_rotation_y(float radian)
@@ -284,21 +314,29 @@ namespace toy
         m_transform.set_rotation(rotation);
         m_transform.set_position(m_target);
         m_transform.translate(m_transform.get_forward_axis(), -m_distance);
+
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::set_target(const DirectX::XMFLOAT3 &target)
     {
         m_target = target;
+
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::set_distance(float distance)
     {
         m_distance = distance;
+
+        set_dirty_flag(true);
     }
 
     void ThirdPersonCamera::set_min_max_distance(float min_distance, float max_distance)
     {
         m_min_distance = min_distance;
         m_max_distance = max_distance;
+
+        set_dirty_flag(true);
     }
 }

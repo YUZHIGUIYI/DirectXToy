@@ -47,6 +47,7 @@ namespace toy
 
         [[nodiscard]] D3D11_VIEWPORT get_shadow_viewport() const;
 
+    private:
         void XM_CALLCONV compute_near_far(float &out_near_plane, float &out_far_plane,
                                             DirectX::FXMVECTOR light_camera_orthographic_min_vec,
                                             DirectX::FXMVECTOR light_camera_orthographic_max_vec,

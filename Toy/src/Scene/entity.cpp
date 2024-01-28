@@ -21,4 +21,9 @@ namespace toy
     {
         return !(*this == other);
     }
+
+    bool Entity::is_valid() const
+    {
+        return entity_handle != entt::null && scene_handle != nullptr;
+    }
 }
