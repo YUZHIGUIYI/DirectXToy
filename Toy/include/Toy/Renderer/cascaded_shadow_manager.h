@@ -26,7 +26,7 @@ namespace toy
 
         static CascadedShadowManager &get();
 
-        void update_frame(const camera_c &viewer_camera, const camera_c &light_camera, const DirectX::BoundingBox &scene_bounding_box);
+        void update_frame(const Camera &viewer_camera, const Camera &light_camera, const DirectX::BoundingBox &scene_bounding_box);
 
         [[nodiscard]] ID3D11RenderTargetView *get_cascade_render_target_view(size_t cascade_index) const;
         [[nodiscard]] ID3D11ShaderResourceView *get_cascades_output() const;
@@ -47,6 +47,7 @@ namespace toy
 
         [[nodiscard]] D3D11_VIEWPORT get_shadow_viewport() const;
 
+    private:
         void XM_CALLCONV compute_near_far(float &out_near_plane, float &out_far_plane,
                                             DirectX::FXMVECTOR light_camera_orthographic_min_vec,
                                             DirectX::FXMVECTOR light_camera_orthographic_max_vec,

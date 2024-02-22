@@ -637,6 +637,40 @@ namespace toy
 
         std::unique_ptr<EffectImpl> m_effect_impl = nullptr;
     };
+
+    class GizmosWireEffect final
+    {
+    public:
+        GizmosWireEffect();
+        ~GizmosWireEffect();
+
+        GizmosWireEffect(GizmosWireEffect &&other) noexcept;
+        GizmosWireEffect &operator=(GizmosWireEffect &&other) noexcept;
+
+        void init(ID3D11Device *device);
+
+        // * Set wire color
+        void set_wire_color(const DirectX::XMFLOAT3 &wire_color);
+
+        // * Set vertex buffer - require bounding box in local coordinate
+        void set_vertex_buffer(ID3D11DeviceContext *device_context, const DirectX::BoundingBox &bounding_box);
+
+        // * Render
+        void render(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *out_rtv, ID3D11DepthStencilView *input_dsv, const D3D11_VIEWPORT &viewport);
+
+        // * Singleton
+        static GizmosWireEffect &get();
+
+        // * Set MVP matrix
+        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX &world);
+        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX &view);
+        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX &proj);
+
+    private:
+        struct EffectImpl;
+
+        std::unique_ptr<EffectImpl> m_effect_impl = nullptr;
+    };
 }
 
 

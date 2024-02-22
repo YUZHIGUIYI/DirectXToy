@@ -67,7 +67,7 @@ namespace toy::model
                     model.bounding_box = mesh.bounding_box;
                 } else
                 {
-                    model.bounding_box.CreateMerged(model.bounding_box, model.bounding_box, mesh.bounding_box);
+                    BoundingBox::CreateMerged(model.bounding_box, model.bounding_box, mesh.bounding_box);
                 }
             }
             // Normal

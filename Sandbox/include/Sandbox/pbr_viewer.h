@@ -8,6 +8,7 @@
 #include <Sandbox/gizmos.h>
 #include <Sandbox/mouse_pick.h>
 #include <Sandbox/content_browser.h>
+#include <Sandbox/console_dock.h>
 
 namespace toy::viewer
 {
@@ -74,9 +75,9 @@ namespace toy::viewer
         std::unique_ptr<MousePickHelper> m_mouse_pick_helper;
 
         // Camera
-        std::shared_ptr<camera_c> m_light_camera;
-        std::shared_ptr<camera_c> m_camera;                                         // Camera
-        FirstPersonCameraController m_camera_controller;                            // Camera controller
+        std::shared_ptr<Camera> m_light_camera;
+        std::shared_ptr<Camera> m_camera;                                         // Camera
+        FirstPersonCameraController m_camera_controller;                          // Camera controller
 
         // Check whether load-file operation is currently executing
         std::atomic<bool> m_busy = false;
@@ -93,6 +94,7 @@ namespace toy::viewer
         std::unique_ptr<SceneHierarchyPanel> m_scene_hierarchy_panel = nullptr;
         std::unique_ptr<Gizmos> m_gizmos = nullptr;
         std::unique_ptr<ContentBrowser> m_content_browser = nullptr;
+        std::unique_ptr<ConsoleDock> m_console_dock = nullptr;
     };
 }
 

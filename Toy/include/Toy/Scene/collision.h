@@ -14,7 +14,7 @@ namespace toy
         Ray();
         Ray(const DirectX::XMFLOAT3& origin, const DirectX::XMFLOAT3& direction);
 
-        static Ray screen_to_ray(const camera_c& camera, float screenX, float screenY);
+        static Ray screen_to_ray(const Camera& camera, float screenX, float screenY);
 
         bool hit(const DirectX::BoundingBox& box, float* pOutDist = nullptr, float maxDist = FLT_MAX);
         bool hit(const DirectX::BoundingOrientedBox& box, float* pOutDist = nullptr, float maxDist = FLT_MAX);
@@ -48,12 +48,12 @@ namespace toy
         static WireFrameData create_bounding_frustum(const DirectX::BoundingFrustum& frustum, const DirectX::XMFLOAT4& color);
 
         // 视锥体裁剪
-        static std::vector<transform_c> XM_CALLCONV frustum_culling(
-                const std::vector<transform_c>& transforms, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj);
+        static std::vector<Transform> XM_CALLCONV frustum_culling(
+                const std::vector<Transform>& transforms, const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj);
 
         // 视锥体裁剪
         static void XM_CALLCONV frustum_culling(
-                std::vector<transform_c>& dest, const std::vector<transform_c>& src,
+                std::vector<Transform>& dest, const std::vector<Transform>& src,
         const DirectX::BoundingBox& localBox, DirectX::FXMMATRIX View, DirectX::CXMMATRIX Proj);
 
     private:

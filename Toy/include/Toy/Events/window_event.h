@@ -8,18 +8,16 @@
 
 namespace toy
 {
-    class window_close_event_c
+    class WindowCloseEvent
     {
     public:
-        window_close_event_c() = default;
-
         EVENT_CLASS_TYPE(WindowClose);
     };
 
-    class window_resize_event_c
+    class WindowResizeEvent
     {
     public:
-        window_resize_event_c(int32_t width, int32_t height)
+        explicit WindowResizeEvent(int32_t width, int32_t height)
         : window_width(width), window_height(height)
         {
         }
@@ -31,53 +29,108 @@ namespace toy
         int32_t window_height;
     };
 
-    class key_event_c
+    class KeyTypedEvent
     {
     public:
-        key_event_c(const key_code key_code_in)
-        : key_code_save(key_code_in)
+        explicit KeyTypedEvent(const key_code key_code_in, int32_t mods, bool is_pressed, bool is_repeat = false)
+        : key_code_save(key_code_in), mod_keys(mods), pressed(is_pressed), repeat(is_repeat)
         {
 
         }
+
+        EVENT_CLASS_TYPE(KeyTyped);
 
         key_code key_code_save;
-    };
-
-    class key_pressed_event_c : public key_event_c
-    {
-    public:
-        key_pressed_event_c(const key_code key_code_in, bool repeat_in = false)
-        : key_event_c(key_code_in), repeat(repeat_in)
-        {
-
-        }
-
-        EVENT_CLASS_TYPE(KeyPressed);
-
+        int32_t mod_keys;
+        bool pressed;
         bool repeat;
     };
 
-    class key_released_event_c : public key_event_c
+    class MouseMovedEvent
     {
     public:
-        key_released_event_c(const key_code key_code_in)
-        : key_event_c(key_code_in)
+        explicit MouseMovedEvent(const float x, const float y)
+        : mouse_x_pos(x), mouse_y_pos(y)
         {
 
         }
 
-        EVENT_CLASS_TYPE(KeyReleased);
+        EVENT_CLASS_TYPE(MouseMoved)
+
+        float mouse_x_pos;
+        float mouse_y_pos;
     };
 
-    class key_typed_event_c : public key_event_c
+    class MouseScrolledEvent
     {
     public:
-        key_typed_event_c(const key_code key_code_in)
-        : key_event_c(key_code_in)
+        explicit MouseScrolledEvent(const float x_offset, const float y_offset)
+        : mouse_x_offset(x_offset), mouse_y_offset(y_offset)
         {
 
         }
 
-        EVENT_CLASS_TYPE(KeyTyped)
+        EVENT_CLASS_TYPE(MouseScrolled)
+
+        float mouse_x_offset;
+        float mouse_y_offset;
+    };
+
+    class MouseButtonEvent
+    {
+    public:
+        explicit MouseButtonEvent(const mouse_code button, int32_t mods)
+        : mouse_button(button), mod_keys(mods)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(MouseButton)
+
+        mouse_code mouse_button;
+        int32_t mod_keys;
+    };
+
+    class DropEvent
+    {
+    public:
+        explicit DropEvent(std::string_view filename)
+        : drop_filename(filename)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(Drop)
+
+        std::string_view drop_filename;
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -32,7 +32,7 @@ namespace toy
         extsfixed.push_back(0);
 
         OPENFILENAME ofn;           // common dialog box structure
-        char         szFile[1024];  // buffer for file name
+        static char  szFile[1024];  // buffer for file name
 
         // Initialize OPENFILENAME
         ZeroMemory(&ofn, sizeof(ofn));
@@ -45,9 +45,9 @@ namespace toy
         ofn.nMaxFile        = sizeof(szFile);
         ofn.lpstrFilter     = extsfixed.data();
         ofn.nFilterIndex    = 1;
-        ofn.lpstrFileTitle  = NULL;
+        ofn.lpstrFileTitle  = nullptr;
         ofn.nMaxFileTitle   = 0;
-        ofn.lpstrInitialDir = NULL;
+        ofn.lpstrInitialDir = nullptr;
         ofn.Flags           = OFN_PATHMUSTEXIST;
         ofn.lpstrTitle      = title;
 

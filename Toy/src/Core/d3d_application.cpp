@@ -4,6 +4,7 @@
 
 #include <Toy/Core/d3d_application.h>
 #include <Toy/ImGui/imgui_pass.h>
+#include <Toy/Core/input.h>
 
 namespace toy
 {
@@ -13,8 +14,7 @@ namespace toy
     m_client_height(init_height),
     m_app_stopped(false),
     m_window_minimized(false),
-    m_window_maximized(false),
-    m_window_resized(false)
+    m_window_maximized(false)
     {
         m_main_wnd = glfwGetWin32Window(m_glfw_window);
     }
@@ -33,35 +33,39 @@ namespace toy
     {
         DX_CORE_INFO("Initialize DXToy engine");
 
+        // Initialize simulation
+        m_simulation = std::make_unique<Simulation>();
+
+        // Initialize input controller
+        InputController::get().register_event(m_glfw_window);
+
+        // Initialize DirectX 11
         init_d3d();
 
         // Initialize ImGui pass
         ImGuiPass::init(m_glfw_window, m_d3d_device.Get(), m_d3d_immediate_context.Get());
 
-        // Initialize event manager, subscribe window-resize event
+        // Initialize event manager, subscribe events
         glfwSetWindowUserPointer(m_glfw_window, this);
-        event_manager_c::init(m_glfw_window);
-        event_manager_c::subscribe(event_type_e::WindowClose, [this] (const event_t& event)
+        EventManager::init(m_glfw_window);
+        EventManager::subscribe(EventType::WindowClose, [this] (const EngineEventVariant &event_variant)
         {
-            on_close(event);
+            on_close(event_variant);
         });
-        event_manager_c::subscribe(event_type_e::WindowResize, [this] (const event_t& event)
+        EventManager::subscribe(EventType::WindowResize, [this] (const EngineEventVariant &event_variant)
         {
-            on_resize(event);
+            on_resize(event_variant);
         });
-        glfwSetDropCallback(m_glfw_window, [](GLFWwindow* window, int32_t path_count, const char** paths)
+        EventManager::subscribe(EventType::Drop, [this] (const EngineEventVariant &event_variant)
         {
-            auto* app = static_cast<D3DApplication *>(glfwGetWindowUserPointer(window));
-            for (int32_t i = 0; i < path_count; i++)
-            {
-                app->on_file_drop(paths[i]);
-            }
+            auto&& drop_event = std::get<DropEvent>(event_variant);
+            on_file_drop(drop_event.drop_filename);
         });
     }
 
-    void D3DApplication::on_resize(const event_t &event)
+    void D3DApplication::on_resize(const EngineEventVariant &event_variant)
     {
-        auto&& window_resize_event = std::get<window_resize_event_c>(event);
+        auto&& window_resize_event = std::get<WindowResizeEvent>(event_variant);
 
         if (window_resize_event.window_width == 0 || window_resize_event.window_height == 0)
         {
@@ -100,22 +104,23 @@ namespace toy
         }
     }
 
-    void D3DApplication::on_close(const event_t &event)
+    void D3DApplication::on_close(const EngineEventVariant &event_variant)
     {
         m_app_stopped = true;
     }
 
     void D3DApplication::tick()
     {
-        float last_time = 0.0f;
         while (!m_app_stopped)
         {
-            event_manager_c::update();
+            m_simulation->run_one_frame(true);
+
+            EventManager::update();
+
+            InputController::get().update_state();
 
             if (!m_window_minimized)
             {
-                auto current_time = static_cast<float>(glfwGetTime());
-
                 ImGuiPass::begin();
                 // Menu
                 if (ImGui::BeginMainMenuBar())
@@ -141,7 +146,7 @@ namespace toy
 
                 for (auto& layer : m_layer_stack)
                 {
-                    layer->on_render(current_time - last_time);
+                    layer->on_render(m_simulation->get_delta_ime());
                 }
 
                 reset_render_target();
@@ -151,7 +156,6 @@ namespace toy
                 present();
 
                 ++m_frame_count;
-                last_time = current_time;
             }
         }
 
@@ -199,14 +203,14 @@ namespace toy
         create_device_flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         // Driver type array
-        std::array<D3D_DRIVER_TYPE, 3> driver_types{
+        const std::array<D3D_DRIVER_TYPE, 3> driver_types{
             D3D_DRIVER_TYPE_HARDWARE,
             D3D_DRIVER_TYPE_WARP,
             D3D_DRIVER_TYPE_REFERENCE
         };
 
         // Feature level array
-        std::array<D3D_FEATURE_LEVEL, 2> feature_levels{
+        const std::array<D3D_FEATURE_LEVEL, 2> feature_levels{
             D3D_FEATURE_LEVEL_11_1,
             D3D_FEATURE_LEVEL_11_0,
         };
@@ -219,7 +223,7 @@ namespace toy
             // Can not use D3D_FEATURE_LEVEL_11_1, try D3D_FEATURE_LEVEL_11_0
             if (hr == E_INVALIDARG)
             {
-                hr = D3D11CreateDevice(nullptr, drive_type, nullptr, create_device_flags, &feature_levels[1], (uint32_t)(feature_levels.size() - 1),
+                hr = D3D11CreateDevice(nullptr, drive_type, nullptr, create_device_flags, feature_levels.data() + 1, (uint32_t)(feature_levels.size() - 1),
                                         D3D11_SDK_VERSION, m_d3d_device.GetAddressOf(), &feature_level, m_d3d_immediate_context.GetAddressOf());
             }
             if (SUCCEEDED(hr))
@@ -228,7 +232,7 @@ namespace toy
 
         if (FAILED(hr))
         {
-            DX_CORE_CRITICAL("Fail to create D3D11Device");
+            DX_CORE_CRITICAL("Failed to create D3D11Device");
         }
 
         // Check whether it support D3D_FEATURE_LEVEL_11_1 or D3D_FEATURE_LEVEL_11_0
@@ -322,8 +326,8 @@ namespace toy
 #endif
 
         // After window has been resized, call this function
-        window_resize_event_c event{ m_client_width, m_client_height };
-        on_resize(event);
+        WindowResizeEvent resize_event{ m_client_width, m_client_height };
+        on_resize(resize_event);
     }
 }
 

@@ -228,8 +228,8 @@ namespace toy
         ImGui::Separator();
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
-        if (ImGui::BeginChild("Asset content", ImGui::GetContentRegionAvail(), false, flags))
+                                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_HorizontalScrollbar;
+        if (ImGui::BeginChild("Asset content", ImGui::GetContentRegionAvail(), ImGuiChildFlags_None, flags))
         {
             auto process_cache_entry = [this, size] (const std::filesystem::directory_entry &cache_entry)
             {

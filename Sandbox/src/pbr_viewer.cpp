@@ -7,6 +7,8 @@
 #include <Toy/Renderer/taa_settings.h>
 #include <Toy/Renderer/cascaded_shadow_manager.h>
 
+#include <imgui_user/imgui_user.h>
+
 #include <IconsFontAwesome6.h>
 
 namespace toy::viewer
@@ -66,6 +68,7 @@ namespace toy::viewer
         SimpleSkyboxEffect::get().init(d3d_device);
         PreProcessEffect::get().init(d3d_device);
         TAAEffect::get().init(d3d_device);
+        GizmosWireEffect::get().init(d3d_device);
 
         // Initialize shadow
         CascadedShadowManager::get().init(d3d_device);
@@ -73,8 +76,9 @@ namespace toy::viewer
         // Initialize mouse pick helper, scene hierarchy panel and gizmos
         m_mouse_pick_helper = std::make_unique<MousePickHelper>();
         m_scene_hierarchy_panel = std::make_unique<SceneHierarchyPanel>();
-        m_gizmos = std::make_unique<Gizmos>(app);
+        m_gizmos = std::make_unique<Gizmos>(m_d3d_app->get_glfw_window());
         m_content_browser = std::make_unique<ContentBrowser>();
+        m_console_dock = std::make_unique<ConsoleDock>();
 
         // Initialize resource
         init_resource();
@@ -126,10 +130,6 @@ namespace toy::viewer
 
         if (m_busy) return;
         auto glfw_window = m_d3d_app->get_glfw_window();
-        if (DX_INPUT::is_key_pressed(glfw_window, key::O) && DX_INPUT::is_key_pressed(glfw_window, key::LeftControl))
-        {
-            load_file = true;
-        }
 
         if (load_file)
         {
@@ -148,9 +148,9 @@ namespace toy::viewer
         auto name = std::filesystem::path(filename).filename();
         if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
         {
-            model::ModelManager::get().create_from_file(filename);
-
             auto new_entity = m_editor_scene->create_entity(name.string());
+            model::ModelManager::get().create_from_file(filename, static_cast<uint32_t>(new_entity.entity_handle));
+
             auto& new_transform = new_entity.add_component<TransformComponent>();
             new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
             auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
@@ -181,6 +181,10 @@ namespace toy::viewer
         m_viewer_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
         m_viewer_hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
 
+        ImGui::PushStyleColor(ImGuiCol_Border, ImGui::GetStyle().Colors[ImGuiCol_Button]);
+        ImGui::RenderFrameEx(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true, 0.0f, 2.0f);
+        ImGui::PopStyleColor();
+
         ImGui::Image(m_viewer_buffer->get_shader_resource(), ImGui::GetContentRegionAvail());
 
         // Rendering Gizmo
@@ -197,6 +201,9 @@ namespace toy::viewer
 
         // Rendering content browser
         m_content_browser->on_browser_render();
+
+        // Rendering console dock
+        m_console_dock->on_console_render();
     }
 
     void PBRViewer::init_resource()
@@ -208,22 +215,21 @@ namespace toy::viewer
         auto d3d_device = m_d3d_app->get_device();
         auto d3d_device_context = m_d3d_app->get_device_context();
 
-        auto camera = std::make_shared<first_person_camera_c>();
+        auto camera = std::make_shared<FirstPersonCamera>();
         m_camera = camera;
 
         m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
         m_camera->set_frustum(XM_PI / 3.0f, m_viewer_spec.get_aspect_ratio(), 0.5f, 360.0f);
         camera->look_at(XMFLOAT3{-60.0f, 10.0f, 2.5f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
-        auto light_camera = std::make_shared<first_person_camera_c>();
+        auto light_camera = std::make_shared<FirstPersonCamera>();
         m_light_camera = light_camera;
 
         m_light_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_viewer_spec.width), static_cast<float>(m_viewer_spec.height));
         m_light_camera->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
         light_camera->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
 
-        m_camera_controller.init(camera.get());
-        m_camera_controller.set_move_speed(30.0f);
+        m_camera_controller.init(camera.get(), m_d3d_app->get_glfw_window());
 
         // Note: Initialize effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
@@ -426,11 +432,10 @@ namespace toy::viewer
     {
         using namespace DirectX;
 
-        GLFWwindow* glfw_window = m_d3d_app->get_glfw_window();
         // Update camera if viewer is focused and hovered
         if (m_viewer_focused && m_viewer_hovered)
         {
-            m_camera_controller.update(dt, glfw_window);
+            m_camera_controller.update(dt);
         }
 
         // Update collision
@@ -441,7 +446,8 @@ namespace toy::viewer
         m_editor_scene->frustum_culling(frustum);
 
         // Pick entity via entity id
-        if (!ImGuizmo::IsUsing() && DX_INPUT::is_mouse_button_pressed(m_d3d_app->get_glfw_window(), mouse::ButtonLeft))
+        auto&& input_controller = InputController::get();
+        if (!ImGuizmo::IsUsing() && input_controller.is_mouse_button_pressed(mouse::ButtonLeft))
         {
             auto [mouse_pos_x, mouse_pos_y] = ImGui::GetMousePos();
             mouse_pos_x -= m_viewer_spec.lower_bound.x;
@@ -451,9 +457,9 @@ namespace toy::viewer
             {
                 uint32_t entity_id = m_mouse_pick_helper->pick_entity(m_d3d_app->get_device(), m_d3d_app->get_device_context(),
                                                 m_gbuffer.entity_id_buffer->get_texture(), static_cast<int32_t>(mouse_pos_x), static_cast<int32_t>(mouse_pos_y));
-                bool is_valid = m_editor_scene->get_entity(m_selected_entity, entity_id);
-                DX_CORE_INFO("Mouse position: {} + {}, pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
-                if (is_valid) m_scene_hierarchy_panel->set_selected_entity(m_selected_entity);
+                m_selected_entity = m_editor_scene->get_entity(entity_id);
+                DX_INFO("Mouse position: {} + {}, pick entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
+                m_scene_hierarchy_panel->set_selected_entity(m_selected_entity);
             }
         }
     }
@@ -576,6 +582,20 @@ namespace toy::viewer
         DeferredPBREffect::get().set_lighting_pass_render();
         DeferredPBREffect::get().deferred_lighting_pass(d3d_device_context, m_cur_buffer->get_render_target(),
                                                         m_gbuffer, m_camera->get_viewport());
+
+        // TODO: gizmos wire effect test
+        if (m_selected_entity.is_valid())
+        {
+            auto&& gizmos_wire_effect = GizmosWireEffect::get();
+            auto& transform_component = m_selected_entity.get_component<TransformComponent>();
+            auto world_matrix = transform_component.transform.get_local_to_world_matrix_xm();
+            auto& static_mesh_component = m_selected_entity.get_component<StaticMeshComponent>();
+            gizmos_wire_effect.set_world_matrix(world_matrix);
+            gizmos_wire_effect.set_view_matrix(m_camera->get_view_xm());
+            gizmos_wire_effect.set_proj_matrix(m_camera->get_proj_xm(true));
+            gizmos_wire_effect.set_vertex_buffer(d3d_device_context, static_mesh_component.get_local_bounding_box());
+            gizmos_wire_effect.render(d3d_device_context, m_cur_buffer->get_render_target(), m_depth_buffer->get_depth_stencil(), m_camera->get_viewport());
+        }
 
         if (first_frame)
         {

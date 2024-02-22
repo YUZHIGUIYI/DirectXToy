@@ -14,7 +14,7 @@ namespace toy
         struct Model;
     }
 
-    class camera_c;
+    class Camera;
 
     struct TagComponent
     {
@@ -23,12 +23,12 @@ namespace toy
 
     struct TransformComponent
     {
-        transform_c transform = {};
+        Transform transform = {};
     };
 
     struct CameraComponent
     {
-        std::shared_ptr<camera_c> camera = nullptr;
+        std::shared_ptr<Camera> camera = nullptr;
     };
 
     struct StaticMeshComponent
@@ -41,19 +41,19 @@ namespace toy
 
         // Check insertion
         // Note: transform belongs to model asset
-        void frustum_culling(const transform_c& transform, const DirectX::BoundingFrustum& frustum_in_world);
+        void frustum_culling(const Transform& transform, const DirectX::BoundingFrustum& frustum_in_world);
 
         // Render
         // Note: transform belongs to model asset
-        void render(ID3D11DeviceContext *device_context, IEffect& effect, const transform_c& transform);
+        void render(ID3D11DeviceContext *device_context, IEffect& effect, const Transform& transform);
 
         // Bounding box
         [[nodiscard]] DirectX::BoundingBox get_local_bounding_box() const;
         [[nodiscard]] DirectX::BoundingBox get_local_bounding_box(size_t idx) const;
-        [[nodiscard]] DirectX::BoundingBox get_bounding_box(const transform_c& transform) const;
-        [[nodiscard]] DirectX::BoundingBox get_bounding_box(const transform_c& transform, size_t idx) const;
-        [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const transform_c& transform) const;
-        [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const transform_c& transform, size_t idx) const;
+        [[nodiscard]] DirectX::BoundingBox get_bounding_box(const Transform& transform) const;
+        [[nodiscard]] DirectX::BoundingBox get_bounding_box(const Transform& transform, size_t idx) const;
+        [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const Transform& transform) const;
+        [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const Transform& transform, size_t idx) const;
     };
 }
 

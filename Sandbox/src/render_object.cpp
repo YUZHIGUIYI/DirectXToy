@@ -12,12 +12,12 @@ namespace toy
         DirectX::XMMATRIX world_inv_transpose;
     };
 
-    transform_c& RenderObject::get_transform()
+    Transform& RenderObject::get_transform()
     {
         return m_transform;
     }
 
-    const transform_c& RenderObject::get_transform() const
+    const Transform& RenderObject::get_transform() const
     {
         return m_transform;
     }

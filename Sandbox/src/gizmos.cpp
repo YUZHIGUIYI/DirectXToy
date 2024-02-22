@@ -6,58 +6,61 @@
 
 namespace toy
 {
+    struct Snap
+    {
+        std::array<float, 3> translation_snap = { 1.0f, 1.0f, 1.0f };
+        float rotation_degree_snap = 15.0f;
+        float scale_snap = 0.1f;
+    };
+
+    static Snap s_snap_data = {};
+
     static std::variant<std::true_type, std::false_type> bool_variant(bool cond)
     {
         if (cond) return std::true_type{};
         else return std::false_type{};
     }
 
-    static void update_transform(TransformComponent &transform_comp, std::array<float, 3> &translation, std::array<float, 3> &rotation, std::array<float, 3> &scale, ImGuizmo::OPERATION operation_type)
+    static void update_transform(TransformComponent &transform_comp, const DirectX::XMFLOAT3 &position, const DirectX::XMFLOAT4 &rotation, const DirectX::XMFLOAT3 &scale, ImGuizmo::OPERATION operation_type)
     {
-        auto change_translation = bool_variant(operation_type == ImGuizmo::OPERATION::TRANSLATE);
+        auto change_position = bool_variant(operation_type == ImGuizmo::OPERATION::TRANSLATE);
         auto change_rotation = bool_variant(operation_type == ImGuizmo::OPERATION::ROTATE);
         auto change_scale = bool_variant(operation_type == ImGuizmo::OPERATION::SCALE);
-        std::visit([&transform_comp, &translation, &rotation, &scale] (auto translation_changed, auto rotation_changed, auto scale_changed) {
-            if constexpr (translation_changed)
+        std::visit([&transform_comp, &position, &rotation, &scale] (auto position_changed, auto rotation_changed, auto scale_changed) {
+            if constexpr (position_changed)
             {
-                transform_comp.transform.set_position(translation[0], translation[1], translation[2]);
+                transform_comp.transform.set_position(position);
             } else if constexpr (rotation_changed)
             {
-                for (auto& each_rotation : rotation)
-                {
-                    each_rotation = DirectX::XMConvertToRadians(each_rotation);
-                }
-                transform_comp.transform.set_rotation(rotation[0], rotation[1], rotation[2]);
+                transform_comp.transform.set_rotation_in_quaternion(rotation);
             } else if constexpr (scale_changed)
             {
-                for (auto& each_scale : scale)
-                {
-                    each_scale = std::clamp(each_scale, 0.1f, 100.0f);
-                }
-                transform_comp.transform.set_scale(scale[0], scale[1], scale[2]);
+                transform_comp.transform.set_scale(scale);
             }
-        }, change_translation, change_rotation, change_scale);
+        }, change_position, change_rotation, change_scale);
     }
 
-    Gizmos::Gizmos(toy::D3DApplication *d3d_application)
-    : d3d_app(d3d_application)
+    Gizmos::Gizmos(GLFWwindow *glfw_window)
+    : m_glfw_window(glfw_window)
     {
 
     }
 
-    void Gizmos::on_gizmos_render(Entity &selected_entity, const ViewerSpecification &viewer_specification, std::shared_ptr<camera_c> camera)
+    void Gizmos::on_gizmos_render(Entity &selected_entity, const ViewerSpecification &viewer_specification, std::shared_ptr<Camera> camera)
     {
+        using namespace DirectX;
+
         static ImGuizmo::OPERATION gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-        bool shift_pressed = DX_INPUT::is_key_pressed(d3d_app->get_glfw_window(), key::LeftShift);
-        if (shift_pressed && !ImGuizmo::IsUsing())
+        auto&& input_controller = InputController::get();
+        if (!ImGuizmo::IsUsing())
         {
-            if (DX_INPUT::is_key_pressed(d3d_app->get_glfw_window(), key::F1))
+            if (input_controller.is_key_pressed_with_mod(key::W, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
-            } else if (DX_INPUT::is_key_pressed(d3d_app->get_glfw_window(), key::F2))
+            } else if (input_controller.is_key_pressed_with_mod(key::R, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::SCALE;
-            } else if (DX_INPUT::is_key_pressed(d3d_app->get_glfw_window(), key::F3))
+            } else if (input_controller.is_key_pressed_with_mod(key::E, key::LeftShift))
             {
                 gizmo_type = ImGuizmo::OPERATION::ROTATE;
             }
@@ -74,19 +77,34 @@ namespace toy
         auto& transform_component = selected_entity.get_component<TransformComponent>();
         auto transform_matrix = transform_component.transform.get_local_to_world_matrix_xm();
 
-        bool keep_snap = DX_INPUT::is_key_pressed(d3d_app->get_glfw_window(), key::LeftControl);
-        float snap_value = 5.0f;
-        std::array<float, 3> snap_values = { snap_value, snap_value, snap_value };
+        float* snap_values = nullptr;
+        if (gizmo_type == ImGuizmo::OPERATION::TRANSLATE)
+        {
+            snap_values = s_snap_data.translation_snap.data();
+        } else if (gizmo_type == ImGuizmo::OPERATION::ROTATE)
+        {
+            snap_values = &s_snap_data.rotation_degree_snap;
+        } else if (gizmo_type == ImGuizmo::OPERATION::SCALE)
+        {
+            snap_values = &s_snap_data.scale_snap;
+        }
         ImGuizmo::Manipulate((float *)&camera_view, (float *)&camera_proj, (ImGuizmo::OPERATION)gizmo_type, ImGuizmo::LOCAL, (float *)&transform_matrix,
-                                nullptr, keep_snap ? snap_values.data() : nullptr);
+                                nullptr, snap_values);
 
         if (ImGuizmo::IsUsing())
         {
-            std::array<float, 3> translation_vector = {};
-            std::array<float, 3> rotation_vector = {};
-            std::array<float, 3> scale_vector = {};
-            ImGuizmo::DecomposeMatrixToComponents((float *)&transform_matrix, translation_vector.data(), rotation_vector.data(), scale_vector.data());
-            update_transform(transform_component, translation_vector, rotation_vector, scale_vector, gizmo_type);
+            XMVECTOR translation_vec;
+            XMVECTOR rotation_vec;
+            XMVECTOR scale_vec;
+            XMFLOAT3 out_position = {};
+            XMFLOAT4 out_rotation = {};
+            XMFLOAT3 out_scale = {};
+            XMMatrixDecompose(&scale_vec, &rotation_vec, &translation_vec, transform_matrix);
+            XMStoreFloat3(&out_position, translation_vec);
+            XMStoreFloat4(&out_rotation, rotation_vec);
+            XMStoreFloat3(&out_scale, scale_vec);
+
+            update_transform(transform_component, out_position, out_rotation, out_scale, gizmo_type);
         }
     }
 }

@@ -134,7 +134,7 @@ namespace toy
         return shadow_viewport;
     }
 
-    void CascadedShadowManager::update_frame(const toy::camera_c &viewer_camera, const toy::camera_c &light_camera,
+    void CascadedShadowManager::update_frame(const toy::Camera &viewer_camera, const toy::Camera &light_camera,
                                                 const DirectX::BoundingBox &scene_bounding_box)
     {
         using namespace DirectX;
