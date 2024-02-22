@@ -10,56 +10,6 @@
 
 namespace toy
 {
-    class BasicEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
-    {
-    public:
-        BasicEffect();
-        ~BasicEffect() override;
-
-        BasicEffect(BasicEffect&& other) noexcept;
-        BasicEffect& operator=(BasicEffect&& other) noexcept;
-
-        // Init all resources
-        void init(ID3D11Device* device);
-
-        // Transform
-        void XM_CALLCONV set_world_matrix(DirectX::FXMMATRIX world) override;
-        void XM_CALLCONV set_view_matrix(DirectX::FXMMATRIX view) override;
-        void XM_CALLCONV set_proj_matrix(DirectX::FXMMATRIX proj) override;
-
-        // Material
-        void set_material(const model::Material& material) override;
-
-        // Mesh data
-        MeshDataInput get_input_data(const model::MeshData& mesh_data) override;
-
-        // Draw by default state
-        void set_default_render();
-
-        void set_texture_cube(ID3D11ShaderResourceView* texture_cube);
-
-        // Light
-        void set_dir_light(uint32_t pos, const DirectionalLight& dir_light);
-        void set_point_light(uint32_t pos, const PointLight& point_light);
-
-        void set_eye_pos(const DirectX::XMFLOAT3& eye_pos);
-
-        void set_reflection_enabled(bool enable);
-        void set_refraction_enabled(bool enable);
-        void set_refraction_eta(float eta);     // Air/medium refractive ratio
-
-        // Update and bind constant buffers
-        void apply(ID3D11DeviceContext * device_context) override;
-
-        // Singleton
-        static BasicEffect &get();
-
-    private:
-        struct EffectImpl;
-
-        std::unique_ptr<EffectImpl> m_effect_impl;
-    };
-
     class SkyboxEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
