@@ -60,6 +60,12 @@ namespace toy
             ImGui::PopStyleColor();
         }
 
+        if (m_console_sink->has_new_entries())
+        {
+            ImGui::SetScrollHereY();
+        }
+        m_console_sink->set_new_entries(false);
+
         ImGui::PopStyleVar();
         ImGui::EndChild();
         ImGui::Separator();

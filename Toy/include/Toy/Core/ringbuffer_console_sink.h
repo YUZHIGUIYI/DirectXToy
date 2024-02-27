@@ -89,12 +89,17 @@ namespace toy::logger
             return m_has_new_entries.load(std::memory_order_acquire);
         }
 
+        void set_new_entries(bool state)
+        {
+            m_has_new_entries.store(state, std::memory_order_release);
+        }
+
     protected:
         void sink_it_(const spdlog::details::log_msg &msg) override
         {
             m_queue.push_back(spdlog::details::log_msg_buffer{ msg });
             m_dirty.store(true, std::memory_order_release);
-            m_has_new_entries.store(true, std::memory_order_release);
+            set_new_entries(true);
         }
 
         void flush_() override
