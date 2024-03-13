@@ -35,7 +35,7 @@ namespace toy
 #define DX_CORE_ERROR(...)		::toy::Logger::get().m_core_logger->error(__VA_ARGS__)
 #define DX_CORE_CRITICAL(...)	::toy::Logger::get().m_core_logger->critical(__VA_ARGS__); throw std::runtime_error("DXToy fatal error!")
 #define DX_CORE_ASSERT(expression, ...)	\
-if (!(expression)) { ::toy::Logger::get().m_core_logger->critical(__VA_ARGS__); } assert(expression)
+if (!(expression)) { ::toy::Logger::get().m_core_logger->error(__VA_ARGS__); } assert(expression)
 
 // Client log macros
 #define DX_TRACE(...)			::toy::Logger::get().m_client_logger->trace(__VA_ARGS__)
@@ -43,3 +43,5 @@ if (!(expression)) { ::toy::Logger::get().m_core_logger->critical(__VA_ARGS__); 
 #define DX_WARN(...)			::toy::Logger::get().m_client_logger->warn(__VA_ARGS__)
 #define DX_ERROR(...)			::toy::Logger::get().m_client_logger->error(__VA_ARGS__)
 #define DX_CRITICAL(...)		::toy::Logger::get().m_client_logger->critical(__VA_ARGS__); throw std::runtime_error("Sandbox fatal error!")
+#define DX_ASSERT(expression, ...)	\
+if (!(expression)) { ::toy::Logger::get().m_client_logger->error(__VA_ARGS__); } assert(expression)
