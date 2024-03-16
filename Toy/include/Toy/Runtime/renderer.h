@@ -5,13 +5,15 @@
 #pragma once
 
 #include <Toy/Core/base.h>
+#include <Toy/Events/event.h>
+#include <Toy/Events/window_event.h>
 
 namespace toy::runtime
 {
     struct Renderer
     {
     public:
-        Renderer();
+        explicit Renderer(int32_t width, int32_t height);
 
         ~Renderer();
 
@@ -20,6 +22,11 @@ namespace toy::runtime
         Renderer(Renderer &&) = delete;
         Renderer& operator=(Renderer &&) = delete;
 
+        void tick();
+
+        void process_pending_events(const std::vector<EngineEventVariant> &pending_events);
+
+        // Must invoke before frame end
         void reset_render_target();
 
         void present();
@@ -27,9 +34,9 @@ namespace toy::runtime
         void release();
 
     public:
+        [[nodiscard]] bool is_renderer_minimized() const { return m_window_minimized; }
         [[nodiscard]] HWND get_main_wnd() const { return m_main_wnd; }
         [[nodiscard]] float get_aspect_ratio() const { return static_cast<float>(m_client_width) / static_cast<float>(m_client_height); }
-        [[nodiscard]] GLFWwindow* get_glfw_window() const { return m_glfw_window; }
 
         [[nodiscard]] ID3D11Device* get_device() const { return m_d3d_device.Get(); }
         [[nodiscard]] ID3D11DeviceContext* get_device_context() const { return m_d3d_immediate_context.Get(); }
@@ -37,14 +44,17 @@ namespace toy::runtime
         [[nodiscard]] ID3D11RenderTargetView* get_back_buffer_rtv() const { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
 
     private:
+        void init();
+
         void init_backend();
 
         void init_effects();
 
-        void on_resize();
+        void on_framebuffer_resize(int32_t width, int32_t height);
+
+        void on_file_drop(std::string_view filepath);
 
     private:
-        GLFWwindow* m_glfw_window = nullptr;                                    // GLFW window
         HWND m_main_wnd;                                                        // Main window handle
 
         // Direct3D 11

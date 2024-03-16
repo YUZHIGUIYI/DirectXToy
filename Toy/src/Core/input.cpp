@@ -7,22 +7,6 @@
 
 namespace toy
 {
-    enum class InputState : uint16_t
-    {
-        None = 0b0,
-        Pressed = 0b1,
-        Released = 0b10,
-        Repeat = 0b100
-    };
-
-    struct InputController::PrivateData
-    {
-        GLFWwindow* glfw_window = nullptr;
-        DirectX::XMFLOAT2 last_cursor_pos = DirectX::XMFLOAT2{ 0.0f, 0.0f };
-        std::map<key_code, InputState> key_states = {};
-        std::map<mouse_code, InputState> mouse_states = {};
-    };
-
     InputController::InputController()
     : m_private_data(std::make_unique<PrivateData>())
     {

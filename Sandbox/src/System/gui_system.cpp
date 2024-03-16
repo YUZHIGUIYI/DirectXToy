@@ -5,6 +5,8 @@
 #include <Sandbox/System/gui_system.h>
 #include <IconsFontAwesome6.h>
 #include <Toy/Runtime/events.h>
+#include <Toy/Core/subsystem.h>
+#include <Toy/Runtime/renderer.h>
 
 namespace toy::editor
 {
@@ -111,6 +113,10 @@ namespace toy::editor
 
     void GuiSystem::frame_end()
     {
+        // Set back buffer as render target
+        auto& renderer = core::get_subsystem<runtime::Renderer>();
+        renderer.reset_render_target();
+
         // End docking space
         ImGui::End();
 
