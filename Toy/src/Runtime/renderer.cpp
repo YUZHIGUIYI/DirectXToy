@@ -3,6 +3,12 @@
 //
 
 #include <Toy/Runtime/renderer.h>
+#include <Toy/Renderer/taa_settings.h>
+#include <Toy/Renderer/cascaded_shadow_manager.h>
+#include <Toy/Renderer/effects.h>
+#include <Toy/Model/texture_manager.h>
+#include <Toy/Model/model_manager.h>
+#include <Toy/Renderer/render_states.h>
 
 namespace toy::runtime
 {
@@ -43,17 +49,17 @@ namespace toy::runtime
 
     void Renderer::process_pending_events(const std::vector<EngineEventVariant> &pending_events)
     {
-        // Note: current only support WindowCloseEvent, WindowResizeEvent, DropEvent
+        // Note: current only handle WindowResizeEvent, DockResizeEvent, DropEvent
         for (auto&& delegate_event : pending_events)
         {
             std::visit([this] (auto&& event) {
                 using event_type = std::decay_t<decltype(event)>;
-                if constexpr (std::is_same_v<event_type, WindowCloseEvent>)
-                {
-                    DX_CORE_INFO("Close renderer");
-                } else if constexpr (std::is_same_v<event_type, WindowResizeEvent>)
+                if constexpr (std::is_same_v<event_type, WindowResizeEvent>)
                 {
                     this->on_framebuffer_resize(event.window_width, event.window_height);
+                } else if constexpr (std::is_same_v<event_type, DockResizeEvent>)
+                {
+                    this->on_render_target_resize(event.dock_width, event.dock_height);
                 } else if constexpr (std::is_same_v<event_type, DropEvent>)
                 {
                     this->on_file_drop(event.drop_filename);
@@ -72,8 +78,9 @@ namespace toy::runtime
         // 1. Initialize renderer backend
         init_backend();
 
-        // 2. Initialize effects
-        init_effects();
+        // 2. Initialize resources
+        init_resources();
+        on_render_target_resize(m_dock_width, m_dock_height);
     }
 
     void Renderer::init_backend()
@@ -211,10 +218,74 @@ namespace toy::runtime
         on_framebuffer_resize(m_client_width, m_client_height);
     }
 
-    void Renderer::init_effects()
+    void Renderer::init_resources()
     {
         // TODO: initialize effects
+        // Initialize texture manager and model manager
+        model::TextureManager::get().init(m_d3d_device.Get());
+        model::ModelManager::get().init(m_d3d_device.Get());
 
+        // Initialize render states
+        RenderStates::init(m_d3d_device.Get());
+
+        // Initialize effects
+        ShadowEffect::get().init(m_d3d_device.Get());
+        DeferredPBREffect::get().init(m_d3d_device.Get());
+        SimpleSkyboxEffect::get().init(m_d3d_device.Get());
+        PreProcessEffect::get().init(m_d3d_device.Get());
+        TAAEffect::get().init(m_d3d_device.Get());
+        GizmosWireEffect::get().init(m_d3d_device.Get());
+
+        // Initialize shadow
+        CascadedShadowManager::get().init(m_d3d_device.Get());
+
+        // Initialize camera and controller and other effects
+        using namespace DirectX;
+        using namespace toy::model;
+
+        auto camera = std::make_shared<FirstPersonCamera>();
+        m_camera = camera;
+        m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_dock_width), static_cast<float>(m_dock_height));
+        m_camera->set_frustum(XM_PI / 3.0f, static_cast<float>(m_dock_width) / static_cast<float>(m_dock_height), 0.5f, 360.0f);
+        camera->look_at(XMFLOAT3{-60.0f, 10.0f, 2.5f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+
+
+
+        auto directional_light = std::make_shared<FirstPersonCamera>();
+        m_directional_light = directional_light;
+        directional_light->set_viewport(0.0f, 0.0f, static_cast<float>(m_dock_width), static_cast<float>(m_dock_height));
+        directional_light->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
+        directional_light->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+        m_camera_controller.init(camera.get());
+
+        // Note: Initialize effects
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        auto&& deferred_pbr_effect = DeferredPBREffect::get();
+        //// 1. Deferred pbr effect
+        deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
+        deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(true));
+        deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+
+        deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.blur_kernel_size);
+        deferred_pbr_effect.set_pcf_depth_bias(cascade_shadow_manager.pcf_depth_bias);
+        deferred_pbr_effect.set_shadow_type(static_cast<uint8_t>(cascade_shadow_manager.shadow_type));
+        deferred_pbr_effect.set_shadow_size(cascade_shadow_manager.shadow_size);
+        deferred_pbr_effect.set_cascade_blend_area(cascade_shadow_manager.blend_between_cascades_range);
+        deferred_pbr_effect.set_cascade_levels(cascade_shadow_manager.cascade_levels);
+        deferred_pbr_effect.set_cascade_interval_selection_enabled(static_cast<bool>(cascade_shadow_manager.selected_cascade_selection));
+        deferred_pbr_effect.set_light_bleeding_reduction(cascade_shadow_manager.light_bleeding_reduction);
+        deferred_pbr_effect.set_magic_power(cascade_shadow_manager.magic_power);
+        deferred_pbr_effect.set_positive_exponent(cascade_shadow_manager.positive_exponent);
+        deferred_pbr_effect.set_negative_exponent(cascade_shadow_manager.negative_exponent);
+        deferred_pbr_effect.set_16_bit_format_shadow(false);
+        //// 2. TAA effect
+        TAAEffect::get().set_viewer_size(m_dock_width, m_dock_height);
+        TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
+        //// 3. Shadow effect
+        ShadowEffect::get().set_view_matrix(m_directional_light->get_view_xm());
+        ShadowEffect::get().set_blur_kernel_size(cascade_shadow_manager.blur_kernel_size);
+        ShadowEffect::get().set_blur_sigma(cascade_shadow_manager.gaussian_blur_sigma);
+        ShadowEffect::get().set_16bit_format_shadow(false);
     }
 
     void Renderer::on_framebuffer_resize(int32_t width, int32_t height)
@@ -258,6 +329,86 @@ namespace toy::runtime
 
     void Renderer::on_file_drop(std::string_view filepath)
     {
-        // TODO
+        const std::string extension = std::filesystem::path(filepath).extension().string();
+        auto name = std::filesystem::path(filepath).filename();
+        if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
+        {
+            auto new_entity = m_editor_scene->create_entity(name.string());
+            model::ModelManager::get().create_from_file(filename, static_cast<uint32_t>(new_entity.entity_handle));
+
+            auto& new_transform = new_entity.add_component<TransformComponent>();
+            new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
+            auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
+            new_mesh.model_asset = model::ModelManager::get().get_model(filename);
+
+        } else if (extension == ".hdr")
+        {
+            auto d3d_device = m_d3d_app->get_device();
+            auto d3d_device_context = m_d3d_app->get_device_context();
+            PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, filename);
+            PreProcessEffect::get().compute_sp_env_map(d3d_device, d3d_device_context);
+            PreProcessEffect::get().compute_irradiance_map(d3d_device, d3d_device_context);
+            PreProcessEffect::get().compute_brdf_lut(d3d_device, d3d_device_context);
+        }
+    }
+
+    void Renderer::on_render_target_resize(int32_t width, int32_t height)
+    {
+        // TODO: reset buffers
+        m_dock_width = width;
+        m_dock_height = height;
+
+        auto d3d_device = m_d3d_device.Get();
+
+        // Initialize depth resource for GBuffer
+        m_depth_texture = std::make_unique<Depth2D>(d3d_device, width, height, DepthStencilBitsFlag::Depth_32Bits);
+
+        // GBuffer
+        // Albedo and metalness
+        m_gbuffer.albedo_metalness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        // Normal and roughness
+        m_gbuffer.normal_roughness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        // World position
+        m_gbuffer.world_position_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        // Motion vector
+        m_gbuffer.motion_vector_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_UNORM,
+                                                                        1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        // Entity id
+        m_gbuffer.entity_id_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R32_UINT,
+                                                                    1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+
+        // Viewer texture
+        m_view_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+
+        // TAA input and output
+        m_history_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+        m_lighting_pass_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+        m_taa_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+
+        // Shadow effect debug
+        m_shadow_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+    }
+
+    void Renderer::shadow_pass()
+    {
+
+    }
+
+    void Renderer::gbuffer_pass()
+    {
+
+    }
+
+    void Renderer::lighting_and_taa_pass()
+    {
+
+    }
+
+    void Renderer::skybox_pass()
+    {
+
     }
 }

@@ -62,6 +62,7 @@ namespace toy::core
             [[nodiscard]] bool has_subsystems() const;
 
         private:
+            std::vector<std::size_t> m_system_orders;
             std::unordered_map<std::size_t, std::shared_ptr<void>> m_systems;
             bool is_disposed = false;
         };
@@ -70,7 +71,12 @@ namespace toy::core
         S& SubsystemContext::add_subsystem(Args&& ... args)
         {
             static_assert(std::is_constructible_v<S, Args...>, "Failed to construct object T from args");
+            if (has_subsystems<S>())
+            {
+                DX_CORE_CRITICAL("Duplicated subsystem");
+            }
             auto index = rtti::type_id<S>().hash_code();
+            m_system_orders.emplace_back(index);
             auto it = m_systems.try_emplace(index, std::make_unique<S>(std::forward<Args>(args)...));
             return *reinterpret_cast<S *>((*it.first).second.get());
         }
@@ -78,17 +84,24 @@ namespace toy::core
         template <typename S>
         S& SubsystemContext::get_subsystem()
         {
+            if (!has_subsystems<S>())
+            {
+                DX_CORE_CRITICAL("Failed to get subsystem");
+            }
             auto index = rtti::type_id<S>().hash_code();
-            DX_CORE_ASSERT(m_systems.contains(index), "Failed to get subsystem");
             return *reinterpret_cast<S *>(m_systems[index].get());
         }
 
         template <typename S>
         void SubsystemContext::remove_subsystem()
         {
+            if (!has_subsystems<S>())
+            {
+                DX_CORE_CRITICAL("Failed to find subsystem");
+            }
             auto index = rtti::type_id<S>().hash_code();
-            DX_CORE_ASSERT(m_systems.contains(index), "Failed to find subsystem");
             m_systems.erase(index);
+            m_system_orders.erase(std::remove_if(m_system_orders.begin(), m_system_orders.end(), [index] (const auto &element) { return index = element; }));
         }
 
         template <typename S>

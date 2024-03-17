@@ -29,15 +29,9 @@ namespace toy::editor
             dock->on_resize();
         }
 
-        // UI rendering
         for (auto& dock : m_ui_docks)
         {
-            dock->on_ui_render();
-        }
-
-        for (auto& dock : m_ui_docks)
-        {
-            dock->on_render(delta_time);
+            dock->on_render();
         }
     }
 }

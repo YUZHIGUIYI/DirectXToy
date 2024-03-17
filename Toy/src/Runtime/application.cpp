@@ -9,12 +9,14 @@
 #include <Toy/Core/simulation.h>
 #include <Toy/Core/input.h>
 #include <Toy/Runtime/render_window.h>
+#include <Toy/Runtime/scene_graph.h>
 
 namespace toy::runtime
 {
     void Application::start()
     {
         // TODO: add subsystems
+        auto&& scene_graph = core::add_subsystem<SceneGraph>();
         auto&& render_window = core::add_subsystem<RenderWindow>(1600, 900);
         auto&& renderer = core::add_subsystem<Renderer>(render_window.get_window_width(), render_window.get_window_height());
         auto&& simulation = core::add_subsystem<Simulation>();

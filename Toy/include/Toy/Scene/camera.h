@@ -8,6 +8,13 @@
 
 namespace toy
 {
+    enum class CameraType : uint8_t
+    {
+        DefaultCamera,
+        FirstPersonCamera,
+        ThirdPersonCamera
+    };
+
     class Camera
     {
     public:

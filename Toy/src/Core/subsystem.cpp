@@ -42,6 +42,17 @@ namespace toy::core::details
 
     void SubsystemContext::dispose()
     {
+        for (auto it = m_system_orders.rbegin(); it != m_system_orders.rend(); ++it)
+        {
+            auto found = m_systems.find(*it);
+            if (found == m_systems.end())
+            {
+                DX_CORE_CRITICAL("Failed to find subsystem");
+            }
+            found->second.reset();
+            m_systems.erase(found);
+        }
+        m_system_orders.clear();
         m_systems.clear();
         is_disposed = true;
     }

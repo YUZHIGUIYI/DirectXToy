@@ -1,36 +1,37 @@
 //
-// Created by ZZK on 2023/7/1.
+// Created by ZZK on 2024/3/17.
 //
 
 #pragma once
 
+#include <Toy/Core/base.h>
+#include <Toy/Scene/entity_wrapper.h>
 #include <Toy/Renderer/effect_interface.h>
-#include <entt/entt.hpp>
 
 namespace toy
 {
-    struct Entity;
-
     class Camera;
-
-    struct Scene
+}
+namespace toy::runtime
+{
+    struct SceneGraph
     {
-    public:
-        entt::registry registry_handle{};
+    private:
+        entt::registry registry_handle = {};
         std::vector<entt::entity> general_static_mesh_entities;
 
     public:
-        Scene();
+        SceneGraph() = default;
 
-        ~Scene() = default;
+        ~SceneGraph() = default;
 
-        Scene(const Scene &) = delete;
-        Scene &operator=(const Scene &) = delete;
-        Scene(Scene &&) = delete;
-        Scene &operator=(Scene &&) = delete;
+        SceneGraph(const SceneGraph &) = delete;
+        SceneGraph &operator=(const SceneGraph &) = delete;
+        SceneGraph(SceneGraph &&) = delete;
+        SceneGraph &operator=(SceneGraph &&) = delete;
 
-        Entity create_entity(std::string_view entity_name);
-        void destroy_entity(const Entity &entity);
+        EntityWrapper create_entity(std::string_view entity_name);
+        void destroy_entity(EntityWrapper &entity_wrapper);
 
         void update_cascaded_shadow(std::function<void(const DirectX::BoundingBox &bounding_box)> &&update_func);
 
@@ -42,11 +43,11 @@ namespace toy
 
         void render_static_mesh(ID3D11DeviceContext *device_context, IEffect &effect);
 
-        bool pick_entity(Entity &selected_entity, const Camera &camera, float mouse_pos_x, float mouse_pos_y);
+        bool pick_entity(EntityWrapper &selected_entity, const Camera &camera, float mouse_pos_x, float mouse_pos_y);
 
-        Entity get_entity(uint32_t entity_id);
+        EntityWrapper get_entity(uint32_t entity_id);
 
-        Entity get_skybox_entity();
+        EntityWrapper get_skybox_entity();
 
     private:
         void adjust_illuminant();
@@ -58,51 +59,3 @@ namespace toy
         DirectX::BoundingBox scene_bounding_box = {};
     };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

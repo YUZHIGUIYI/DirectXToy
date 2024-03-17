@@ -7,6 +7,10 @@
 #include <Toy/Core/base.h>
 #include <Toy/Events/event.h>
 #include <Toy/Events/window_event.h>
+#include <Toy/Renderer/texture_2d.h>
+#include <Toy/Renderer/gbuffer_definition.h>
+#include <Toy/Scene/camera.h>
+#include <Toy/Scene/entity_wrapper.h>
 
 namespace toy::runtime
 {
@@ -43,16 +47,33 @@ namespace toy::runtime
 
         [[nodiscard]] ID3D11RenderTargetView* get_back_buffer_rtv() const { return m_render_target_views[m_frame_count % m_back_buffer_count].Get(); }
 
+        [[nodiscard]] ID3D11ShaderResourceView* get_shadow_debug_srv() const { return m_shadow_texture->get_shader_resource(); }
+
+        [[nodiscard]] ID3D11ShaderResourceView* get_view_srv() const { return m_view_texture->get_shader_resource(); }
+
+        [[nodiscard]] const GBufferDefinition& get_gbuffer_definition() const { return m_gbuffer; }
+
     private:
         void init();
 
         void init_backend();
 
-        void init_effects();
+        void init_resources();
 
         void on_framebuffer_resize(int32_t width, int32_t height);
 
+        void on_render_target_resize(int32_t width, int32_t height);
+
         void on_file_drop(std::string_view filepath);
+
+    private:
+        void shadow_pass();
+
+        void gbuffer_pass();
+
+        void lighting_and_taa_pass();
+
+        void skybox_pass();
 
     private:
         HWND m_main_wnd;                                                        // Main window handle
@@ -71,9 +92,28 @@ namespace toy::runtime
         uint32_t m_back_buffer_count = 0;                                       // Back buffer count
         uint32_t m_frame_count = 0;                                             // Current frame
 
+        // Resources
+        std::unique_ptr<Texture2D> m_shadow_texture = nullptr;
+        std::unique_ptr<Depth2D> m_depth_texture = nullptr;
+        std::unique_ptr<Texture2D> m_history_texture = nullptr;
+        std::unique_ptr<Texture2D> m_lighting_pass_texture = nullptr;
+        std::unique_ptr<Texture2D> m_taa_texture = nullptr;
+        std::unique_ptr<Texture2D> m_view_texture = nullptr;
+        GBufferDefinition m_gbuffer;
+
+        // Directional light
+        std::shared_ptr<Camera> m_directional_light = nullptr;
+
+        // Selected entity
+        EntityWrapper m_selected_entity = {};
+
         // Frame buffer size
         int32_t m_client_width = 1920;                                          // Frame buffer Width
         int32_t m_client_height = 1080;                                         // Frame buffer Height
+
+        // Render target and shader resource view size
+        int32_t m_dock_width = 1600;
+        int32_t m_dock_height = 900;
 
         bool m_is_dxgi_flip_model = false;                                      // Use DXGI flip model
         bool m_window_minimized = false;                                        // Renderer minimized

@@ -6,16 +6,15 @@
 
 #include <Toy/Scene/transform.h>
 #include <Toy/Renderer/effect_interface.h>
+#include <Toy/Scene/camera.h>
+
+namespace model
+{
+    struct Model;
+}
 
 namespace toy
 {
-    namespace model
-    {
-        struct Model;
-    }
-
-    class Camera;
-
     struct TagComponent
     {
         std::string tag = {};
@@ -29,6 +28,7 @@ namespace toy
     struct CameraComponent
     {
         std::shared_ptr<Camera> camera = nullptr;
+        CameraType camera_type = CameraType::DefaultCamera;
     };
 
     struct StaticMeshComponent

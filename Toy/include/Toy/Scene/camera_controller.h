@@ -28,7 +28,7 @@ namespace toy
 
         void update(float delta_time) override;
 
-        void init(FirstPersonCamera* camera, GLFWwindow *glfw_window);
+        void init(FirstPersonCamera* camera, GLFWwindow *glfw_window = nullptr);
         void set_mouse_sensitivity(float x, float y);
         void set_move_speed(float speed);
 

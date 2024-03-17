@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <Sandbox/Dock/dock.h>
+#include <Sandbox/Docks/dock.h>
 
 namespace toy::editor
 {
