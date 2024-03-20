@@ -34,7 +34,8 @@ namespace toy::runtime
 
         [[nodiscard]] int32_t get_window_height() const;
 
-        std::vector<EngineEventVariant> poll_delegate_events();
+    private:
+        void poll_delegate_events();
 
     private:
         GLFWwindow* m_native_window = nullptr;

@@ -28,7 +28,7 @@ namespace toy::runtime
 
         void tick();
 
-        void process_pending_events(const std::vector<EngineEventVariant> &pending_events);
+        void process_pending_events();
 
         // Invoke before frame end
         void reset_render_target();

@@ -10,6 +10,7 @@
 #include <Toy/Core/input.h>
 #include <Toy/Runtime/render_window.h>
 #include <Toy/Runtime/scene_graph.h>
+#include <Toy/Runtime/task_system.h>
 
 namespace toy::runtime
 {
@@ -17,6 +18,7 @@ namespace toy::runtime
     {
         // TODO: add subsystems
         auto&& scene_graph = core::add_subsystem<SceneGraph>();
+        auto&& task_system = core::add_subsystem<TaskSystem>();
         auto&& render_window = core::add_subsystem<RenderWindow>(1600, 900);
         auto&& renderer = core::add_subsystem<Renderer>(render_window.get_window_width(), render_window.get_window_height());
         auto&& simulation = core::add_subsystem<Simulation>();
@@ -45,7 +47,8 @@ namespace toy::runtime
         simulation.run_one_frame();
         render_window.tick();
         input_controller.update_state();
-        poll_events();
+
+        process_events();
 
         if (!m_is_running || renderer.is_renderer_minimized()) return;
 
@@ -84,21 +87,17 @@ namespace toy::runtime
         m_is_running = false;
     }
 
-    void Application::poll_events()
+    void Application::process_events()
     {
-        // TODO
         auto&& render_window = core::get_subsystem<RenderWindow>();
-
         if (render_window.poll_window_close())
         {
             quit();
             return;
         }
 
-        auto delegate_events = render_window.poll_delegate_events();
-        if (delegate_events.empty()) return;
         auto&& renderer = core::get_subsystem<Renderer>();
-        renderer.process_pending_events(delegate_events);
+        renderer.process_pending_events();
     }
 
 }

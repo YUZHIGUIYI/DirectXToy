@@ -3,6 +3,8 @@
 //
 
 #include <Toy/Runtime/render_window.h>
+#include <Toy/Runtime/task_system.h>
+#include <Toy/Core/subsystem.h>
 
 namespace toy::runtime
 {
@@ -63,7 +65,10 @@ namespace toy::runtime
         m_window_close_event = NoneEvent{};
         m_framebuffer_resize_event = NoneEvent{};
         m_delegate_events.clear();
+        
         glfwPollEvents();
+
+        poll_delegate_events();
     }
 
     GLFWwindow *RenderWindow::get_native_window() const
@@ -91,24 +96,24 @@ namespace toy::runtime
         return std::holds_alternative<WindowResizeEvent>(m_framebuffer_resize_event);
     }
 
-    std::vector<EngineEventVariant> RenderWindow::poll_delegate_events()
+    void RenderWindow::poll_delegate_events()
     {
-        std::vector<EngineEventVariant> poll_window_events;
-        poll_window_events.reserve(1 + m_delegate_events.size());
+        auto&& task_system = core::get_subsystem<TaskSystem>();
 
-        if (std::holds_alternative<WindowResizeEvent>(m_framebuffer_resize_event))
+        if (poll_framebuffer_resize())
         {
-            poll_window_events.emplace_back(m_framebuffer_resize_event);
+            task_system.push(m_framebuffer_resize_event);
         }
 
-        if (poll_window_events.empty() && !m_delegate_events.empty())
+        if (task_system.empty() && !m_delegate_events.empty())
         {
-            poll_window_events.assign(m_delegate_events.cbegin(), m_delegate_events.cend());
-        } else if (!poll_window_events.empty() && !m_delegate_events.empty())
+            task_system.assign(m_delegate_events.cbegin(), m_delegate_events.cend());
+        } else if (!task_system.empty() && !m_delegate_events.empty())
         {
-            poll_window_events.insert(poll_window_events.cend(), m_delegate_events.cbegin(), m_delegate_events.cend());
+            for (auto&& event : m_delegate_events)
+            {
+                task_system.push(event);
+            }
         }
-
-        return poll_window_events;
     }
 }

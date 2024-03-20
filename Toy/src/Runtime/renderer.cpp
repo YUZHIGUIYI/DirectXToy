@@ -11,6 +11,7 @@
 #include <Toy/Renderer/render_states.h>
 #include <Toy/Core/subsystem.h>
 #include <Toy/Runtime/scene_graph.h>
+#include <Toy/Runtime/task_system.h>
 #include <Toy/Scene/components.h>
 
 namespace toy::runtime
@@ -68,9 +69,12 @@ namespace toy::runtime
         return m_shadow_texture->get_shader_resource();
     }
 
-    void Renderer::process_pending_events(const std::vector<EngineEventVariant> &pending_events)
+    void Renderer::process_pending_events()
     {
+        auto&& task_system = core::get_subsystem<TaskSystem>();
+        if (task_system.empty()) return;
         // Note: current only handle WindowResizeEvent, DockResizeEvent, DropEvent
+        auto&& pending_events = task_system.get_pending_events();
         for (auto&& delegate_event : pending_events)
         {
             std::visit([this] (auto&& event) {

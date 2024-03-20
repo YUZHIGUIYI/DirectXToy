@@ -33,7 +33,7 @@ namespace toy::runtime
         void quit();
 
     private:
-        void poll_events();
+        void process_events();
 
     private:
         bool m_is_running = true;
