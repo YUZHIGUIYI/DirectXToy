@@ -3,12 +3,10 @@
 //
 
 #include <Toy/Runtime/scene_graph.h>
-#include <Toy/Scene/entity.h>
 #include <Toy/Scene/collision.h>
-
-#include <Toy/Scene/components.h>
 #include <Toy/Model/model_manager.h>
 #include <Toy/Scene/camera.h>
+#include <Toy/Scene/components.h>
 
 namespace toy::runtime
 {

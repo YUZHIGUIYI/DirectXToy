@@ -35,6 +35,9 @@ namespace toy::runtime
 
         void update_cascaded_shadow(std::function<void(const DirectX::BoundingBox &bounding_box)> &&update_func);
 
+        template <typename Component>
+        void for_each(std::function<void(Component&)> &&func);
+
         void frustum_culling(const DirectX::BoundingFrustum &frustum_in_world);
 
         void render_skybox(ID3D11DeviceContext *device_context, IEffect &effect);
@@ -58,4 +61,15 @@ namespace toy::runtime
         entt::entity skybox_entity = entt::null;
         DirectX::BoundingBox scene_bounding_box = {};
     };
+
+    template <typename Component>
+    void SceneGraph::for_each(std::function<void(Component &)> &&func)
+    {
+        auto view = registry_handle.view<Component>();
+        for (auto entity : view)
+        {
+            auto& component = view.template get<Component>(entity);
+            func(component);
+        }
+    }
 }

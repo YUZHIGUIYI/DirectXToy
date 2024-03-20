@@ -9,9 +9,14 @@
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Model/model_manager.h>
 #include <Toy/Renderer/render_states.h>
+#include <Toy/Core/subsystem.h>
+#include <Toy/Runtime/scene_graph.h>
+#include <Toy/Scene/components.h>
 
 namespace toy::runtime
 {
+    static constexpr std::array<float, 4> s_clear_color = { 0.0f, 0.0f, 0.0f, 0.0f };
+
     Renderer::Renderer(int32_t width, int32_t height)
     : m_client_width(width), m_client_height(height)
     {
@@ -38,6 +43,11 @@ namespace toy::runtime
         m_swap_chain->Present(0, m_is_dxgi_flip_model ? DXGI_PRESENT_ALLOW_TEARING : 0);
     }
 
+    void Renderer::reset_selected_entity(const EntityWrapper &entity_wrapper)
+    {
+        m_selected_entity = entity_wrapper;
+    }
+
     void Renderer::release()
     {
         if (m_d3d_immediate_context)
@@ -45,6 +55,17 @@ namespace toy::runtime
             m_d3d_immediate_context->ClearState();
             m_has_released = true;
         }
+    }
+
+    ID3D11ShaderResourceView *Renderer::get_cascade_shadow_shader_resource(uint32_t cascade_index)
+    {
+        if (cascade_index != m_cur_cascade_index)
+        {
+            cascade_index = std::clamp(cascade_index, static_cast<uint32_t>(0), static_cast<uint32_t>(CascadedShadowManager::get().cascade_levels));
+            m_cur_cascade_index = cascade_index;
+            cascade_shadow_pass(cascade_index);
+        }
+        return m_shadow_texture->get_shader_resource();
     }
 
     void Renderer::process_pending_events(const std::vector<EngineEventVariant> &pending_events)
@@ -70,7 +91,15 @@ namespace toy::runtime
 
     void Renderer::tick()
     {
-        // TODO
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
+        scene_graph.for_each<CameraComponent>([this] (CameraComponent &camera_component){
+            auto&& camera = camera_component.camera;
+            this->frustum_culling(*camera);
+            this->shadow_pass(*camera);
+            this->gbuffer_pass(*camera);
+            this->lighting_and_taa_pass(*camera);
+            this->skybox_pass(*camera);
+        });
     }
 
     void Renderer::init()
@@ -220,7 +249,6 @@ namespace toy::runtime
 
     void Renderer::init_resources()
     {
-        // TODO: initialize effects
         // Initialize texture manager and model manager
         model::TextureManager::get().init(m_d3d_device.Get());
         model::ModelManager::get().init(m_d3d_device.Get());
@@ -236,36 +264,23 @@ namespace toy::runtime
         TAAEffect::get().init(m_d3d_device.Get());
         GizmosWireEffect::get().init(m_d3d_device.Get());
 
-        // Initialize shadow
+        // Initialize shadow manager
         CascadedShadowManager::get().init(m_d3d_device.Get());
 
         // Initialize camera and controller and other effects
         using namespace DirectX;
         using namespace toy::model;
 
-        auto camera = std::make_shared<FirstPersonCamera>();
-        m_camera = camera;
-        m_camera->set_viewport(0.0f, 0.0f, static_cast<float>(m_dock_width), static_cast<float>(m_dock_height));
-        m_camera->set_frustum(XM_PI / 3.0f, static_cast<float>(m_dock_width) / static_cast<float>(m_dock_height), 0.5f, 360.0f);
-        camera->look_at(XMFLOAT3{-60.0f, 10.0f, 2.5f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
-
-
-
         auto directional_light = std::make_shared<FirstPersonCamera>();
         m_directional_light = directional_light;
         directional_light->set_viewport(0.0f, 0.0f, static_cast<float>(m_dock_width), static_cast<float>(m_dock_height));
         directional_light->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
         directional_light->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
-        m_camera_controller.init(camera.get());
 
-        // Note: Initialize effects
+        // Initialize fixed states of effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
         //// 1. Deferred pbr effect
-        deferred_pbr_effect.set_view_matrix(camera->get_view_xm());
-        deferred_pbr_effect.set_proj_matrix(camera->get_proj_xm(true));
-        deferred_pbr_effect.set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
-
         deferred_pbr_effect.set_pcf_kernel_size(cascade_shadow_manager.blur_kernel_size);
         deferred_pbr_effect.set_pcf_depth_bias(cascade_shadow_manager.pcf_depth_bias);
         deferred_pbr_effect.set_shadow_type(static_cast<uint8_t>(cascade_shadow_manager.shadow_type));
@@ -279,10 +294,7 @@ namespace toy::runtime
         deferred_pbr_effect.set_negative_exponent(cascade_shadow_manager.negative_exponent);
         deferred_pbr_effect.set_16_bit_format_shadow(false);
         //// 2. TAA effect
-        TAAEffect::get().set_viewer_size(m_dock_width, m_dock_height);
-        TAAEffect::get().set_camera_near_far(m_camera->get_near_z(), m_camera->get_far_z());
         //// 3. Shadow effect
-        ShadowEffect::get().set_view_matrix(m_directional_light->get_view_xm());
         ShadowEffect::get().set_blur_kernel_size(cascade_shadow_manager.blur_kernel_size);
         ShadowEffect::get().set_blur_sigma(cascade_shadow_manager.gaussian_blur_sigma);
         ShadowEffect::get().set_16bit_format_shadow(false);
@@ -293,7 +305,7 @@ namespace toy::runtime
         if (width == 0 || height == 0)
         {
             m_window_minimized = true;
-            DX_CORE_INFO("Renderer window minimizing");
+            DX_CORE_INFO("Minimize renderer window");
             return;
         } else
         {
@@ -329,23 +341,22 @@ namespace toy::runtime
 
     void Renderer::on_file_drop(std::string_view filepath)
     {
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
         const std::string extension = std::filesystem::path(filepath).extension().string();
-        auto name = std::filesystem::path(filepath).filename();
+        auto filename = std::filesystem::path(filepath).filename();
         if (extension == ".gltf" || extension == ".glb" || extension == ".fbx")
         {
-            auto new_entity = m_editor_scene->create_entity(name.string());
-            model::ModelManager::get().create_from_file(filename, static_cast<uint32_t>(new_entity.entity_handle));
-
+            auto new_entity = scene_graph.create_entity(filename.string());
+            model::ModelManager::get().create_from_file(filepath, static_cast<uint32_t>(new_entity.entity_inst));
             auto& new_transform = new_entity.add_component<TransformComponent>();
-            new_transform.transform.set_scale(0.1f, 0.1f, 0.1f);
+            new_transform.transform.set_scale(0.5f, 0.5f, 0.5f);
             auto& new_mesh = new_entity.add_component<StaticMeshComponent>();
-            new_mesh.model_asset = model::ModelManager::get().get_model(filename);
-
+            new_mesh.model_asset = model::ModelManager::get().get_model(filepath);
         } else if (extension == ".hdr")
         {
-            auto d3d_device = m_d3d_app->get_device();
-            auto d3d_device_context = m_d3d_app->get_device_context();
-            PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, filename);
+            auto d3d_device = m_d3d_device.Get();
+            auto d3d_device_context = m_d3d_immediate_context.Get();
+            PreProcessEffect::get().compute_cubemap(d3d_device, d3d_device_context, filepath);
             PreProcessEffect::get().compute_sp_env_map(d3d_device, d3d_device_context);
             PreProcessEffect::get().compute_irradiance_map(d3d_device, d3d_device_context);
             PreProcessEffect::get().compute_brdf_lut(d3d_device, d3d_device_context);
@@ -354,7 +365,7 @@ namespace toy::runtime
 
     void Renderer::on_render_target_resize(int32_t width, int32_t height)
     {
-        // TODO: reset buffers
+        // Reset dock size for render targets
         m_dock_width = width;
         m_dock_height = height;
 
@@ -363,20 +374,20 @@ namespace toy::runtime
         // Initialize depth resource for GBuffer
         m_depth_texture = std::make_unique<Depth2D>(d3d_device, width, height, DepthStencilBitsFlag::Depth_32Bits);
 
-        // GBuffer
-        // Albedo and metalness
+        // Initialize GBuffer
+        //// Albedo and metalness
         m_gbuffer.albedo_metalness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM,
                                                                         1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        // Normal and roughness
+        //// Normal and roughness
         m_gbuffer.normal_roughness_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
                                                                         1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        // World position
+        //// World position
         m_gbuffer.world_position_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
                                                                         1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        // Motion vector
+        //// Motion vector
         m_gbuffer.motion_vector_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R16G16_UNORM,
                                                                         1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        // Entity id
+        //// Entity id
         m_gbuffer.entity_id_buffer = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R32_UINT,
                                                                     1, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
 
@@ -388,27 +399,235 @@ namespace toy::runtime
         m_lighting_pass_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
         m_taa_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
 
-        // Shadow effect debug
+        // Shadow texture for debugging
         m_shadow_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
     }
 
-    void Renderer::shadow_pass()
+    void Renderer::frustum_culling(const toy::Camera &camera)
     {
+        using namespace DirectX;
 
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
+        BoundingFrustum frustum = {};
+        BoundingFrustum::CreateFromMatrix(frustum, camera.get_proj_xm());
+        frustum.Transform(frustum, camera.get_local_to_world_xm());
+        scene_graph.frustum_culling(frustum);
     }
 
-    void Renderer::gbuffer_pass()
+    void Renderer::shadow_pass(const Camera &camera)
     {
+        using namespace DirectX;
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
+        auto&& shadow_effect = ShadowEffect::get();
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        auto viewport = cascade_shadow_manager.get_shadow_viewport();
 
+        shadow_effect.set_view_matrix(m_directional_light->get_view_xm());
+        scene_graph.update_cascaded_shadow([this, &cascade_shadow_manager, &camera] (const DirectX::BoundingBox &bounding_box){
+            cascade_shadow_manager.update_frame(camera, *m_directional_light, bounding_box);
+        });
+
+        m_d3d_immediate_context->RSSetViewports(1, &viewport);
+
+        for (size_t cascade_index = 0; cascade_index < cascade_shadow_manager.cascade_levels; ++cascade_index)
+        {
+            switch (cascade_shadow_manager.shadow_type)
+            {
+                case ShadowType::ShadowType_CSM: shadow_effect.set_default_render(); break;
+                case ShadowType::ShadowType_VSM:
+                case ShadowType::ShadowType_ESM:
+                case ShadowType::ShadowType_EVSM2:
+                case ShadowType::ShadowType_EVSM4: shadow_effect.set_depth_only_render(); break;
+            }
+
+            ID3D11RenderTargetView* depth_rtv = cascade_shadow_manager.get_cascade_render_target_view(cascade_index);
+            ID3D11DepthStencilView* depth_dsv = cascade_shadow_manager.get_depth_buffer_dsv();
+            m_d3d_immediate_context->ClearRenderTargetView(depth_rtv, s_clear_color.data());
+            m_d3d_immediate_context->ClearDepthStencilView(depth_dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
+            if (cascade_shadow_manager.shadow_type != ShadowType::ShadowType_CSM) depth_rtv = nullptr;
+            m_d3d_immediate_context->OMSetRenderTargets(1, &depth_rtv, depth_dsv);
+
+            XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
+            shadow_effect.set_proj_matrix(shadow_proj);
+
+            scene_graph.render_static_mesh_shadow(m_d3d_immediate_context.Get(), shadow_effect);
+
+            m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
+
+            if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM || cascade_shadow_manager.shadow_type >= ShadowType::ShadowType_EVSM2)
+            {
+                if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM)
+                {
+                    shadow_effect.render_variance_shadow(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_depth_buffer_srv(),
+                                                            cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                } else
+                {
+                    shadow_effect.render_exponential_variance_shadow(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_depth_buffer_srv(),
+                                                                        cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport(),
+                                                                        cascade_shadow_manager.positive_exponent,
+                                                                        cascade_shadow_manager.shadow_type == ShadowType::ShadowType_EVSM4 ? &cascade_shadow_manager.negative_exponent : nullptr);
+                }
+                if (cascade_shadow_manager.blur_kernel_size > 1)
+                {
+                    shadow_effect.gaussian_blur_x(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_cascade_output(cascade_index),
+                                                    cascade_shadow_manager.get_temp_texture_rtv(), cascade_shadow_manager.get_shadow_viewport());
+                    shadow_effect.gaussian_blur_y(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_temp_texture_output(),
+                                                    cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                }
+            } else if (cascade_shadow_manager.shadow_type == ShadowType::ShadowType_ESM)
+            {
+                if (cascade_shadow_manager.blur_kernel_size > 1)
+                {
+                    shadow_effect.render_exponential_shadow(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_depth_buffer_srv(),
+                                                            cascade_shadow_manager.get_temp_texture_rtv(), cascade_shadow_manager.get_shadow_viewport(), cascade_shadow_manager.magic_power);
+                    shadow_effect.log_gaussian_blur(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_temp_texture_output(),
+                                                    cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport());
+                } else
+                {
+                    shadow_effect.render_exponential_shadow(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_depth_buffer_srv(),
+                                                            cascade_shadow_manager.get_cascade_render_target_view(cascade_index), cascade_shadow_manager.get_shadow_viewport(), cascade_shadow_manager.magic_power);
+                }
+            }
+        }
+
+        if ((cascade_shadow_manager.shadow_type == ShadowType::ShadowType_VSM || cascade_shadow_manager.shadow_type >= ShadowType::ShadowType_EVSM2) && cascade_shadow_manager.generate_mips)
+        {
+            m_d3d_immediate_context->GenerateMips(cascade_shadow_manager.get_cascades_output());
+        }
     }
 
-    void Renderer::lighting_and_taa_pass()
+    void Renderer::gbuffer_pass(const Camera &camera)
     {
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
+        D3D11_VIEWPORT viewport = camera.get_viewport();
+        std::array<ID3D11RenderTargetView *, 5> gbuffer_rtvs{
+                m_gbuffer.albedo_metalness_buffer->get_render_target(),
+                m_gbuffer.normal_roughness_buffer->get_render_target(),
+                m_gbuffer.world_position_buffer->get_render_target(),
+                m_gbuffer.motion_vector_buffer->get_render_target(),
+                m_gbuffer.entity_id_buffer->get_render_target()
+        };
 
+        m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.entity_id_buffer->get_render_target(), s_clear_color.data());
+        m_d3d_immediate_context->ClearDepthStencilView(m_depth_texture->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
+        m_d3d_immediate_context->RSSetViewports(1, &viewport);
+        DeferredPBREffect::get().set_gbuffer_render();
+        m_d3d_immediate_context->OMSetRenderTargets(static_cast<uint32_t>(gbuffer_rtvs.size()), gbuffer_rtvs.data(), m_depth_texture->get_depth_stencil());
+        scene_graph.render_static_mesh(m_d3d_immediate_context.Get(), DeferredPBREffect::get());
+        m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 
-    void Renderer::skybox_pass()
+    void Renderer::lighting_and_taa_pass(const Camera &camera)
     {
+        static bool first_frame = true;
+        static uint32_t taa_frame_counter = 0;
+        D3D11_VIEWPORT viewport = camera.get_viewport();
 
+        set_shadow_paras();
+
+        DeferredPBREffect::get().set_proj_matrix(camera.get_proj_xm(true));
+        DeferredPBREffect::get().set_view_matrix(camera.get_view_xm());
+        DeferredPBREffect::get().set_camera_position(camera.get_position());
+        DeferredPBREffect::get().set_camera_near_far(camera.get_near_z(), camera.get_far_z());
+        DeferredPBREffect::get().set_viewer_size(m_dock_width, m_dock_height);
+        DeferredPBREffect::get().set_lighting_pass_render();
+        DeferredPBREffect::get().deferred_lighting_pass(m_d3d_immediate_context.Get(), m_lighting_pass_texture->get_render_target(),
+                                                        m_gbuffer, camera.get_viewport());
+
+        if (m_selected_entity.is_valid())
+        {
+            auto&& gizmos_wire_effect = GizmosWireEffect::get();
+            auto& transform_component = m_selected_entity.get_component<TransformComponent>();
+            auto world_matrix = transform_component.transform.get_local_to_world_matrix_xm();
+            auto& static_mesh_component = m_selected_entity.get_component<StaticMeshComponent>();
+            gizmos_wire_effect.set_world_matrix(world_matrix);
+            gizmos_wire_effect.set_view_matrix(camera.get_view_xm());
+            gizmos_wire_effect.set_proj_matrix(camera.get_proj_xm(true));
+            gizmos_wire_effect.set_vertex_buffer(m_d3d_immediate_context.Get(), static_mesh_component.get_local_bounding_box());
+            gizmos_wire_effect.render(m_d3d_immediate_context.Get(), m_lighting_pass_texture->get_render_target(), m_depth_texture->get_depth_stencil(), viewport);
+        }
+
+        if (first_frame)
+        {
+            m_d3d_immediate_context->CopyResource(m_taa_texture->get_texture(), m_lighting_pass_texture->get_texture());
+            first_frame = false;
+        } else
+        {
+            TAAEffect::get().set_viewer_size(m_dock_width, m_dock_height);
+            TAAEffect::get().set_camera_near_far(camera.get_near_z(), camera.get_far_z());
+            TAAEffect::get().render(m_d3d_immediate_context.Get(), m_history_texture->get_shader_resource(), m_lighting_pass_texture->get_shader_resource(),
+                                    m_gbuffer.motion_vector_buffer->get_shader_resource(), m_depth_texture->get_shader_resource(),
+                                    m_taa_texture->get_render_target(), viewport);
+            taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
+        }
+
+        m_d3d_immediate_context->CopyResource(m_history_texture->get_texture(), m_taa_texture->get_texture());
+    }
+
+    void Renderer::skybox_pass(const Camera &camera)
+    {
+        auto&& scene_graph = core::get_subsystem<SceneGraph>();
+        auto render_target_view = m_view_texture->get_render_target();
+        D3D11_VIEWPORT viewport = camera.get_viewport();
+        viewport.MinDepth = 1.0f;
+        viewport.MaxDepth = 1.0f;
+
+        m_d3d_immediate_context->RSSetViewports(1, &viewport);
+
+        SimpleSkyboxEffect::get().set_skybox_render();
+        SimpleSkyboxEffect::get().set_view_matrix(camera.get_view_xm());
+        SimpleSkyboxEffect::get().set_proj_matrix(camera.get_proj_xm(true));
+        SimpleSkyboxEffect::get().set_depth_texture(m_depth_texture->get_shader_resource());
+        SimpleSkyboxEffect::get().set_scene_texture(m_taa_texture->get_shader_resource());
+        SimpleSkyboxEffect::get().apply(m_d3d_immediate_context.Get());
+
+        m_d3d_immediate_context->OMSetRenderTargets(1, &render_target_view, nullptr);
+        scene_graph.render_skybox(m_d3d_immediate_context.Get(), SimpleSkyboxEffect::get());
+        SimpleSkyboxEffect::get().set_depth_texture(nullptr);
+        SimpleSkyboxEffect::get().set_scene_texture(nullptr);
+        m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
+    }
+
+    void Renderer::set_shadow_paras()
+    {
+        using namespace DirectX;
+
+        static const XMMATRIX s_transform = {
+                0.5f, 0.0f, 0.0f, 0.0f,
+                0.0f, -0.5f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                0.5f, 0.5f, 0.0f, 1.0f
+        };
+
+        auto&& deferred_pbr_effect = DeferredPBREffect::get();
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+
+        std::array<XMFLOAT4, 8> scales = {};
+        std::array<XMFLOAT4, 8> offsets = {};
+        // From NDC [-1, 1]^2 to texture coordinates [0, 1]^2
+        for (size_t cascade_index = 0; cascade_index < cascade_shadow_manager.cascade_levels; ++cascade_index)
+        {
+            XMMATRIX shadow_texture = cascade_shadow_manager.get_shadow_project_xm(cascade_index) * s_transform;
+            scales[cascade_index].x  = XMVectorGetX(shadow_texture.r[0]);
+            scales[cascade_index].y = XMVectorGetY(shadow_texture.r[1]);
+            scales[cascade_index].z = XMVectorGetZ(shadow_texture.r[2]);
+            scales[cascade_index].w = 1.0f;
+            XMStoreFloat3((XMFLOAT3 *)(offsets.data() + cascade_index), shadow_texture.r[3]);
+        }
+
+        deferred_pbr_effect.set_cascade_frustums_eye_space_depths(cascade_shadow_manager.get_cascade_partitions());
+        deferred_pbr_effect.set_cascade_offsets(std::span{ offsets.data(), offsets.size() });
+        deferred_pbr_effect.set_cascade_scales(std::span{ scales.data(), scales.size() });
+        deferred_pbr_effect.set_shadow_view_matrix(m_directional_light->get_view_xm());
+        deferred_pbr_effect.set_shadow_texture_array(cascade_shadow_manager.get_cascades_output());
+        deferred_pbr_effect.set_light_direction(m_directional_light->get_look_axis());
+    }
+
+    void Renderer::cascade_shadow_pass(uint32_t cascade_index)
+    {
+        // Cascade shadow debugging
+        auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        ShadowEffect::get().render_depth_to_texture(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_cascade_output(cascade_index),
+                                                    m_shadow_texture->get_render_target(), cascade_shadow_manager.shadow_viewport);
     }
 }

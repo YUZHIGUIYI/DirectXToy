@@ -30,12 +30,17 @@ namespace toy::runtime
 
         void process_pending_events(const std::vector<EngineEventVariant> &pending_events);
 
-        // Must invoke before frame end
+        // Invoke before frame end
         void reset_render_target();
 
         void present();
 
+        // Invoke if selected entity changed
+        void reset_selected_entity(const EntityWrapper &entity_wrapper);
+
         void release();
+
+        ID3D11ShaderResourceView *get_cascade_shadow_shader_resource(uint32_t cascade_index);
 
     public:
         [[nodiscard]] bool is_renderer_minimized() const { return m_window_minimized; }
@@ -67,13 +72,19 @@ namespace toy::runtime
         void on_file_drop(std::string_view filepath);
 
     private:
-        void shadow_pass();
+        void frustum_culling(const Camera &camera);
 
-        void gbuffer_pass();
+        void shadow_pass(const Camera &camera);
 
-        void lighting_and_taa_pass();
+        void gbuffer_pass(const Camera &camera);
 
-        void skybox_pass();
+        void lighting_and_taa_pass(const Camera &camera);
+
+        void skybox_pass(const Camera &camera);
+
+        void set_shadow_paras();
+
+        void cascade_shadow_pass(uint32_t cascade_index);
 
     private:
         HWND m_main_wnd;                                                        // Main window handle
@@ -114,6 +125,9 @@ namespace toy::runtime
         // Render target and shader resource view size
         int32_t m_dock_width = 1600;
         int32_t m_dock_height = 900;
+
+        // Cascade index
+        uint32_t m_cur_cascade_index = 1;
 
         bool m_is_dxgi_flip_model = false;                                      // Use DXGI flip model
         bool m_window_minimized = false;                                        // Renderer minimized
