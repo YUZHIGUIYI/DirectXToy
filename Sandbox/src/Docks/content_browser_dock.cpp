@@ -163,7 +163,7 @@ namespace toy::editor
         store_shader_resource_view_info(IconType::Text, text_srv);
     }
 
-    void ContentBrowserDock::on_render()
+    void ContentBrowserDock::on_render(float delta_time)
     {
         // Prohibit crossing root path
         if (m_browser_cache_path == s_browser_root_path)

@@ -10,7 +10,7 @@ namespace toy::editor
 {
     struct GuiSystem
     {
-        explicit GuiSystem(GLFWwindow* glfw_window, ID3D11Device* device, ID3D11DeviceContext* device_context);
+        GuiSystem();
 
         void frame_begin();
 

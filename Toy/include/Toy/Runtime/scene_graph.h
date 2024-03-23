@@ -52,6 +52,8 @@ namespace toy::runtime
 
         EntityWrapper get_skybox_entity();
 
+        const std::vector<entt::entity> &get_static_mesh_entities() const;
+
     private:
         void adjust_illuminant();
 

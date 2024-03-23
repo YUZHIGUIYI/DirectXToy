@@ -6,6 +6,10 @@
 #include <imgui_internal.h>
 #include <IconsFontAwesome6.h>
 
+#include <Toy/Core/subsystem.h>
+#include <Toy/Runtime/scene_graph.h>
+#include <Sandbox/System/editing_system.h>
+
 namespace toy::editor
 {
     static void draw_vec3_control(std::string_view label, DirectX::XMFLOAT3& vec3, float reset_value = 0.0f, float column_width = 108.0f)
@@ -81,68 +85,62 @@ namespace toy::editor
     }
 
     HierarchyDock::HierarchyDock(std::string&& dock_name)
-    : m_dock_name{ std::move( dock_name ) }, m_scene_graph{ nullptr }, m_selected_entity{}
+    : m_dock_name{ std::move( dock_name ) }
     {
 
     }
 
-    void HierarchyDock::set_context(const std::shared_ptr<Scene> &scene_graph_context)
+    void HierarchyDock::on_render(float delta_time)
     {
-        m_scene_graph = scene_graph_context;
-    }
+        auto&& scene_graph = core::get_subsystem<runtime::SceneGraph>();
+        auto&& editing_system = core::get_subsystem<EditingSystem>();
+        auto&& static_mesh_entities = scene_graph.get_static_mesh_entities();
+        auto&& selected_entity = editing_system.get_selected_entity();
 
-    void HierarchyDock::set_entity(const Entity &selected_entity)
-    {
-        m_selected_entity = selected_entity;
-    }
-
-    void HierarchyDock::on_render()
-    {
         ImGui::Begin(m_dock_name.c_str());
-        if (m_scene_graph)
+
+        for (auto entity_id : static_mesh_entities)
         {
-            for (auto entity_handle : m_scene_graph->general_static_mesh_entities)
-            {
-                Entity entity{ entity_handle, m_scene_graph.get() };
-                draw_entity_node(entity);
-            }
+            auto entity_wrapper = scene_graph.get_entity(static_cast<uint32_t>(entity_id));
+            draw_entity_node(entity_wrapper, selected_entity);
         }
+
         ImGui::End();
 
         ImGui::Begin("Properties");
-        if (m_selected_entity.is_valid())
+        if (selected_entity.is_valid())
         {
-            draw_components(m_selected_entity);
+            draw_components(selected_entity);
         }
         ImGui::End();
     }
 
-    void HierarchyDock::draw_entity_node(Entity& entity)
+    void HierarchyDock::draw_entity_node(EntityWrapper& entity_wrapper, EntityWrapper &selected_entity_wrapper)
     {
-        auto&& tag_component = entity.get_component<TagComponent>();
-        auto flags = ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
+        auto&& tag_component = entity_wrapper.get_component<TagComponent>();
+        auto flags = ((selected_entity_wrapper == entity_wrapper) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
         if (ImGui::CollapsingHeader(tag_component.tag.c_str(), flags))
         {
             ImGui::BulletText("%s", tag_component.tag.c_str());
         }
         if (ImGui::IsItemClicked())
         {
-            m_selected_entity = entity;
+            selected_entity_wrapper = entity_wrapper;
         }
     }
 
-    void HierarchyDock::draw_components(Entity& entity)
+    void HierarchyDock::draw_components(EntityWrapper& entity_wrapper)
     {
-        if (!entity.has_component<StaticMeshComponent>())
+        if (!entity_wrapper.has_component<StaticMeshComponent>())
         {
             return;
         }
 
-        auto& static_mesh_component = entity.get_component<StaticMeshComponent>();
-        auto& transform_component = entity.get_component<TransformComponent>();
+        auto& static_mesh_component = entity_wrapper.get_component<StaticMeshComponent>();
+        auto& transform_component = entity_wrapper.get_component<TransformComponent>();
         if (!static_mesh_component.is_skybox)
         {
-            auto& entity_tag = entity.get_component<TagComponent>().tag;
+            auto& entity_tag = entity_wrapper.get_component<TagComponent>().tag;
 
             static std::array<char, 256> tag_buffer;
             tag_buffer.fill(0);

@@ -16,7 +16,7 @@ namespace toy::editor
 
         ~AdminConsoleDock() override = default;
 
-        void on_render() override;
+        void on_render(float delta_time) override;
 
     private:
         std::string m_dock_name;

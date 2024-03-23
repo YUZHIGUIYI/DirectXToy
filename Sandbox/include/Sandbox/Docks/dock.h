@@ -14,10 +14,8 @@ namespace toy::editor
     {
         // Interface
         virtual void on_resize() {}                                         // Called when the viewport size is changing
-        virtual void on_ui_render() {}                                      // Called for anything related to UI
-        virtual void on_ui_menu() {}                                        // This is the menubar to create
         virtual void on_update(float delta_time) {}                         // Update one frame
-        virtual void on_render() {}                                         // For anything to render within a frame
+        virtual void on_render(float delta_time) {}                         // For anything to render within a frame
         virtual void on_file_drop(std::string_view filename) {}             // For when a file is dragged on top of the window
 
         Dock() = default;

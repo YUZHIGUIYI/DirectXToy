@@ -135,7 +135,7 @@ namespace toy::runtime
     {
         auto entity = static_cast<entt::entity>(entity_id);
 
-        if (entity_id == 0)
+        if (entity_id == 0 || entity_id == 1)
         {
             // For skybox, return an invalid entity
             return EntityWrapper{ nullptr, entity };
@@ -157,5 +157,10 @@ namespace toy::runtime
             auto first_person_camera = std::static_pointer_cast<FirstPersonCamera>(camera_component.camera);
             first_person_camera->look_at(transform_component.transform.position, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
         }
+    }
+
+    const std::vector<entt::entity> &SceneGraph::get_static_mesh_entities() const
+    {
+        return general_static_mesh_entities;
     }
 }

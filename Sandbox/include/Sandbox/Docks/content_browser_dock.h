@@ -15,7 +15,7 @@ namespace toy::editor
 
         ~ContentBrowserDock() override = default;
 
-        void on_render() override;
+        void on_render(float delta_time) override;
 
     private:
         void set_browser_cache_path(const std::filesystem::path &path);

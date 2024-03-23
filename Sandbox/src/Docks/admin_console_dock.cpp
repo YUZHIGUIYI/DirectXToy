@@ -12,7 +12,7 @@ namespace toy::editor
         Logger::get().register_console_sink(m_console_sink);
     }
 
-    void AdminConsoleDock::on_render()
+    void AdminConsoleDock::on_render(float delta_time)
     {
         if (!m_console_sink) return;
 

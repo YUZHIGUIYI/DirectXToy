@@ -10,14 +10,16 @@ namespace toy
 
     void EventManager::init(GLFWwindow *glfw_window)
     {
-        event_delegate_factory.reserve(7);
-        event_delegate_factory.emplace_back();  // 0 - Window close event
-        event_delegate_factory.emplace_back();  // 1 - Window resize event
-        event_delegate_factory.emplace_back();  // 2 - Key typed event
-        event_delegate_factory.emplace_back();  // 3 - Mouse moved event
-        event_delegate_factory.emplace_back();  // 4 - Mouse scrolled event
-        event_delegate_factory.emplace_back();  // 5 - Mouse button event
-        event_delegate_factory.emplace_back();  // 6 - Drop event
+        event_delegate_factory.reserve(9);
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
+        event_delegate_factory.emplace_back();
 
         // Window close callback - 0
         glfwSetWindowCloseCallback(glfw_window, [](GLFWwindow* window)
@@ -81,13 +83,13 @@ namespace toy
 
     uint32_t EventManager::subscribe(EventType event_type, std::function<void(const EngineEventVariant &)> &&event_callback)
     {
-        auto event_delegate_index = static_cast<size_t>(event_type) - 1;
+        auto event_delegate_index = static_cast<size_t>(event_type);
         return event_delegate_factory[event_delegate_index].subscribe(std::move(event_callback));
     }
 
     void EventManager::unsubscribe(EventType event_type, uint32_t subscriber_id)
     {
-        auto event_delegate_index = static_cast<size_t>(event_type) - 1;
+        auto event_delegate_index = static_cast<size_t>(event_type);
         event_delegate_factory[event_delegate_index].unsubscribe(subscriber_id);
     }
 }

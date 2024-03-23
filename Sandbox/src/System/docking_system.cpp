@@ -13,16 +13,6 @@ namespace toy::editor
 
     void DockingSystem::tick(float delta_time)
     {
-        // Main menu
-        if (ImGui::BeginMainMenuBar())
-        {
-            for (auto& dock : m_ui_docks)
-            {
-                dock->on_ui_menu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-
         // Setting up the viewport and getting information
         for (auto& dock : m_ui_docks)
         {
@@ -31,7 +21,7 @@ namespace toy::editor
 
         for (auto& dock : m_ui_docks)
         {
-            dock->on_render();
+            dock->on_render(delta_time);
         }
     }
 }

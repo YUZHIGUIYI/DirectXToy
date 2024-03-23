@@ -5,6 +5,7 @@
 #pragma once
 
 #include <Sandbox/Docks/dock.h>
+#include <Toy/Scene/entity_wrapper.h>
 
 namespace toy::editor
 {
@@ -15,20 +16,14 @@ namespace toy::editor
 
         ~HierarchyDock() override = default;
 
-        void set_context(const std::shared_ptr<Scene> &scene_graph_context);
-
-        void set_entity(const Entity& selected_entity);
-
-        void on_render() override;
+        void on_render(float delta_time) override;
 
     private:
-        void draw_entity_node(Entity& entity);
+        void draw_entity_node(EntityWrapper& entity_wrapper, EntityWrapper &selected_entity_wrapper);
 
-        void draw_components(Entity& entity);
+        void draw_components(EntityWrapper& entity_wrapper);
 
     private:
         std::string m_dock_name;
-        std::shared_ptr<Scene> m_scene_graph;
-        Entity m_selected_entity;
     };
 }

@@ -21,8 +21,5 @@ namespace toy::editor
         void setup() override;
 
         void stop() override;
-
-    private:
-
     };
 }

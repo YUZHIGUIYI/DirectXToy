@@ -7,11 +7,15 @@
 #include <Toy/Runtime/events.h>
 #include <Toy/Core/subsystem.h>
 #include <Toy/Runtime/renderer.h>
+#include <Toy/Runtime/render_window.h>
 
 namespace toy::editor
 {
-    GuiSystem::GuiSystem(GLFWwindow *glfw_window, ID3D11Device *device, ID3D11DeviceContext *device_context)
+    GuiSystem::GuiSystem()
     {
+        auto&& render_window = core::get_subsystem<runtime::RenderWindow>();
+        auto&& renderer = core::get_subsystem<runtime::Renderer>();
+
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
@@ -22,8 +26,8 @@ namespace toy::editor
 
         ImGui::StyleColorsDark();                                               // Set ImGui style
 
-        ImGui_ImplGlfw_InitForOther(glfw_window, true);    // Set window platform
-        ImGui_ImplDX11_Init(device, device_context);                            // Set render backend
+        ImGui_ImplGlfw_InitForOther(render_window.get_native_window(), true);    // Set window platform
+        ImGui_ImplDX11_Init(renderer.get_device(), renderer.get_device_context());                            // Set render backend
 
         // Load fonts
         float base_font_size = 18.0f;
@@ -114,7 +118,7 @@ namespace toy::editor
     void GuiSystem::frame_end()
     {
         // Set back buffer as render target
-        auto& renderer = core::get_subsystem<runtime::Renderer>();
+        auto&& renderer = core::get_subsystem<runtime::Renderer>();
         renderer.reset_render_target();
 
         // End docking space

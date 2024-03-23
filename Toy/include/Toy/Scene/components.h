@@ -8,7 +8,7 @@
 #include <Toy/Renderer/effect_interface.h>
 #include <Toy/Scene/camera.h>
 
-namespace model
+namespace toy::model
 {
     struct Model;
 }
