@@ -13,14 +13,9 @@ namespace toy::editor
 
     void DockingSystem::tick(float delta_time)
     {
-        // Setting up the viewport and getting information
         for (auto& dock : m_ui_docks)
         {
             dock->on_resize();
-        }
-
-        for (auto& dock : m_ui_docks)
-        {
             dock->on_render(delta_time);
         }
     }

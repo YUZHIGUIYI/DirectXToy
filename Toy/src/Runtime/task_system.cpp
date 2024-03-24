@@ -26,8 +26,30 @@ namespace toy::runtime
         return m_pending_events.empty();
     }
 
-    const std::vector<EngineEventVariant> &TaskSystem::get_pending_events() const
+    EngineEventVariant TaskSystem::try_pop()
     {
-        return m_pending_events;
+        if (!m_pending_events.empty())
+        {
+            EngineEventVariant engine_event = std::move(m_pending_events.front());
+            m_pending_events.pop_front();
+            return engine_event;
+        }
+        return NoneEvent{};
+    }
+
+    bool TaskSystem::try_get(toy::EngineEventVariant &engine_event)
+    {
+        if (!m_pending_events.empty())
+        {
+            engine_event = std::move(m_pending_events.front());
+            m_pending_events.pop_front();
+            return true;
+        }
+        return false;
+    }
+
+    void TaskSystem::assign(std::initializer_list<EngineEventVariant> engine_event_list)
+    {
+        assign(engine_event_list.begin(), engine_event_list.end());
     }
 }

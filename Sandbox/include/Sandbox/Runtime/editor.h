@@ -21,5 +21,17 @@ namespace toy::editor
         void setup() override;
 
         void stop() override;
+
+        void on_frame_render(float delta_time);
+
+    private:
+        void on_docks_render(float delta_time);
+
+        void on_menu_render();
+
+        void on_start_page_render();
+
+    private:
+        bool m_show_start_page = true;
     };
 }

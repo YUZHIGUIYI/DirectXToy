@@ -82,6 +82,13 @@ namespace toy::editor
         {
             auto&& task_system = core::get_subsystem<runtime::TaskSystem>();
             task_system.push(DockResizeEvent{ m_viewport_setting.width, m_viewport_setting.height });
+
+            auto&& scene_graph = core::get_subsystem<runtime::SceneGraph>();
+            scene_graph.for_each<CameraComponent>([this] (CameraComponent &camera_component) {
+                auto&& camera = camera_component.camera;
+                camera->set_frustum(DirectX::XM_PI / 3.0f, this->m_viewport_setting.get_aspect_ratio(), 0.5f, 360.0f);
+                camera->set_viewport(0.0f, 0.0f, static_cast<float>(this->m_viewport_setting.width), static_cast<float>(this->m_viewport_setting.height));
+            });
         }
     }
 

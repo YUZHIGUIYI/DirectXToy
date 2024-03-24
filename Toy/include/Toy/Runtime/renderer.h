@@ -17,7 +17,7 @@ namespace toy::runtime
     struct Renderer
     {
     public:
-        explicit Renderer(int32_t width, int32_t height);
+        explicit Renderer(GLFWwindow* native_window, int32_t width, int32_t height);
 
         ~Renderer();
 

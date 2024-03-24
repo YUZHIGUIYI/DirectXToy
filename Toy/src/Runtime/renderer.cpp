@@ -18,9 +18,10 @@ namespace toy::runtime
 {
     static constexpr std::array<float, 4> s_clear_color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-    Renderer::Renderer(int32_t width, int32_t height)
+    Renderer::Renderer(GLFWwindow* native_window, int32_t width, int32_t height)
     : m_client_width(width), m_client_height(height)
     {
+        m_main_wnd = glfwGetWin32Window(native_window);
         init();
     }
 
@@ -74,11 +75,11 @@ namespace toy::runtime
         auto&& task_system = core::get_subsystem<TaskSystem>();
         if (task_system.empty()) return;
         // Note: current only handle WindowResizeEvent, DockResizeEvent, DropEvent
-        auto&& pending_events = task_system.get_pending_events();
-        for (auto&& delegate_event : pending_events)
+        EngineEventVariant delegate_event;
+        while (task_system.try_get(delegate_event))
         {
             std::visit([this] (auto&& event) {
-                using event_type = std::decay_t<decltype(event)>;
+                using event_type = std::remove_cvref_t<decltype(event)>;
                 if constexpr (std::is_same_v<event_type, WindowResizeEvent>)
                 {
                     this->on_framebuffer_resize(event.window_width, event.window_height);
@@ -369,6 +370,7 @@ namespace toy::runtime
 
     void Renderer::on_render_target_resize(int32_t width, int32_t height)
     {
+        DX_CORE_INFO("Resize render target: {} + {}", width, height);
         // Reset dock size for render targets
         m_dock_width = width;
         m_dock_height = height;
@@ -427,9 +429,7 @@ namespace toy::runtime
         auto viewport = cascade_shadow_manager.get_shadow_viewport();
 
         shadow_effect.set_view_matrix(m_directional_light->get_view_xm());
-        scene_graph.update_cascaded_shadow([this, &cascade_shadow_manager, &camera] (const DirectX::BoundingBox &bounding_box){
-            cascade_shadow_manager.update_frame(camera, *m_directional_light, bounding_box);
-        });
+        cascade_shadow_manager.update_frame(camera, *m_directional_light, scene_graph.get_scene_bounding_box());
 
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
 
@@ -505,13 +505,17 @@ namespace toy::runtime
         auto&& scene_graph = core::get_subsystem<SceneGraph>();
         D3D11_VIEWPORT viewport = camera.get_viewport();
         std::array<ID3D11RenderTargetView *, 5> gbuffer_rtvs{
-                m_gbuffer.albedo_metalness_buffer->get_render_target(),
-                m_gbuffer.normal_roughness_buffer->get_render_target(),
-                m_gbuffer.world_position_buffer->get_render_target(),
-                m_gbuffer.motion_vector_buffer->get_render_target(),
-                m_gbuffer.entity_id_buffer->get_render_target()
+            m_gbuffer.albedo_metalness_buffer->get_render_target(),
+            m_gbuffer.normal_roughness_buffer->get_render_target(),
+            m_gbuffer.world_position_buffer->get_render_target(),
+            m_gbuffer.motion_vector_buffer->get_render_target(),
+            m_gbuffer.entity_id_buffer->get_render_target()
         };
 
+        m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.albedo_metalness_buffer->get_render_target(), s_clear_color.data());
+        m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.normal_roughness_buffer->get_render_target(), s_clear_color.data());
+        m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.world_position_buffer->get_render_target(), s_clear_color.data());
+        m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.motion_vector_buffer->get_render_target(), s_clear_color.data());
         m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.entity_id_buffer->get_render_target(), s_clear_color.data());
         m_d3d_immediate_context->ClearDepthStencilView(m_depth_texture->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
@@ -529,6 +533,8 @@ namespace toy::runtime
 
         set_shadow_paras();
 
+        m_d3d_immediate_context->ClearRenderTargetView(m_lighting_pass_texture->get_render_target(), s_clear_color.data());
+        m_d3d_immediate_context->ClearRenderTargetView(m_taa_texture->get_render_target(), s_clear_color.data());
         DeferredPBREffect::get().set_proj_matrix(camera.get_proj_xm(true));
         DeferredPBREffect::get().set_view_matrix(camera.get_view_xm());
         DeferredPBREffect::get().set_camera_position(camera.get_position());
@@ -576,6 +582,7 @@ namespace toy::runtime
         viewport.MinDepth = 1.0f;
         viewport.MaxDepth = 1.0f;
 
+        m_d3d_immediate_context->ClearRenderTargetView(render_target_view, s_clear_color.data());
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
 
         SimpleSkyboxEffect::get().set_skybox_render();
@@ -597,10 +604,10 @@ namespace toy::runtime
         using namespace DirectX;
 
         static const XMMATRIX s_transform = {
-                0.5f, 0.0f, 0.0f, 0.0f,
-                0.0f, -0.5f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                0.5f, 0.5f, 0.0f, 1.0f
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f
         };
 
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
@@ -631,6 +638,7 @@ namespace toy::runtime
     {
         // Cascade shadow debugging
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        m_d3d_immediate_context->ClearRenderTargetView(m_shadow_texture->get_render_target(), s_clear_color.data());
         ShadowEffect::get().render_depth_to_texture(m_d3d_immediate_context.Get(), cascade_shadow_manager.get_cascade_output(cascade_index),
                                                     m_shadow_texture->get_render_target(), cascade_shadow_manager.shadow_viewport);
     }

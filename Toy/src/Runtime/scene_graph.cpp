@@ -29,11 +29,6 @@ namespace toy::runtime
         return EntityWrapper{ &registry_handle, skybox_entity };
     }
 
-    void SceneGraph::update_cascaded_shadow(std::function<void(const DirectX::BoundingBox &)> &&update_func)
-    {
-        update_func(scene_bounding_box);
-    }
-
     void SceneGraph::frustum_culling(const DirectX::BoundingFrustum &frustum_in_world)
     {
         using namespace DirectX;
@@ -162,5 +157,10 @@ namespace toy::runtime
     const std::vector<entt::entity> &SceneGraph::get_static_mesh_entities() const
     {
         return general_static_mesh_entities;
+    }
+
+    const DirectX::BoundingBox &SceneGraph::get_scene_bounding_box() const
+    {
+        return scene_bounding_box;
     }
 }

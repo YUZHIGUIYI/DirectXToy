@@ -4,18 +4,27 @@
 
 #include <Sandbox/System/picking_system.h>
 #include <Toy/Core/subsystem.h>
+#include <Toy/Runtime/events.h>
 #include <Toy/Runtime/renderer.h>
 #include <Toy/Core/input.h>
 #include <Sandbox/System/editing_system.h>
 
 namespace toy::editor
 {
+    PickingSystem::PickingSystem()
+    {
+        runtime::on_frame_update = [this] (float delta_time)
+        {
+            this->on_update(delta_time);
+        };
+    }
+
     void PickingSystem::reset_viewport_setting(const ViewportSetting &viewport_setting)
     {
         m_viewport_setting = viewport_setting;
     }
 
-    void PickingSystem::on_update()
+    void PickingSystem::on_update(float delta_time)
     {
         auto&& editing_system = core::get_subsystem<EditingSystem>();
         auto&& renderer = core::get_subsystem<runtime::Renderer>();
@@ -48,6 +57,7 @@ namespace toy::editor
         renderer.get_device_context()->CopyResource(m_staging_texture.Get(), entity_id_texture);
 
         auto entity_id = get_entity_id(renderer.get_device_context(), relative_mouse_pos_x, relative_mouse_pos_y);
+        DX_INFO("Mouse pos: {} + {}; entity id: {}", mouse_pos_x, mouse_pos_y, entity_id);
 
         if (entity_id == 0 || entity_id == 1)
         {

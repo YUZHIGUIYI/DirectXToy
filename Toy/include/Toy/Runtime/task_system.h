@@ -20,19 +20,25 @@ namespace toy::runtime
         template<std::input_iterator InputIt>
         void assign(InputIt first, InputIt last);
 
+        void assign(std::initializer_list<EngineEventVariant> engine_event_list);
+
         void clear();
 
-        [[nodiscard]] const std::vector<EngineEventVariant> &get_pending_events() const;
+        EngineEventVariant try_pop();
+
+        bool try_get(EngineEventVariant &engine_event);
 
         [[nodiscard]] bool empty() const;
 
-    public:
-        std::vector<EngineEventVariant> m_pending_events;
+    private:
+        std::deque<EngineEventVariant> m_pending_events;
     };
+
 
     template <std::input_iterator InputIt>
     void TaskSystem::assign(InputIt first, InputIt last)
     {
         m_pending_events.assign(first, last);
     }
+
 }

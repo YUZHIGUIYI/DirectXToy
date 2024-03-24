@@ -14,7 +14,5 @@ namespace toy::runtime
 
     inline std::function<void(float)> on_frame_render;
 
-    inline std::function<void(float)> on_frame_ui_render;
-
     inline std::function<void(float)> on_frame_end;
 }

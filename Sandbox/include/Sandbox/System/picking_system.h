@@ -11,11 +11,11 @@ namespace toy::editor
     struct PickingSystem
     {
     public:
-        PickingSystem() = default;
+        PickingSystem();
 
         void reset_viewport_setting(const ViewportSetting &viewport_setting);
 
-        void on_update();
+        void on_update(float delta_time);
 
     private:
         uint32_t get_entity_id(ID3D11DeviceContext *device_context, int32_t mouse_pos_x, int32_t mouse_pos_y);

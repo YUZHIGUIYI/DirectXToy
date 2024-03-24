@@ -20,7 +20,7 @@ namespace toy::runtime
         auto&& scene_graph = core::add_subsystem<SceneGraph>();
         auto&& task_system = core::add_subsystem<TaskSystem>();
         auto&& render_window = core::add_subsystem<RenderWindow>(1600, 900);
-        auto&& renderer = core::add_subsystem<Renderer>(render_window.get_window_width(), render_window.get_window_height());
+        auto&& renderer = core::add_subsystem<Renderer>(render_window.get_native_window(), render_window.get_window_width(), render_window.get_window_height());
         auto&& simulation = core::add_subsystem<Simulation>();
         auto&& input_controller = core::add_subsystem<InputController>();
         input_controller.register_event(render_window.get_native_window());
@@ -58,7 +58,6 @@ namespace toy::runtime
         on_frame_begin(delta_time);
         on_frame_update(delta_time);
         on_frame_render(delta_time);
-        on_frame_ui_render(delta_time);
         on_frame_end(delta_time);
 
         renderer.present();

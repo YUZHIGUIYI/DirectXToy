@@ -33,8 +33,6 @@ namespace toy::runtime
         EntityWrapper create_entity(std::string_view entity_name);
         void destroy_entity(EntityWrapper &entity_wrapper);
 
-        void update_cascaded_shadow(std::function<void(const DirectX::BoundingBox &bounding_box)> &&update_func);
-
         template <typename Component>
         void for_each(std::function<void(Component&)> &&func);
 
@@ -52,7 +50,9 @@ namespace toy::runtime
 
         EntityWrapper get_skybox_entity();
 
-        const std::vector<entt::entity> &get_static_mesh_entities() const;
+        [[nodiscard]] const std::vector<entt::entity> &get_static_mesh_entities() const;
+
+        [[nodiscard]] const DirectX::BoundingBox &get_scene_bounding_box() const;
 
     private:
         void adjust_illuminant();
