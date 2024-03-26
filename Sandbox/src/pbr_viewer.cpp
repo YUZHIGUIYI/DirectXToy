@@ -474,7 +474,7 @@ namespace toy::viewer
 
         shadow_effect.set_view_matrix(m_light_camera->get_view_xm());
         m_editor_scene->update_cascaded_shadow([this, &cascade_shadow_manager] (const DirectX::BoundingBox &bounding_box){
-            cascade_shadow_manager.update_frame(*m_camera, *m_light_camera, bounding_box);
+            cascade_shadow_manager.update_frame(*m_camera, bounding_box, m_light_camera->get_view_xm());
         });
 
         d3d_device_context->RSSetViewports(1, &viewport);

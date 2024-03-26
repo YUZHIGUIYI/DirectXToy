@@ -276,12 +276,6 @@ namespace toy::runtime
         using namespace DirectX;
         using namespace toy::model;
 
-        auto directional_light = std::make_shared<FirstPersonCamera>();
-        m_directional_light = directional_light;
-        directional_light->set_viewport(0.0f, 0.0f, static_cast<float>(m_dock_width), static_cast<float>(m_dock_height));
-        directional_light->set_frustum(XM_PI / 3.0f, 1.0f, 0.1f, 1000.0f);
-        directional_light->look_at(XMFLOAT3{ -15.0f, 55.0f, -10.0f }, XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT3{ 0.0f, 1.0f, 0.0f });
-
         // Initialize fixed states of effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
         auto&& deferred_pbr_effect = DeferredPBREffect::get();
@@ -426,10 +420,19 @@ namespace toy::runtime
         auto&& scene_graph = core::get_subsystem<SceneGraph>();
         auto&& shadow_effect = ShadowEffect::get();
         auto&& cascade_shadow_manager = CascadedShadowManager::get();
+        auto&& scene_bounding_box = scene_graph.get_scene_bounding_box();
         auto viewport = cascade_shadow_manager.get_shadow_viewport();
 
-        shadow_effect.set_view_matrix(m_directional_light->get_view_xm());
-        cascade_shadow_manager.update_frame(camera, *m_directional_light, scene_graph.get_scene_bounding_box());
+        // Update light view matrix and set in effect
+        scene_graph.for_each<DirectionalLightComponent>([&camera, &scene_bounding_box, &cascade_shadow_manager, &shadow_effect] (DirectionalLightComponent &directional_light_component) {
+            directional_light_component.transform.set_position(directional_light_component.position);
+            directional_light_component.transform.look_at(directional_light_component.target, DirectX::XMFLOAT3{ 0.0f, 1.0f, 0.0f });
+            auto light_view_matrix = directional_light_component.transform.get_world_to_local_matrix_xm();
+
+            cascade_shadow_manager.update_frame(camera, scene_bounding_box, light_view_matrix);
+
+            shadow_effect.set_view_matrix(light_view_matrix);
+        });
 
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
 
@@ -603,6 +606,8 @@ namespace toy::runtime
     {
         using namespace DirectX;
 
+        auto&& scene_graph = core::get_subsystem<runtime::SceneGraph>();
+
         static const XMMATRIX s_transform = {
             0.5f, 0.0f, 0.0f, 0.0f,
             0.0f, -0.5f, 0.0f, 0.0f,
@@ -629,9 +634,13 @@ namespace toy::runtime
         deferred_pbr_effect.set_cascade_frustums_eye_space_depths(cascade_shadow_manager.get_cascade_partitions());
         deferred_pbr_effect.set_cascade_offsets(std::span{ offsets.data(), offsets.size() });
         deferred_pbr_effect.set_cascade_scales(std::span{ scales.data(), scales.size() });
-        deferred_pbr_effect.set_shadow_view_matrix(m_directional_light->get_view_xm());
         deferred_pbr_effect.set_shadow_texture_array(cascade_shadow_manager.get_cascades_output());
-        deferred_pbr_effect.set_light_direction(m_directional_light->get_look_axis());
+
+        // Update view matrix and light direction
+        scene_graph.for_each<DirectionalLightComponent>([&deferred_pbr_effect] (DirectionalLightComponent& directional_light_component) {
+            deferred_pbr_effect.set_shadow_view_matrix(directional_light_component.transform.get_world_to_local_matrix_xm());
+            deferred_pbr_effect.set_light_direction(directional_light_component.transform.get_forward_axis());
+        });
     }
 
     void Renderer::cascade_shadow_pass(uint32_t cascade_index)

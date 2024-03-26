@@ -112,9 +112,6 @@ namespace toy::runtime
         std::unique_ptr<Texture2D> m_view_texture = nullptr;
         GBufferDefinition m_gbuffer;
 
-        // Directional light
-        std::shared_ptr<Camera> m_directional_light = nullptr;
-
         // Selected entity
         EntityWrapper m_selected_entity = {};
 

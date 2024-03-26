@@ -25,6 +25,19 @@ namespace toy
         Transform transform = {};
     };
 
+    struct DirectionalLightComponent
+    {
+        // View matrix, look axis helper generator
+        Transform transform = {};
+        // The starting point of a ray
+        DirectX::XMFLOAT3 position = { 1.0f, 1.0f, 1.0f };
+        // The end point of a ray
+        DirectX::XMFLOAT3 target = { 0.0f, 0.0f, 0.0f };
+
+        DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float intensity = 1.0f;
+    };
+
     struct CameraComponent
     {
         std::shared_ptr<Camera> camera = nullptr;

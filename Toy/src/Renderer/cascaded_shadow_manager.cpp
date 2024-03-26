@@ -134,14 +134,13 @@ namespace toy
         return shadow_viewport;
     }
 
-    void CascadedShadowManager::update_frame(const toy::Camera &viewer_camera, const toy::Camera &light_camera,
-                                                const DirectX::BoundingBox &scene_bounding_box)
+    void CascadedShadowManager::update_frame(const Camera &viewer_camera, const DirectX::BoundingBox &scene_bounding_box, const DirectX::XMMATRIX &light_view_matrix)
     {
         using namespace DirectX;
 
         XMMATRIX ViewerProj = viewer_camera.get_proj_xm();
         XMMATRIX ViewerView = viewer_camera.get_view_xm();
-        XMMATRIX LightView = light_camera.get_view_xm();
+        XMMATRIX LightView = light_view_matrix;
         XMMATRIX ViewerInvView = XMMatrixInverse(nullptr, ViewerView);
 
         float frustumIntervalBegin, frustumIntervalEnd;

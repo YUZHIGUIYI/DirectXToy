@@ -71,6 +71,13 @@ namespace toy::editor
         cerberus_mesh.model_asset->materials[0].set<std::string>(material_semantics_name(model::MaterialSemantics::RoughnessMap),
                                                                     DXTOY_HOME "data/models/Cerberus/Textures/Cerberus_R.tga");
         DX_INFO("Cerberus entity id: {}", static_cast<uint32_t>(cerberus_entity.entity_inst));
+
+        // Initialize directional light
+        auto directional_light_entity = scene_graph.create_entity("GlobalDirectionalLight");
+        auto&& directional_light_component = directional_light_entity.add_component<DirectionalLightComponent>();
+        directional_light_component.position = DirectX::XMFLOAT3{ -15.0f, 55.0f, -10.0f };
+        directional_light_component.target = DirectX::XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+        DX_INFO("Global directional light entity id: {}", static_cast<uint32_t>(directional_light_entity.entity_inst));
     }
 
     void EditingSystem::select(uint32_t entity_id)
