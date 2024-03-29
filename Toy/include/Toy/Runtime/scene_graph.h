@@ -16,10 +16,6 @@ namespace toy::runtime
 {
     struct SceneGraph
     {
-    private:
-        entt::registry registry_handle = {};
-        std::vector<entt::entity> general_static_mesh_entities;
-
     public:
         SceneGraph() = default;
 
@@ -33,8 +29,8 @@ namespace toy::runtime
         EntityWrapper create_entity(std::string_view entity_name);
         void destroy_entity(EntityWrapper &entity_wrapper);
 
-        template <typename Component>
-        void for_each(std::function<void(Component&)> &&func);
+        template <typename ... Components>
+        void for_each(std::function<void(Components& ...)> &&func);
 
         void frustum_culling(const DirectX::BoundingFrustum &frustum_in_world);
 
@@ -55,23 +51,20 @@ namespace toy::runtime
         [[nodiscard]] const DirectX::BoundingBox &get_scene_bounding_box() const;
 
     private:
-        void adjust_illuminant();
-
-    private:
-        std::vector<entt::entity> entities_in_viewer;
-        std::vector<entt::entity> illuminant_entities_in_viewer;
+        entt::registry registry_handle = {};
+        std::vector<entt::entity> static_mesh_entities;
+        std::vector<entt::entity> entities_in_frustum;
         entt::entity skybox_entity = entt::null;
         DirectX::BoundingBox scene_bounding_box = {};
     };
 
-    template <typename Component>
-    void SceneGraph::for_each(std::function<void(Component &)> &&func)
+    template <typename ... Components>
+    void SceneGraph::for_each(std::function<void(Components& ...)> &&func)
     {
-        auto view = registry_handle.view<Component>();
+        auto view = registry_handle.view<Components ...>();
         for (auto entity : view)
         {
-            auto& component = view.template get<Component>(entity);
-            func(component);
+            func(view.template get<Components>(entity)...);
         }
     }
 }

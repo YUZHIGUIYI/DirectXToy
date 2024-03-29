@@ -19,7 +19,6 @@
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/buffer.h>
-#include <Toy/ImGui/imgui_viewport.h>
 #include <Toy/Scene/entity.h>
 #include <Toy/Scene/components.h>
 
