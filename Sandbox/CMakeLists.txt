@@ -3,6 +3,8 @@ file(GLOB_RECURSE SANDBOX_SRCFILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/
 add_executable(Sandbox ${SANDBOX_SRCFILES} ${HLSL_FILES})
 
 target_link_libraries(Sandbox PUBLIC Toy)
+target_link_libraries(Toy PUBLIC ImGui)
+target_link_libraries(Toy PUBLIC ImGuizmo)
 
 target_include_directories(Sandbox PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 

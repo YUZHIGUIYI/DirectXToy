@@ -5,7 +5,7 @@
 #pragma once
 
 #include <Toy/Core/base.h>
-#include <Toy/Scene/camera.h>
+#include <Toy/ECS/camera.h>
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/cascaded_shadow_defines.h>
 

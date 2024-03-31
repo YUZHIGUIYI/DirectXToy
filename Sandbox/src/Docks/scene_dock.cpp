@@ -4,12 +4,12 @@
 
 #include <Sandbox/Docks/scene_dock.h>
 #include <Toy/Core/subsystem.h>
-#include <Toy/Core/input.h>
+#include <Toy/Runtime/input_controller.h>
 #include <Toy/Runtime/task_system.h>
 #include <Toy/Runtime/renderer.h>
 #include <Toy/Runtime/scene_graph.h>
-#include <Sandbox/System/editing_system.h>
-#include <Sandbox/System/picking_system.h>
+#include <Sandbox/Runtime/editing_system.h>
+#include <Sandbox/Runtime/picking_system.h>
 
 #include <imgui_user/imgui_user.h>
 
@@ -139,7 +139,7 @@ namespace toy::editor
     {
         using namespace DirectX;
 
-        auto&& input_controller = core::get_subsystem<InputController>();
+        auto&& input_controller = core::get_subsystem<runtime::InputController>();
         if (!ImGuizmo::IsUsing())
         {
             if (input_controller.is_key_pressed_with_mod(key::W, key::LeftShift))
@@ -202,7 +202,7 @@ namespace toy::editor
                                         float mouse_sensitivity_x, float mouse_sensitivity_y)
     {
         using namespace DirectX;
-        auto&& input_controller = core::get_subsystem<InputController>();
+        auto&& input_controller = core::get_subsystem<runtime::InputController>();
 
         ImGuiIO& io = ImGui::GetIO();
 

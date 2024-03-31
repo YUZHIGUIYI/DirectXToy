@@ -5,7 +5,6 @@
 #pragma once
 
 #include <Sandbox/Docks/dock.h>
-#include <Toy/Scene/entity_wrapper.h>
 
 namespace toy::editor
 {

@@ -9,8 +9,8 @@
 #include <Toy/Events/window_event.h>
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/gbuffer_definition.h>
-#include <Toy/Scene/camera.h>
-#include <Toy/Scene/entity_wrapper.h>
+#include <Toy/ECS/camera.h>
+#include <Toy/ECS/entity_wrapper.h>
 
 namespace toy::runtime
 {
@@ -63,7 +63,9 @@ namespace toy::runtime
 
         void init_backend();
 
-        void init_resources();
+        void init_asset_manager();
+
+        void init_effects();
 
         void on_framebuffer_resize(int32_t width, int32_t height);
 
@@ -101,7 +103,7 @@ namespace toy::runtime
         // Back buffers
         com_ptr<ID3D11RenderTargetView> m_render_target_views[2];               // Render target views
         uint32_t m_back_buffer_count = 0;                                       // Back buffer count
-        uint32_t m_frame_count = 0;                                             // Current frame
+        uint32_t m_frame_count = 0;                                             // Frame counter
 
         // Resources
         std::unique_ptr<Texture2D> m_shadow_texture = nullptr;

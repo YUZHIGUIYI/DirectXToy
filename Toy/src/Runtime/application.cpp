@@ -6,8 +6,8 @@
 #include <Toy/Runtime/events.h>
 #include <Toy/Core/subsystem.h>
 #include <Toy/Runtime/renderer.h>
-#include <Toy/Core/simulation.h>
-#include <Toy/Core/input.h>
+#include <Toy/Runtime/simulation.h>
+#include <Toy/Runtime/input_controller.h>
 #include <Toy/Runtime/render_window.h>
 #include <Toy/Runtime/scene_graph.h>
 #include <Toy/Runtime/task_system.h>
@@ -44,7 +44,7 @@ namespace toy::runtime
         auto&& input_controller = core::get_subsystem<InputController>();
         auto&& renderer = core::get_subsystem<Renderer>();
 
-        simulation.run_one_frame();
+        simulation.tick();
         render_window.tick();
         input_controller.update_state();
 

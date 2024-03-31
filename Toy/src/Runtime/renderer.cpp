@@ -12,7 +12,7 @@
 #include <Toy/Core/subsystem.h>
 #include <Toy/Runtime/scene_graph.h>
 #include <Toy/Runtime/task_system.h>
-#include <Toy/Scene/components.h>
+#include <Toy/ECS/components.h>
 
 namespace toy::runtime
 {
@@ -112,8 +112,13 @@ namespace toy::runtime
         // 1. Initialize renderer backend
         init_backend();
 
-        // 2. Initialize resources
-        init_resources();
+        // 2. Initialize asset manager
+        init_asset_manager();
+
+        // 3. Initialize render states and effects
+        init_effects();
+
+        // 3. Resize textures bound to render target views
         on_render_target_resize(m_dock_width, m_dock_height);
     }
 
@@ -242,22 +247,19 @@ namespace toy::runtime
             dxgi_factory1->CreateSwapChain(m_d3d_device.Get(), &sd, m_swap_chain.GetAddressOf());
         }
 
-        // Set debug object name
-#if defined(GRAPHICS_DEBUGGER_OBJECT_NAME)
-        set_debug_object_name(m_d3d_immediate_context.Get(), "ImmediateContext");
-        set_debug_object_name(m_swap_chain.Get(), "SwapChain");
-#endif
-
         // Since window has been resized, invoke this function
         on_framebuffer_resize(m_client_width, m_client_height);
     }
 
-    void Renderer::init_resources()
+    void Renderer::init_asset_manager()
     {
         // Initialize texture manager and model manager
         model::TextureManager::get().init(m_d3d_device.Get());
         model::ModelManager::get().init(m_d3d_device.Get());
+    }
 
+    void Renderer::init_effects()
+    {
         // Initialize render states
         RenderStates::init(m_d3d_device.Get());
 
@@ -271,10 +273,6 @@ namespace toy::runtime
 
         // Initialize shadow manager
         CascadedShadowManager::get().init(m_d3d_device.Get());
-
-        // Initialize camera and controller and other effects
-        using namespace DirectX;
-        using namespace toy::model;
 
         // Initialize fixed states of effects
         auto&& cascade_shadow_manager = CascadedShadowManager::get();

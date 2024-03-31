@@ -8,7 +8,7 @@
 
 #include <Toy/Core/subsystem.h>
 #include <Toy/Runtime/scene_graph.h>
-#include <Sandbox/System/editing_system.h>
+#include <Sandbox/Runtime/editing_system.h>
 
 namespace toy::editor
 {

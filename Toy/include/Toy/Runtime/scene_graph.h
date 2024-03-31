@@ -5,7 +5,7 @@
 #pragma once
 
 #include <Toy/Core/base.h>
-#include <Toy/Scene/entity_wrapper.h>
+#include <Toy/ECS/entity_wrapper.h>
 #include <Toy/Renderer/effect_interface.h>
 
 namespace toy

@@ -7,16 +7,16 @@
 #include <Toy/Runtime/events.h>
 #include <Toy/Runtime/render_window.h>
 #include <Toy/Runtime/task_system.h>
-#include <Sandbox/System/gui_system.h>
-#include <Sandbox/System/docking_system.h>
-#include <Sandbox/System/editing_system.h>
-#include <Sandbox/System/picking_system.h>
+#include <Sandbox/Runtime/gui_system.h>
+#include <Sandbox/Runtime/docking_system.h>
+#include <Sandbox/Runtime/editing_system.h>
+#include <Sandbox/Runtime/picking_system.h>
 #include <Sandbox/Docks/scene_dock.h>
 #include <Sandbox/Docks/hierarchy_dock.h>
 #include <Sandbox/Docks/content_browser_dock.h>
 #include <Sandbox/Docks/admin_console_dock.h>
 
-#include <Sandbox/file_dialog.h>
+#include <Sandbox/Core/file_dialog.h>
 
 namespace toy::editor
 {
@@ -61,7 +61,7 @@ namespace toy::editor
 
     void EditorApplication::on_menu_render()
     {
-        auto&& input_controller = core::get_subsystem<InputController>();
+        auto&& input_controller = core::get_subsystem<runtime::InputController>();
         auto&& render_window = core::get_subsystem<runtime::RenderWindow>();
         auto&& task_system = core::get_subsystem<runtime::TaskSystem>();
         bool load_file = false;
