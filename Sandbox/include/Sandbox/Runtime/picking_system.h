@@ -15,6 +15,8 @@ namespace toy::editor
 
         void reset_viewport_setting(const ViewportSetting &viewport_setting);
 
+        void reset_state(bool blocked);
+
         void on_update(float delta_time);
 
     private:
@@ -25,5 +27,6 @@ namespace toy::editor
         ViewportSetting m_viewport_setting = {};
         uint32_t m_staging_width = 0;
         uint32_t m_staging_height = 0;
+        bool m_blocked = true;  // Block update
     };
 }

@@ -52,12 +52,26 @@ namespace toy::runtime
                 render_window->m_delegate_events.emplace_back(DropEvent{ paths[i] });
             }
         });
+
+        //// Window maximize callback
+        glfwSetWindowSizeCallback(m_native_window, [](GLFWwindow *window, int32_t width, int32_t height)
+        {
+            int32_t framebuffer_width, framebuffer_height;
+            glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+            auto render_window = reinterpret_cast<RenderWindow *>(glfwGetWindowUserPointer(window));
+            render_window->m_framebuffer_resize_event = WindowResizeEvent{ framebuffer_width, framebuffer_height };
+        });
     }
 
     RenderWindow::~RenderWindow()
     {
         glfwDestroyWindow(m_native_window);
         glfwTerminate();
+    }
+
+    void RenderWindow::maximize_window()
+    {
+        glfwMaximizeWindow(m_native_window);
     }
 
     void RenderWindow::tick()

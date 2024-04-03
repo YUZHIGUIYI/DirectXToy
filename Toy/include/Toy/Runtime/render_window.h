@@ -22,6 +22,8 @@ namespace toy::runtime
         RenderWindow(RenderWindow &&) = delete;
         RenderWindow &operator=(RenderWindow &&) = delete;
 
+        void maximize_window();
+
         void tick();
 
         [[nodiscard]] GLFWwindow *get_native_window() const;

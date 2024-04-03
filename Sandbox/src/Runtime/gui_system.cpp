@@ -20,14 +20,14 @@ namespace toy::editor
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;                   // Enable keyboard controls
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;                    // Enable gamepad controls
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;                    // Enable gamepad controls
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;                       // Enable docking
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;                     // Enable multi-viewport / platform windows
 
         ImGui::StyleColorsDark();                                               // Set ImGui style
 
         ImGui_ImplGlfw_InitForOther(render_window.get_native_window(), true);    // Set window platform
-        ImGui_ImplDX11_Init(renderer.get_device(), renderer.get_device_context());                            // Set render backend
+        ImGui_ImplDX11_Init(renderer.get_device(), renderer.get_device_context());// Set render backend
 
         // Load fonts
         float base_font_size = 18.0f;
@@ -60,14 +60,21 @@ namespace toy::editor
         };
     }
 
+    GuiSystem::~GuiSystem()
+    {
+        ImGui_ImplDX11_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
+
     void GuiSystem::frame_begin()
     {
-        // ImGui frame
+        // Start ImGui frame
         ImGui_ImplDX11_NewFrame();
-        //ImGui_ImplWin32_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // Start ImGuizmo frame
         ImGuizmo::BeginFrame();
 
         // Begin docking space
@@ -83,7 +90,7 @@ namespace toy::editor
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiPopupFlags_AnyPopup;
 
         // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
         // and handle the pass-thru hole, so we ask Begin() to not render a background.
@@ -103,13 +110,9 @@ namespace toy::editor
 
         ImGui::PopStyleVar(2);
 
-        // Submit the DockSpace
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-        {
-            ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-        }
+        // Submit dock space
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
 
         ImGuiStyle& style = ImGui::GetStyle();
         style.WindowMinSize.x = 360.0f;
@@ -117,12 +120,12 @@ namespace toy::editor
 
     void GuiSystem::frame_end()
     {
+        // End dock space
+        ImGui::End();
+
         // Set back buffer as render target
         auto&& renderer = core::get_subsystem<runtime::Renderer>();
         renderer.reset_render_target();
-
-        // End docking space
-        ImGui::End();
 
         // Render ImGui
         ImGui::Render();
@@ -135,17 +138,6 @@ namespace toy::editor
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
-    }
-
-    void GuiSystem::release()
-    {
-        if (!has_released)
-        {
-            ImGui_ImplDX11_Shutdown();
-            ImGui_ImplGlfw_Shutdown();
-            ImGui::DestroyContext();
-        }
-        has_released = true;
     }
 
     void GuiSystem::set_dark_theme()

@@ -24,8 +24,15 @@ namespace toy::editor
         m_viewport_setting = viewport_setting;
     }
 
+    void PickingSystem::reset_state(bool blocked)
+    {
+        m_blocked = blocked;
+    }
+
     void PickingSystem::on_update(float delta_time)
     {
+        if (m_blocked) return;
+
         auto&& editing_system = core::get_subsystem<EditingSystem>();
         auto&& renderer = core::get_subsystem<runtime::Renderer>();
         auto&& input_controller = core::get_subsystem<runtime::InputController>();
@@ -37,7 +44,7 @@ namespace toy::editor
         mouse_pos_y -= m_viewport_setting.lower_bound.y;
         auto relative_mouse_pos_x  = static_cast<int32_t>(mouse_pos_x);
         auto relative_mouse_pos_y = static_cast<int32_t>(mouse_pos_y);
-        if (relative_mouse_pos_x > m_viewport_setting.width || relative_mouse_pos_y > m_viewport_setting.height) return;
+        if (relative_mouse_pos_x < 0 || relative_mouse_pos_x >= m_viewport_setting.width || relative_mouse_pos_y < 0 || relative_mouse_pos_y >= m_viewport_setting.height) return;
 
         auto entity_id_texture = renderer.get_gbuffer_definition().entity_id_buffer->get_texture();
         D3D11_TEXTURE2D_DESC staging_desc = {};
@@ -72,11 +79,8 @@ namespace toy::editor
     uint32_t PickingSystem::get_entity_id(ID3D11DeviceContext *device_context, int32_t mouse_pos_x, int32_t mouse_pos_y)
     {
         static std::vector<uint32_t> staging_data;
-
-        if (mouse_pos_x >= m_staging_width || mouse_pos_y >= m_staging_height) return 0;
-
         staging_data.clear();
-        staging_data.resize(m_staging_width * m_staging_height, 0);
+        staging_data.resize(m_staging_width, 0);
 
         D3D11_MAPPED_SUBRESOURCE mapped_subresource = {};
         device_context->Map(m_staging_texture.Get(), 0, D3D11_MAP_READ, 0, &mapped_subresource);
@@ -84,14 +88,9 @@ namespace toy::editor
         auto reinterpret_staging_data = reinterpret_cast<uint8_t *>(staging_data.data());
         auto stride = mapped_subresource.RowPitch;
         auto multiple = sizeof(std::decay_t<decltype(staging_data)>::value_type) / sizeof(uint8_t);
-        for (uint32_t i = 0; i < m_staging_height; ++i)
-        {
-            memcpy_s(reinterpret_staging_data + i * m_staging_width * multiple, m_staging_width * multiple, texture_data, m_staging_width * multiple);
-            texture_data += stride;
-        }
-        device_context->Unmap(m_staging_texture.Get(), 0);
 
-        auto index = static_cast<size_t>(mouse_pos_y * m_staging_width + mouse_pos_x - 1);
-        return staging_data[index];
+        texture_data += stride * mouse_pos_y;
+        std::memcpy(reinterpret_staging_data, texture_data, m_staging_width * multiple);
+        return staging_data[mouse_pos_x - 1];
     }
 }

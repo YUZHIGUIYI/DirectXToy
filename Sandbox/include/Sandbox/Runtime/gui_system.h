@@ -12,17 +12,19 @@ namespace toy::editor
     {
         GuiSystem();
 
+        ~GuiSystem();
+
+        GuiSystem(const GuiSystem &) = delete;
+        GuiSystem &operator=(const GuiSystem &) = delete;
+        GuiSystem(GuiSystem &&) = delete;
+        GuiSystem& operator=(GuiSystem &&) = delete;
+
         void frame_begin();
 
         void frame_end();
 
-        void release();
-
         void set_dark_theme();
 
         void set_gizmo_style();
-
-    private:
-        bool has_released = false;
     };
 }

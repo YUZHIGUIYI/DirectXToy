@@ -105,27 +105,46 @@ namespace toy::editor
 
     void EditorApplication::on_start_page_render()
     {
+        static constexpr std::string_view s_start_page_text = "Start page";
+
         auto on_create_project = [this] () {
+            auto&& picking_system = core::get_subsystem<PickingSystem>();
+            picking_system.reset_state(false);
             this->m_show_start_page = false;
         };
 
-        ImGui::PushFont(nullptr);
-        ImGui::TextUnformatted("Recent projects");
-        ImGui::Separator();
+        ImGui::OpenPopup(s_start_page_text.data());
 
-        ImGui::BeginGroup();
+        const ImVec2 win_size{ 600.0f, 105.0f };
+        ImGui::SetNextWindowSize(win_size);
+        const ImVec2 win_center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(win_center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 15.0f);
+        if (ImGui::BeginPopupModal(s_start_page_text.data(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove))
         {
+            const ImVec2 available_region = ImGui::GetContentRegionAvail();
+            const ImVec2 text_size = ImGui::CalcTextSize(s_start_page_text.data(), nullptr, false, available_region.x);
+            ImVec2 text_position;
+            text_position.x = (available_region.x - text_size.x) * 0.5f;
+            text_position.y = (available_region.y - text_size.y) * 0.5f;
+
+            ImGui::SetCursorPosX(text_position.x);
+            ImGui::Text("%s", s_start_page_text.data());
+
+            ImGui::SetCursorPosY(text_size.y * 2.0f);
             if (ImGui::Button("New project", ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }))
             {
                 on_create_project();
             }
-            if (ImGui::Button("Open other", ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }))
+
+            if (ImGui::Button("Open project", ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }))
             {
                 on_create_project();
             }
+            ImGui::EndPopup();
         }
-        ImGui::EndGroup();
-        ImGui::PopFont();
+        ImGui::PopStyleVar();
     }
 
     void EditorApplication::on_docks_render(float delta_time)
