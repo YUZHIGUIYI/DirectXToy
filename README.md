@@ -1,20 +1,23 @@
 # Introduction
-A toy renderer based DirectX11 API
+A toy renderer based DirectX API, including an engine library and an editor.
 
-![Snapshot](./data/snapshot/Snapshot1.png)
+![StartPage](./data/snapshot/StartPage.png)
+![ContentShow](./data/snapshot/ContentShow.png)
 
 # Features
-- Deferred physically based rendering
+- Deferred physically based rendering pass
+- Directional lighting and image-based lighting
 - Variance shadow map, Exponential shadow map, exponential variance shadow map
 - Temporal anti-aliasing
 - Asset manager system
 - Entity component system
+- Gizmos
 
 # Requirement 
-Require to compile on Windows platform, make sure to install dependencies as follow:
-- A compiler supporting C++20 standard, for example: MSVC2019 or above
+Require to compile on Windows platform, make sure to install dependencies as follows:
+- A compiler supporting C++20 standard, recommended MSVC
 - CMake, version 3.15 above
-- Windows SDK, which includes direct3d 11 sdk
+- Windows SDK, which includes DirectX sdk
 
 # Getting started
 Firstly, clone repository:

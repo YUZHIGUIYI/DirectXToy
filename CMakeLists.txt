@@ -28,8 +28,6 @@ set(ICON_FONT_DIR "${CMAKE_CURRENT_LIST_DIR}/external/IconFontCppHeaders" CACHE 
 # Copy ImGui setting file
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/data/settings/imgui.ini" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
-include(cmake/HLSLShaders.cmake)
-
 add_subdirectory(external/assimp)
 add_subdirectory(external/glfw)
 add_subdirectory(external/spdlog)
