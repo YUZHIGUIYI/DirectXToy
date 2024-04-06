@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <Toy/Core/d3d_application.h>
 #include <Toy/Core/d3d_util.h>
-#include <Toy/Core/input.h>
-#include <Toy/ImGui/imgui_pass.h>
+#include <Toy/Runtime/input_controller.h>
 #include <Toy/Geometry/geometry.h>
-#include <Toy/Scene/camera.h>
-#include <Toy/Scene/camera_controller.h>
 #include <Toy/Renderer/render_states.h>
 #include <Toy/Renderer/effect_interface.h>
 #include <Toy/Renderer/effects.h>
@@ -19,7 +15,7 @@
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/buffer.h>
-#include <Toy/ImGui/imgui_viewport.h>
-#include <Toy/Scene/entity.h>
-#include <Toy/Scene/components.h>
+#include <Toy/ECS/components.h>
+#include <Toy/ECS/camera.h>
+#include <Toy/ECS/entity_wrapper.h>
 

@@ -49,16 +49,6 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
-// imgui
-#if not defined(IMGUI_DEFINE_MATH_OPERATORS)
-#define IMGUI_DEFINE_MATH_OPERATORS
-#endif
-#include <imgui.h>
-#include <backends/imgui_impl_dx11.h>
-#include <ImGuizmo.h>
-//#include <backends/imgui_impl_win32.h>
-#include <backends/imgui_impl_glfw.h>
-
 // DirectXTex
 #include <DDSTextureLoader/DDSTextureLoader11.h>
 #include <WICTextureLoader/WICTextureLoader11.h>

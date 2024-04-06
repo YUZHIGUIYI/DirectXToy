@@ -11,7 +11,7 @@ namespace toy
 {
     static constexpr uint32_t max_lights = 5;
     // Directional light
-    struct directional_light_s
+    struct DirectionalLight
     {
         DirectX::XMFLOAT4 ambient;
         DirectX::XMFLOAT4 diffuse;
@@ -20,9 +20,7 @@ namespace toy
         float pad = 0.0f;
     };
 
-    using DirectionalLight = directional_light_s;
-
-    struct point_light_s
+    struct PointLight
     {
         DirectX::XMFLOAT4 ambient;
         DirectX::XMFLOAT4 diffuse;
@@ -36,8 +34,6 @@ namespace toy
         DirectX::XMFLOAT3 att;
         float pad = 0.0f;
     };
-
-    using PointLight = point_light_s;
 
     struct PhongMaterial
     {

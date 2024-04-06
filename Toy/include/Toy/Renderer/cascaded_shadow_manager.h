@@ -5,7 +5,7 @@
 #pragma once
 
 #include <Toy/Core/base.h>
-#include <Toy/Scene/camera.h>
+#include <Toy/ECS/camera.h>
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/cascaded_shadow_defines.h>
 
@@ -26,7 +26,7 @@ namespace toy
 
         static CascadedShadowManager &get();
 
-        void update_frame(const Camera &viewer_camera, const Camera &light_camera, const DirectX::BoundingBox &scene_bounding_box);
+        void update_frame(const Camera &viewer_camera, const DirectX::BoundingBox &scene_bounding_box, const DirectX::XMMATRIX &light_view_matrix);
 
         [[nodiscard]] ID3D11RenderTargetView *get_cascade_render_target_view(size_t cascade_index) const;
         [[nodiscard]] ID3D11ShaderResourceView *get_cascades_output() const;

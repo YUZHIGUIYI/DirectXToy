@@ -281,8 +281,7 @@ namespace toy
     template<typename T>
     concept texture_concept = std::is_same_v<TextureCube, T> || std::is_same_v<Texture2D, T>;
 
-    template<typename T>
-    requires texture_concept<T>
+    template<texture_concept T>
     static void create_texture_uav(ID3D11Device *device, T *texture, uint32_t mip_slice)
     {
         auto texture_base = texture->get_texture();

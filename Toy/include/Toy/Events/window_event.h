@@ -8,18 +8,41 @@
 
 namespace toy
 {
+    class NoneEvent
+    {
+    public:
+        explicit NoneEvent(EventPriority priority = EventPriority::Sixth)
+        : event_priority(priority)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(None);
+
+        EventPriority event_priority;
+    };
+
     class WindowCloseEvent
     {
     public:
+        explicit WindowCloseEvent(EventPriority priority = EventPriority::First)
+        : event_priority(priority)
+        {
+
+        }
+
         EVENT_CLASS_TYPE(WindowClose);
+
+        EventPriority event_priority;
     };
 
     class WindowResizeEvent
     {
     public:
-        explicit WindowResizeEvent(int32_t width, int32_t height)
-        : window_width(width), window_height(height)
+        explicit WindowResizeEvent(int32_t width, int32_t height, EventPriority priority = EventPriority::Second)
+        : window_width(width), window_height(height), event_priority(priority)
         {
+
         }
 
         EVENT_CLASS_TYPE(WindowResize);
@@ -27,6 +50,24 @@ namespace toy
         // The data specific the framebuffer size
         int32_t window_width;
         int32_t window_height;
+        EventPriority event_priority;
+    };
+
+    class DockResizeEvent
+    {
+    public:
+        explicit DockResizeEvent(int32_t width, int32_t height, EventPriority priority = EventPriority::Third)
+        : dock_width(width), dock_height(height), event_priority(priority)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(DockResize);
+
+        // The data specific the dock ui size
+        int32_t dock_width;
+        int32_t dock_height;
+        EventPriority event_priority;
     };
 
     class KeyTypedEvent
@@ -42,6 +83,7 @@ namespace toy
 
         key_code key_code_save;
         int32_t mod_keys;
+        EventPriority event_priority = EventPriority::Fifth;
         bool pressed;
         bool repeat;
     };
@@ -59,6 +101,7 @@ namespace toy
 
         float mouse_x_pos;
         float mouse_y_pos;
+        EventPriority event_priority = EventPriority::Fifth;
     };
 
     class MouseScrolledEvent
@@ -74,6 +117,7 @@ namespace toy
 
         float mouse_x_offset;
         float mouse_y_offset;
+        EventPriority event_priority = EventPriority::Fifth;
     };
 
     class MouseButtonEvent
@@ -89,20 +133,22 @@ namespace toy
 
         mouse_code mouse_button;
         int32_t mod_keys;
+        EventPriority event_priority = EventPriority::Fifth;
     };
 
     class DropEvent
     {
     public:
-        explicit DropEvent(std::string_view filename)
-        : drop_filename(filename)
+        explicit DropEvent(std::string_view filename, EventPriority priority = EventPriority::Fourth)
+        : drop_filename(filename), event_priority(priority)
         {
 
         }
 
         EVENT_CLASS_TYPE(Drop)
 
-        std::string_view drop_filename;
+        std::string drop_filename;
+        EventPriority event_priority;
     };
 }
 

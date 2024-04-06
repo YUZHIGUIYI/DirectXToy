@@ -11,7 +11,7 @@
 
 namespace toy::model
 {
-    struct del
+    struct StbImageDeleter
     {
         void operator()(uint8_t *pixel_data) const
         {
@@ -85,7 +85,7 @@ namespace toy::model
             DX_CORE_INFO("Load image: {}", filename);
         }
 
-        std::unique_ptr<uint8_t, del> img_data(pixels);
+        std::unique_ptr<uint8_t, StbImageDeleter> img_data(pixels);
         if (img_data)
         {
             DXGI_FORMAT texture_format = is_hdr ? DXGI_FORMAT_R32G32B32A32_FLOAT : (force_SRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -126,7 +126,7 @@ namespace toy::model
 
         auto&& res = m_texture_srvs[file_id];
         int32_t width = 0, height = 0, comp = 0;
-        std::unique_ptr<uint8_t, del> img_data(stbi_load_from_memory(reinterpret_cast<uint8_t *>(data), static_cast<int32_t>(byte_width),
+        std::unique_ptr<uint8_t, StbImageDeleter> img_data(stbi_load_from_memory(reinterpret_cast<uint8_t *>(data), static_cast<int32_t>(byte_width),
                                                                 &width, &height, &comp, STBI_rgb_alpha));
         if (img_data)
         {

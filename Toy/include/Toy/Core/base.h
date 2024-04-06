@@ -5,8 +5,6 @@
 #pragma once
 
 #include <pch.h>
-#include <Toy/Core/disable_copyable.h>
-#include <Toy/Core/singleton.h>
 #include <Toy/Core/logger.h>
 
 #undef max

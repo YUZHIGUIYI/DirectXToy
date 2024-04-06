@@ -135,9 +135,9 @@ namespace toy
 
         // Properly expand the size of bounding box
         auto&& bounding_center = bounding_box.Center;
-        auto half_width = bounding_box.Extents.x * 1.005f;
-        auto half_height = bounding_box.Extents.y * 1.005f;
-        auto half_depth = bounding_box.Extents.z * 1.005f;
+        auto half_width = bounding_box.Extents.x + 0.001f;
+        auto half_height = bounding_box.Extents.y + 0.001f;
+        auto half_depth = bounding_box.Extents.z + 0.001f;
 
         temp_wire_cube_data[0] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z - half_depth);
         temp_wire_cube_data[1] = XMFLOAT3(bounding_center.x + half_width, bounding_center.y - half_height, bounding_center.z + half_depth);
