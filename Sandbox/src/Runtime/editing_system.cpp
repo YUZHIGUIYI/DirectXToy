@@ -88,6 +88,13 @@ namespace toy::editor
         renderer.reset_selected_entity(m_selected_entity);
     }
 
+    void EditingSystem::select(const EntityWrapper &entity_wrapper)
+    {
+        auto&& renderer = core::get_subsystem<runtime::Renderer>();
+        m_selected_entity = entity_wrapper;
+        renderer.reset_selected_entity(m_selected_entity);
+    }
+
     void EditingSystem::unselect()
     {
         auto&& renderer = core::get_subsystem<runtime::Renderer>();

@@ -33,7 +33,7 @@ namespace toy::model
 #undef MATERIAL_SEMANTICS_ENUM_FUNCTION
     };
 
-    inline std::string_view material_semantics_name(MaterialSemantics material_semantics)
+    inline constexpr std::string_view material_semantics_name(MaterialSemantics material_semantics)
     {
         switch (material_semantics)
         {
@@ -71,7 +71,8 @@ namespace toy::model
         template<typename T>
         T& get(std::string_view name)
         {
-            return const_cast<T &>(this->get<T>(name));
+            auto it = m_Properties.find(string_to_id(name));
+            return std::get<T>(it->second);
         }
 
         template<typename T>

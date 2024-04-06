@@ -15,6 +15,7 @@
 #include <Sandbox/Docks/hierarchy_dock.h>
 #include <Sandbox/Docks/content_browser_dock.h>
 #include <Sandbox/Docks/admin_console_dock.h>
+#include <Sandbox/Docks/inspector_dock.h>
 
 #include <Sandbox/Core/file_dialog.h>
 
@@ -30,6 +31,7 @@ namespace toy::editor
         auto&& docking_system = core::add_subsystem<DockingSystem>();
         docking_system.register_dock(std::make_unique<SceneDock>("Viewport"));
         docking_system.register_dock(std::make_unique<HierarchyDock>("Hierarchy"));
+        docking_system.register_dock(std::make_unique<InspectorDock>("Inspector"));
         docking_system.register_dock(std::make_unique<ContentBrowserDock>("Content browser"));
         docking_system.register_dock(std::make_unique<AdminConsoleDock>("Console"));
 

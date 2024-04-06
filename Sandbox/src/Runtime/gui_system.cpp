@@ -9,6 +9,8 @@
 #include <Toy/Runtime/renderer.h>
 #include <Toy/Runtime/render_window.h>
 
+#include <imgui_user/imgui_user.h>
+
 namespace toy::editor
 {
     GuiSystem::GuiSystem()

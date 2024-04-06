@@ -20,9 +20,8 @@ namespace toy::editor
     private:
         void draw_entity_node(EntityWrapper& entity_wrapper, EntityWrapper &selected_entity_wrapper);
 
-        void draw_components(EntityWrapper& entity_wrapper);
-
     private:
         std::string m_dock_name;
+        bool m_edit_label = false;
     };
 }

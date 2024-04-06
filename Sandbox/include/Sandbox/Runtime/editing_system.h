@@ -15,6 +15,8 @@ namespace toy::editor
 
         void select(uint32_t entity_id);
 
+        void select(const EntityWrapper &entity_wrapper);
+
         void unselect();
 
         EntityWrapper &get_editor_camera_entity();
