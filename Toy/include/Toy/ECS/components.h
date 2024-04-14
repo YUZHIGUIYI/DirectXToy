@@ -50,7 +50,6 @@ namespace toy
         std::vector<bool> submodel_in_frustum = {};
         bool in_frustum = true;
         bool is_skybox = false;
-        bool is_camera = false;
 
         // Check insertion
         // Note: transform belongs to model asset

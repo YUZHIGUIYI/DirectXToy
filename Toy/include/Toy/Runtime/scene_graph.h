@@ -44,8 +44,6 @@ namespace toy::runtime
 
         EntityWrapper get_entity(uint32_t entity_id);
 
-        EntityWrapper get_skybox_entity();
-
         [[nodiscard]] const std::vector<entt::entity> &get_static_mesh_entities() const;
 
         [[nodiscard]] const DirectX::BoundingBox &get_scene_bounding_box() const;

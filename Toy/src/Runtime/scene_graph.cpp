@@ -24,11 +24,6 @@ namespace toy::runtime
         entity_wrapper.registry_handle = nullptr;
     }
 
-    EntityWrapper SceneGraph::get_skybox_entity()
-    {
-        return EntityWrapper{ &registry_handle, skybox_entity };
-    }
-
     void SceneGraph::frustum_culling(const DirectX::BoundingFrustum &frustum_in_world)
     {
         using namespace DirectX;
@@ -47,7 +42,6 @@ namespace toy::runtime
                 static_mesh_entities.push_back(entity);
                 if (static_mesh_component.in_frustum) entities_in_frustum.push_back(entity);
 
-                if (static_mesh_component.is_camera) continue;
                 // Calculate scene bounding box for calculating near and far plane in lighting space
                 if (static_mesh_entity_index == 0)
                 {
