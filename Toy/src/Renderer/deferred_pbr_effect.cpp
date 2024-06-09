@@ -340,6 +340,7 @@ namespace toy
     void DeferredPBREffect::deferred_lighting_pass(ID3D11DeviceContext *device_context, ID3D11RenderTargetView *lit_buffer_rtv,
                                                     const GBufferDefinition &gbuffer, const D3D11_VIEWPORT &viewport)
     {
+        auto&& texture_manager = model::TextureManager::get();
         // Clear render target view
         static const float zeros[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
         device_context->ClearRenderTargetView(lit_buffer_rtv, zeros);
@@ -354,12 +355,15 @@ namespace toy
         m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryAlbedoMetalness", gbuffer.albedo_metalness_buffer->get_shader_resource());
         m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryNormalRoughness", gbuffer.normal_roughness_buffer->get_shader_resource());
         m_effect_impl->effect_helper->set_shader_resource_by_name("gGeometryWorldPosition", gbuffer.world_position_buffer->get_shader_resource());
-        if (auto&& preprocess_effect = PreProcessEffect::get(); preprocess_effect.is_ready())
+        // Bind IBL shader resource views
+        if (auto prefiltered_specular_map = texture_manager.get_texture(model::material_semantics_name(model::MaterialSemantics::PrefilteredSpecularMap)))
         {
+            auto irradiance_map = texture_manager.get_texture(model::material_semantics_name(model::MaterialSemantics::IrradianceMap));
+            auto brdf_lut = texture_manager.get_texture(model::material_semantics_name(model::MaterialSemantics::BRDFLUT));
             m_effect_impl->effect_helper->get_constant_buffer_variable("gNoPreprocess")->set_uint(0);
-            m_effect_impl->effect_helper->set_shader_resource_by_name("gPrefilteredSpecularMap", preprocess_effect.get_environment_srv());
-            m_effect_impl->effect_helper->set_shader_resource_by_name("gIrradianceMap", preprocess_effect.get_irradiance_srv());
-            m_effect_impl->effect_helper->set_shader_resource_by_name("gBRDFLUT", preprocess_effect.get_brdf_srv());
+            m_effect_impl->effect_helper->set_shader_resource_by_name("gPrefilteredSpecularMap", prefiltered_specular_map);
+            m_effect_impl->effect_helper->set_shader_resource_by_name("gIrradianceMap", irradiance_map);
+            m_effect_impl->effect_helper->set_shader_resource_by_name("gBRDFLUT", brdf_lut);
         } else
         {
             m_effect_impl->effect_helper->get_constant_buffer_variable("gNoPreprocess")->set_uint(1);
@@ -496,6 +500,11 @@ namespace toy
     void DeferredPBREffect::set_light_direction(const DirectX::XMFLOAT3 &direction)
     {
         m_effect_impl->effect_helper->get_constant_buffer_variable("gLightDir")->set_float_vector(3, (const float *)&direction);
+    }
+
+    void DeferredPBREffect::set_light_radiance(const DirectX::XMFLOAT3 &radiance)
+    {
+        m_effect_impl->effect_helper->get_constant_buffer_variable("gLightRadiance")->set_float_vector(3, (const float *)&radiance);
     }
 
     void XM_CALLCONV DeferredPBREffect::set_shadow_view_matrix(DirectX::FXMMATRIX shadow_view)

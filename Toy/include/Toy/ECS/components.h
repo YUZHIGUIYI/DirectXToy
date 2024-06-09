@@ -34,7 +34,7 @@ namespace toy
         // The end point of a ray
         DirectX::XMFLOAT3 target = { 0.0f, 0.0f, 0.0f };
 
-        DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        DirectX::XMFLOAT3 color = { 1.0f, 1.0f, 1.0f };
         float intensity = 1.0f;
     };
 

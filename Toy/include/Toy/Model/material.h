@@ -24,7 +24,10 @@ namespace toy::model
     func(SpecularFactor)                 \
     func(Opacity)                        \
     func(Metalness)                      \
-    func(Roughness)
+    func(Roughness)                      \
+    func(IrradianceMap)                  \
+    func(PrefilteredSpecularMap)         \
+    func(BRDFLUT)
 
     enum class MaterialSemantics : uint8_t
     {

@@ -169,10 +169,16 @@ namespace toy::model
         m_texture_srvs.erase(name_id);
     }
 
+    void TextureManager::replace_with(std::string_view name, ID3D11ShaderResourceView *texture)
+    {
+        XID name_id = string_to_id(name);
+        m_texture_srvs[name_id] = texture;
+    }
+
     ID3D11ShaderResourceView* TextureManager::get_texture(std::string_view filename)
     {
         XID file_id = string_to_id(filename);
-        if (m_texture_srvs.count(file_id))
+        if (m_texture_srvs.contains(file_id))
         {
             return m_texture_srvs[file_id].Get();
         }

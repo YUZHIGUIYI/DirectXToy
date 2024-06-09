@@ -43,6 +43,7 @@ namespace toy
     }
 
     template<typename T>
+    requires std::is_integral_v<T>
     static constexpr T compute_mipmap_levels(T width, T height)
     {
         T levels = 1;

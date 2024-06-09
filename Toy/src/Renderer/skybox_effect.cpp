@@ -138,14 +138,12 @@ namespace toy
     {
         auto&& texture_manager = model::TextureManager::get();
 
-        if (auto env_map_srv = PreProcessEffect::get().get_environment_srv())
+        if (auto env_map_srv = texture_manager.get_texture(model::material_semantics_name(model::MaterialSemantics::PrefilteredSpecularMap)))
         {
             m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",env_map_srv);
         } else
         {
-            auto texture_id_str = material.try_get<std::string>("$Skybox");
-            m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture",
-                                                                        texture_id_str ? texture_manager.get_texture(*texture_id_str) : nullptr);
+            m_effect_impl->m_effect_helper->set_shader_resource_by_name("g_SkyboxTexture", nullptr);
         }
     }
 

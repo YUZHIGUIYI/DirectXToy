@@ -28,13 +28,6 @@ namespace toy::editor
         camera_component.camera_type = CameraType::FirstPersonCamera;
         DX_INFO("Editor camera entity id: {}", static_cast<uint32_t>(m_editor_camera_entity.entity_inst));
 
-        // TODO: remove these below
-        // Initialize texture assets - cube map, irradiance map, specular environment map, BRDF lut, others
-        PreProcessEffect::get().compute_cubemap(renderer.get_device(), renderer.get_device_context(), DXTOY_HOME "data/textures/environment.hdr");
-        PreProcessEffect::get().compute_sp_env_map(renderer.get_device(), renderer.get_device_context());
-        PreProcessEffect::get().compute_irradiance_map(renderer.get_device(), renderer.get_device_context());
-        PreProcessEffect::get().compute_brdf_lut(renderer.get_device(), renderer.get_device_context());
-
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_diffuse.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_normal.jpg");
         model::TextureManager::get().create_from_file(DXTOY_HOME "data/textures/cgaxis_brown_clay_tiles_4K/brown_clay_tiles_44_49_metallic.jpg");
@@ -77,6 +70,8 @@ namespace toy::editor
         auto&& directional_light_component = directional_light_entity.add_component<DirectionalLightComponent>();
         directional_light_component.position = DirectX::XMFLOAT3{ -15.0f, 55.0f, -10.0f };
         directional_light_component.target = DirectX::XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+        directional_light_component.color = DirectX::XMFLOAT3{ 1.0f, 1.0f, 1.0f };
+        directional_light_component.intensity = 1.0f;
         DX_INFO("Global directional light entity id: {}", static_cast<uint32_t>(directional_light_entity.entity_inst));
     }
 

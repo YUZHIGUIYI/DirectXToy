@@ -424,6 +424,9 @@ namespace toy
         // * Light direction
         void set_light_direction(const DirectX::XMFLOAT3 &direction);
 
+        // * Light irradiance
+        void set_light_radiance(const DirectX::XMFLOAT3 &radiance);
+
         // * Shadow view matrix
         void XM_CALLCONV set_shadow_view_matrix(DirectX::FXMMATRIX shadow_view);
 

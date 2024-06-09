@@ -16,8 +16,8 @@ namespace toy::model
 
         TextureManager(TextureManager&) = delete;
         TextureManager& operator=(const TextureManager&) = delete;
-        TextureManager(TextureManager&&) noexcept = default;
-        TextureManager& operator=(TextureManager&&) = default;
+        TextureManager(TextureManager&&) noexcept = delete;
+        TextureManager& operator=(TextureManager&&) = delete;
 
         void init(ID3D11Device* device);
 
@@ -26,6 +26,7 @@ namespace toy::model
 
         bool add_texture(std::string_view name, ID3D11ShaderResourceView* texture);
         void remove_texture(std::string_view name);
+        void replace_with(std::string_view name, ID3D11ShaderResourceView  *texture);
 
         ID3D11ShaderResourceView* get_texture(std::string_view filename);
         ID3D11ShaderResourceView* get_null_texture();

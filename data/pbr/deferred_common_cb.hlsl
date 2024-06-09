@@ -40,6 +40,9 @@ cbuffer CBPerObject      : register(b0)
     float  gTexelSize;              // The texel size of shadow map
     float3 gLightDir;               // Direction of light
 
+    float3 gLightRadiance;          // Radiance of light
+    float  gLightPadding;    
+
     float  gLightBleedingReduction; // Leakage control item of VSM
     float  gEvsmPosExp;             // Positive exponent of EVSM
     float  gEvsmNegExp;             // Negative exponent of EVSM

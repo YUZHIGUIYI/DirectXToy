@@ -6,6 +6,7 @@
 #include <Toy/Renderer/render_states.h>
 #include <Toy/Model/texture_manager.h>
 #include <Toy/Renderer/texture_2d.h>
+#include <Toy/Model/material.h>
 
 namespace toy
 {
@@ -174,6 +175,10 @@ namespace toy
         device_context->CSSetConstantBuffers(0, 1, &roughness_cb);
         device_context->CSSetShaderResources(srv_slot, 1, &cube_srv);
         device_context->CSSetUnorderedAccessViews(uav_slot, 1, &env_uav, nullptr);
+
+        /// Store prefiltered-specular environment map shader resource view
+        auto&& texture_manager = model::TextureManager::get();
+        texture_manager.replace_with(model::material_semantics_name(model::MaterialSemantics::PrefilteredSpecularMap), m_effect_impl->env_texture->get_shader_resource());
     }
 
     void PreProcessEffect::compute_irradiance_map(ID3D11Device *device, ID3D11DeviceContext *device_context)
@@ -205,6 +210,10 @@ namespace toy
         DX_CORE_INFO("Environment map's shader resource view slot: {}; irradiance map's unordered access view slot: {}", srv_slot, uav_slot);
         device_context->CSSetShaderResources(srv_slot, 1, &env_srv);
         device_context->CSSetUnorderedAccessViews(uav_slot, 1, &ir_map_uav, nullptr);
+
+        /// Store irradiance map shader resource view
+        auto&& texture_manager = model::TextureManager::get();
+        texture_manager.replace_with(model::material_semantics_name(model::MaterialSemantics::IrradianceMap), m_effect_impl->ir_map_texture->get_shader_resource());
     }
 
     void PreProcessEffect::compute_brdf_lut(ID3D11Device *device, ID3D11DeviceContext *device_context)
@@ -231,6 +240,10 @@ namespace toy
         auto uav_slot = m_effect_impl->effect_helper->map_unordered_access_slot("gOutputLUT");
         DX_CORE_INFO("BRDF-2D-LUT's unordered access view slot: {}", uav_slot);
         device_context->CSSetUnorderedAccessViews(uav_slot, 1, &brdf_uav, nullptr);
+
+        /// Store BRDF-2D-LUT shader resource view
+        auto&& texture_manager = model::TextureManager::get();
+        texture_manager.add_texture(model::material_semantics_name(model::MaterialSemantics::BRDFLUT), m_effect_impl->sp_brdf_texture->get_shader_resource());
     }
 
     ID3D11ShaderResourceView* PreProcessEffect::get_environment_srv() const

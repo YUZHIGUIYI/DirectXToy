@@ -45,10 +45,10 @@ namespace toy::editor
         data.y;
     };
 
-    template <typename DirectXMConcept, size_t N>
-    static constexpr auto xm_to_array(const DirectXMConcept &xm_data) -> std::array<std::decay_t<decltype(std::declval<DirectXMConcept>().x)>, N>
+    template <DirectXMConcept DirectXM, size_t N>
+    static constexpr auto xm_to_array(const DirectXM &xm_data) -> std::array<std::decay_t<decltype(std::declval<DirectXM>().x)>, N>
     {
-        using member_data_type = std::decay_t<decltype(std::declval<DirectXMConcept>().x)>;
+        using member_data_type = std::decay_t<decltype(std::declval<DirectXM>().x)>;
         std::array<member_data_type, N> array_data = {};
         auto member_data = reinterpret_cast<const member_data_type *>(&xm_data);
         for (size_t i = 0; i < N; ++i)
@@ -59,11 +59,11 @@ namespace toy::editor
         return array_data;
     }
 
-    template <typename DirectXMConcept>
-    static void draw_item(std::string_view item_label, std::span<std::string_view> component_button_label, std::span<std::string_view> component_drag_label, DirectXMConcept &xm_data,
+    template <DirectXMConcept DirectXM>
+    static void draw_item(std::string_view item_label, std::span<std::string_view> component_button_label, std::span<std::string_view> component_drag_label, DirectXM &xm_data,
                             float reset_value = 0.0f, float min_value = -10000.0f, float max_value = 10000.0f)
     {
-        using member_data_type = std::decay_t<decltype(std::declval<DirectXMConcept>().x)>;
+        using member_data_type = std::decay_t<decltype(std::declval<DirectXM>().x)>;
 
         ImGuiIO& io = ImGui::GetIO();
         auto component_size = component_button_label.size();

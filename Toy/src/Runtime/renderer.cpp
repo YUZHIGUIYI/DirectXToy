@@ -636,8 +636,12 @@ namespace toy::runtime
 
         // Update view matrix and light direction
         scene_graph.for_each<DirectionalLightComponent>([&deferred_pbr_effect] (DirectionalLightComponent& directional_light_component) {
+            auto light_intensity = directional_light_component.intensity;
+            auto light_color = directional_light_component.color;
+            auto light_radiance = DirectX::XMFLOAT3{ light_intensity * light_color.x, light_intensity * light_color.y, light_intensity * light_color.z };
             deferred_pbr_effect.set_shadow_view_matrix(directional_light_component.transform.get_world_to_local_matrix_xm());
             deferred_pbr_effect.set_light_direction(directional_light_component.transform.get_forward_axis());
+            deferred_pbr_effect.set_light_radiance(light_radiance);
         });
     }
 
