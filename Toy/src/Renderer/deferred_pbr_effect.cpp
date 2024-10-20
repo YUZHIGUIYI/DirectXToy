@@ -7,10 +7,12 @@
 #include <Toy/Geometry/vertex.h>
 #include <Toy/Model/mesh_data.h>
 #include <Toy/Model/texture_manager.h>
+#include <Toy/Model/model_manager.h>
 #include <Toy/Model/material.h>
 #include <Toy/Renderer/taa_settings.h>
 #include <Toy/Renderer/cascaded_shadow_defines.h>
 #include <Toy/Renderer/gbuffer_definition.h>
+#include <Toy/ECS/components.h>
 
 namespace toy
 {
@@ -323,6 +325,25 @@ namespace toy
         XMStoreFloat4x4(&m_effect_impl->pre_world_matrix, world);
         XMStoreFloat4x4(&m_effect_impl->pre_view_proj_matrix, unjittered_view_proj);
         taa_frame_counter = (taa_frame_counter + 1) % taa::s_taa_sample;
+    }
+
+    void DeferredPBREffect::emit_render_pass(ID3D11DeviceContext *device_context, const Transform &transform, const model::Model &model_data)
+    {
+        size_t meshes_size = model_data.meshes.size();
+        for (size_t i = 0; i < meshes_size; ++i)
+        {
+            set_material(model_data.materials[model_data.meshes[i].material_index]);
+            set_world_matrix(transform.get_local_to_world_matrix_xm());
+            apply(device_context);
+
+            MeshDataInput input = get_input_data(model_data.meshes[i]);
+            device_context->IASetInputLayout(input.input_layout);
+            device_context->IASetPrimitiveTopology(input.topology);
+            device_context->IASetVertexBuffers(0, static_cast<uint32_t>(input.vertex_buffers.size()),
+                                                input.vertex_buffers.data(), input.strides.data(), input.offsets.data());
+            device_context->IASetIndexBuffer(input.index_buffer, input.index_count > std::numeric_limits<uint16_t>::max() ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0);
+            device_context->DrawIndexed(input.index_count, 0, 0);
+        }
     }
 
     void DeferredPBREffect::set_lighting_pass_render()

@@ -522,7 +522,15 @@ namespace toy::runtime
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
         DeferredPBREffect::get().set_gbuffer_render();
         m_d3d_immediate_context->OMSetRenderTargets(static_cast<uint32_t>(gbuffer_rtvs.size()), gbuffer_rtvs.data(), m_depth_texture->get_depth_stencil());
-        scene_graph.render_static_mesh(m_d3d_immediate_context.Get(), DeferredPBREffect::get());
+        // scene_graph.render_static_mesh(m_d3d_immediate_context.Get(), DeferredPBREffect::get());
+        auto &&deferred_pbr_effect = DeferredPBREffect::get();
+        auto *device_context = m_d3d_immediate_context.Get();
+        scene_graph.for_each<TransformComponent, StaticMeshComponent>([&deferred_pbr_effect, device_context] (TransformComponent &transform_component, StaticMeshComponent &static_mesh_component) {
+            auto &&transform = transform_component.transform;
+            auto &&model_data = *static_mesh_component.model_asset;
+            deferred_pbr_effect.emit_render_pass(device_context, transform, model_data);
+        });
+
         m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
     }
 
@@ -594,7 +602,14 @@ namespace toy::runtime
         SimpleSkyboxEffect::get().apply(m_d3d_immediate_context.Get());
 
         m_d3d_immediate_context->OMSetRenderTargets(1, &render_target_view, nullptr);
-        scene_graph.render_skybox(m_d3d_immediate_context.Get(), SimpleSkyboxEffect::get());
+        // scene_graph.render_skybox(m_d3d_immediate_context.Get(), SimpleSkyboxEffect::get());
+        auto &&skybox_effect = SimpleSkyboxEffect::get();
+        auto *device_context = m_d3d_immediate_context.Get();
+        scene_graph.for_each<TransformComponent, BoxComponent>([&skybox_effect, device_context] (TransformComponent &transform_component, BoxComponent &box_component) {
+            auto &&transform = transform_component.transform;
+            auto &&model_data = *box_component.model_asset;
+            skybox_effect.emit_render_pass(device_context, transform, model_data);
+        });
         SimpleSkyboxEffect::get().set_depth_texture(nullptr);
         SimpleSkyboxEffect::get().set_scene_texture(nullptr);
         m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);

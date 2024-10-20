@@ -42,9 +42,8 @@ namespace toy::editor
         auto skybox_entity = scene_graph.create_entity("Skybox");
         model::ModelManager::get().create_from_geometry("SkyboxCube", geometry::create_box(static_cast<uint32_t>(skybox_entity.entity_inst)));
         skybox_entity.add_component<TransformComponent>();
-        auto& skybox_mesh = skybox_entity.add_component<StaticMeshComponent>();
+        auto& skybox_mesh = skybox_entity.add_component<BoxComponent>();
         skybox_mesh.model_asset = model::ModelManager::get().get_model("SkyboxCube");
-        skybox_mesh.is_skybox = true;
         DX_INFO("Skybox entity id: {}", static_cast<uint32_t>(skybox_entity.entity_inst));
 
         // Initialize cerberus

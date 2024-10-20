@@ -36,37 +36,22 @@ namespace toy::runtime
         {
             const auto [transform_component, static_mesh_component] = view.get<TransformComponent, StaticMeshComponent>(entity);
 
-            if (!static_mesh_component.is_skybox)
+            if (auto in_frustum = static_mesh_component.frustum_culling(transform_component.transform, frustum_in_world))
             {
-                static_mesh_component.frustum_culling(transform_component.transform, frustum_in_world);
-                static_mesh_entities.push_back(entity);
-                if (static_mesh_component.in_frustum) entities_in_frustum.push_back(entity);
+                entities_in_frustum.push_back(entity);
+            }
+            static_mesh_entities.push_back(entity);
 
-                // Calculate scene bounding box for calculating near and far plane in lighting space
-                if (static_mesh_entity_index == 0)
-                {
-                    scene_bounding_box = static_mesh_component.get_bounding_box(transform_component.transform);
-                } else
-                {
-                    BoundingBox bounding_box = static_mesh_component.get_bounding_box(transform_component.transform);
-                    BoundingBox::CreateMerged(scene_bounding_box, scene_bounding_box, bounding_box);
-                }
-                ++static_mesh_entity_index;
+            // Calculate scene bounding box for calculating near and far plane in lighting space
+            if (static_mesh_entity_index == 0)
+            {
+                scene_bounding_box = static_mesh_component.get_bounding_box(transform_component.transform);
             } else
             {
-                skybox_entity = entity;
+                BoundingBox bounding_box = static_mesh_component.get_bounding_box(transform_component.transform);
+                BoundingBox::CreateMerged(scene_bounding_box, scene_bounding_box, bounding_box);
             }
-        }
-    }
-
-    void SceneGraph::render_skybox(ID3D11DeviceContext *device_context, IEffect &effect)
-    {
-        // Skybox model
-        if (skybox_entity != entt::null)
-        {
-            auto&& static_mesh_component = registry_handle.get<StaticMeshComponent>(skybox_entity);
-            auto&& transform_component = registry_handle.get<TransformComponent>(skybox_entity);
-            static_mesh_component.render(device_context, effect, transform_component.transform);
+            ++static_mesh_entity_index;
         }
     }
 

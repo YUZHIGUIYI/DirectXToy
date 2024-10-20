@@ -4,13 +4,14 @@
 
 #include <Toy/ECS/components.h>
 #include <Toy/Model/model_manager.h>
+#include <Toy/Renderer/effect_interface.h>
 
 namespace toy
 {
-    void StaticMeshComponent::frustum_culling(const Transform &transform, const DirectX::BoundingFrustum &frustum_in_world)
+    bool StaticMeshComponent::frustum_culling(const Transform &transform, const DirectX::BoundingFrustum &frustum_in_world)
     {
+        bool in_frustum = false;
         size_t sz = model_asset->meshes.size();
-        in_frustum = false;
         submodel_in_frustum.resize(sz);
         for (size_t i = 0; i < sz; ++i)
         {
@@ -20,6 +21,7 @@ namespace toy
             submodel_in_frustum[i] = frustum_in_world.Intersects(box);
             in_frustum = in_frustum || submodel_in_frustum[i];
         }
+        return in_frustum;
     }
 
     void StaticMeshComponent::render(ID3D11DeviceContext *device_context, IEffect &effect, const Transform &transform)

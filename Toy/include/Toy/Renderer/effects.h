@@ -10,6 +10,26 @@
 
 namespace toy
 {
+    struct Transform;
+
+    namespace model
+    {
+        struct Model;
+    }
+
+    struct Pass
+    {
+    public:
+        virtual ~Pass() = default;
+
+        virtual void emit_render_pass(ID3D11DeviceContext *device_context, const Transform &transform, const model::Model &model_data) = 0;
+
+    protected:
+        virtual void set_material(const model::Material &material) = 0;
+
+        virtual void set_world_matrix(const DirectX::XMMATRIX &in_world_matrix) = 0;
+    };
+
     class SkyboxEffect final : public IEffect, public IEffectTransform, public IEffectMaterial, public IEffectMeshData
     {
     public:
@@ -351,6 +371,9 @@ namespace toy
         // * Note: called by render object automatically
         void apply(ID3D11DeviceContext* device_context) override;
 
+        // * Emit Geometry pass
+        void emit_render_pass(ID3D11DeviceContext *device_context, const Transform& transform, const model::Model &model_data);
+
         // * Note: called before deferred lighting render
         // * Set render state for lighting pass - select pass
         void set_lighting_pass_render();
@@ -473,6 +496,9 @@ namespace toy
         // * Apply constant buffers and resources for geometry pass
         // * Note: called by render object automatically
         void apply(ID3D11DeviceContext* device_context) override;
+
+        // Emit skybox pass
+        void emit_render_pass(ID3D11DeviceContext *device_context, const Transform &transform, const model::Model &model_data);
 
         // * Singleton
         static SimpleSkyboxEffect &get();

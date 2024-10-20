@@ -34,8 +34,6 @@ namespace toy::runtime
 
         void frustum_culling(const DirectX::BoundingFrustum &frustum_in_world);
 
-        void render_skybox(ID3D11DeviceContext *device_context, IEffect &effect);
-
         void render_static_mesh_shadow(ID3D11DeviceContext *device_context, IEffect &effect);
 
         void render_static_mesh(ID3D11DeviceContext *device_context, IEffect &effect);
@@ -52,7 +50,6 @@ namespace toy::runtime
         entt::registry registry_handle = {};
         std::vector<entt::entity> static_mesh_entities;
         std::vector<entt::entity> entities_in_frustum;
-        entt::entity skybox_entity = entt::null;
         DirectX::BoundingBox scene_bounding_box = {};
     };
 

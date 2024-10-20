@@ -5,7 +5,6 @@
 #pragma once
 
 #include <Toy/ECS/transform.h>
-#include <Toy/Renderer/effect_interface.h>
 #include <Toy/ECS/camera.h>
 
 namespace toy::model
@@ -15,6 +14,8 @@ namespace toy::model
 
 namespace toy
 {
+    class IEffect;
+
     struct TagComponent
     {
         std::string tag = {};
@@ -44,16 +45,15 @@ namespace toy
         CameraType camera_type = CameraType::DefaultCamera;
     };
 
+    // Visible
     struct StaticMeshComponent
     {
         model::Model* model_asset = nullptr;
         std::vector<bool> submodel_in_frustum = {};
-        bool in_frustum = true;
-        bool is_skybox = false;
 
         // Check insertion
         // Note: transform belongs to model asset
-        void frustum_culling(const Transform& transform, const DirectX::BoundingFrustum& frustum_in_world);
+        bool frustum_culling(const Transform& transform, const DirectX::BoundingFrustum& frustum_in_world);
 
         // Render
         // Note: transform belongs to model asset
@@ -66,6 +66,13 @@ namespace toy
         [[nodiscard]] DirectX::BoundingBox get_bounding_box(const Transform& transform, size_t idx) const;
         [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const Transform& transform) const;
         [[nodiscard]] DirectX::BoundingOrientedBox get_bounding_oriented_box(const Transform& transform, size_t idx) const;
+    };
+
+    // Invisible
+    struct BoxComponent
+    {
+        model::Model* model_asset = nullptr;
+        std::vector<bool> submodel_in_frustum = {};
     };
 }
 
