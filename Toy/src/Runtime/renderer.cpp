@@ -13,6 +13,7 @@
 #include <Toy/Runtime/scene_graph.h>
 #include <Toy/Runtime/task_system.h>
 #include <Toy/ECS/components.h>
+#include <Toy/NewFramework/transmittance_pass.h>
 
 namespace toy::runtime
 {
@@ -264,6 +265,8 @@ namespace toy::runtime
         RenderStates::init(m_d3d_device.Get());
 
         // Initialize effects
+        TransmittancePass::get().init(m_d3d_device.Get());
+        TransmittancePass::get().emit_render_pass(m_d3d_immediate_context.Get());
         ShadowEffect::get().init(m_d3d_device.Get());
         DeferredPBREffect::get().init(m_d3d_device.Get());
         SimpleSkyboxEffect::get().init(m_d3d_device.Get());
@@ -426,9 +429,7 @@ namespace toy::runtime
             directional_light_component.transform.set_position(directional_light_component.position);
             directional_light_component.transform.look_at(directional_light_component.target, DirectX::XMFLOAT3{ 0.0f, 1.0f, 0.0f });
             auto light_view_matrix = directional_light_component.transform.get_world_to_local_matrix_xm();
-
             cascade_shadow_manager.update_frame(camera, scene_bounding_box, light_view_matrix);
-
             shadow_effect.set_view_matrix(light_view_matrix);
         });
 
@@ -455,7 +456,12 @@ namespace toy::runtime
             XMMATRIX shadow_proj = cascade_shadow_manager.get_shadow_project_xm(cascade_index);
             shadow_effect.set_proj_matrix(shadow_proj);
 
-            scene_graph.render_static_mesh_shadow(m_d3d_immediate_context.Get(), shadow_effect);
+            // scene_graph.render_static_mesh_shadow(m_d3d_immediate_context.Get(), shadow_effect);
+            scene_graph.for_each<TransformComponent, StaticMeshComponent>([device_context = m_d3d_immediate_context.Get(), &shadow_effect] (TransformComponent &transform_component, StaticMeshComponent &static_mesh_component) {
+                auto &&transform = transform_component.transform;
+                auto &&model_data = *static_mesh_component.model_asset;
+                shadow_effect.emit_render_pass(device_context, transform, model_data);
+            });
 
             m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
 

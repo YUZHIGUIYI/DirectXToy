@@ -29,6 +29,7 @@ bool find_closest_intersection_with_circle(float2 o, float2 d, float R, out floa
     float delta = B * B - 4.0f * A * C;
     if (delta < 0.0f)
     {
+        t = 0.0f;
         return false;
     }
     float sqrt_delta = (C <= 0.0f) ? sqrt(delta) : -sqrt(delta);
@@ -44,6 +45,7 @@ bool find_closest_intersection_with_sphere(float3 o, float3 d, float R, out floa
     float delta = B * B - 4.0f * A * C;
     if (delta < 0.0f)
     {
+        t = 0.0f;
         return false;
     }
     float sqrt_delta = (C <= 0.0f) ? sqrt(delta) : -sqrt(delta);

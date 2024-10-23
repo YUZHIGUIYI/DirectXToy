@@ -567,6 +567,9 @@ namespace toy
         // * Draw depth to depth map
         void set_default_render();
 
+        // * Emit shadow pass
+        void emit_render_pass(ID3D11DeviceContext *device_context, const Transform &transform, const model::Model &model_data);
+
         // * Generate variance shadow
         void render_variance_shadow(ID3D11DeviceContext *device_context, ID3D11ShaderResourceView *input_srv,
                                     ID3D11RenderTargetView *output_rtv, const D3D11_VIEWPORT &viewport);

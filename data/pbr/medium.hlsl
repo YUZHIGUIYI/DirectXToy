@@ -3,7 +3,7 @@
 
 #include "intersection.hlsl"
 
-cbuffer CBAtomsphereParams : register(b0)
+cbuffer CBAtmosphereParams : register(b0)
 {
     float3 gScatterRayleigh;
     float  gHDensityRayleigh;
@@ -18,7 +18,7 @@ cbuffer CBAtomsphereParams : register(b0)
 
     float  gOzoneThickness;
     float  gPlanetRadius;
-    float  gAtomsphereRadius;
+    float  gAtmosphereRadius;
     float  gPadding;
 }
 
@@ -77,7 +77,7 @@ float3 eval_phase_function(float height, float u)
 
 float3 get_transmittance(Texture2D<float3> tex, SamplerState samp, float height, float theta)
 {
-    float u = height / (gAtomsphereRadius - gPlanetRadius);
+    float u = height / (gAtmosphereRadius - gPlanetRadius);
     float v = 0.5f + 0.5f * sin(theta);
     return tex.SampleLevel(samp, float2(u, v), 0.0f);
 }

@@ -16,19 +16,19 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
 {
     uint width, height;
     gTransmittanceMap.GetDimensions(width, height);
-    if (thread_idx.x >= width || thread_idx >= height)
+    if (thread_idx.x >= width || thread_idx.y >= height)
     {
         return;
     }
     
     float theta = asin(lerp(-1.0f, 1.0f, (thread_idx.y + 0.5f) / height));
-    float h = lerp(0.0f, gAtomsphereRadius - gPlanetRadius, (thread_idx.x + 0.5f) / width);
-    float o = float2(0.0f, gPlanetRadius + h);
-    float d = float2(cos(theta), sin(theta));
+    float h = lerp(0.0f, gAtmosphereRadius - gPlanetRadius, (thread_idx.x + 0.5f) / width);
+    float2 o = float2(0.0f, gPlanetRadius + h);
+    float2 d = float2(cos(theta), sin(theta));
     float t = 0.0f;
     if (!find_closest_intersection_with_circle(o, d, gPlanetRadius, t))
     {
-        find_closest_intersection_with_circle(o, d, gAtomsphereRadius, t);
+        find_closest_intersection_with_circle(o, d, gAtmosphereRadius, t);
     }
     float2 end = o + t * d;
 
