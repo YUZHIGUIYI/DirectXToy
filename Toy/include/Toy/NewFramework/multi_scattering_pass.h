@@ -1,5 +1,5 @@
 //
-// Created by ZZK on 2024/10/21.
+// Created by ZZK on 2024/10/24.
 //
 
 #pragma once
@@ -9,21 +9,14 @@
 
 namespace toy
 {
-	struct Transform;
-
-	namespace model
-	{
-		struct Model;
-	}
-
-	struct TransmittancePass
+	struct MultiScatteringPass
 	{
 	public:
-		TransmittancePass();
-		~TransmittancePass() noexcept;
+		MultiScatteringPass();
+		~MultiScatteringPass() noexcept;
 
-		TransmittancePass(TransmittancePass &&other) noexcept;
-		TransmittancePass &operator=(TransmittancePass &&other) noexcept;
+		MultiScatteringPass(MultiScatteringPass &&other) noexcept;
+		MultiScatteringPass &operator=(MultiScatteringPass &&other) noexcept;
 
 		// * Initialize all resources and pipelines
 		void init(ID3D11Device *device);
@@ -34,10 +27,33 @@ namespace toy
 		// * Emit dispatch
 		void emit_render_pass(ID3D11DeviceContext *device_context);
 
-		static TransmittancePass &get();
+		static MultiScatteringPass &get();
 
 	private:
 		struct PassImpl;
 		std::unique_ptr<PassImpl> m_pass_impl;
 	};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

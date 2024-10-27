@@ -14,6 +14,7 @@
 #include <Toy/Runtime/task_system.h>
 #include <Toy/ECS/components.h>
 #include <Toy/NewFramework/transmittance_pass.h>
+#include <Toy/NewFramework/multi_scattering_pass.h>
 
 namespace toy::runtime
 {
@@ -273,6 +274,8 @@ namespace toy::runtime
         PreProcessEffect::get().init(m_d3d_device.Get());
         TAAEffect::get().init(m_d3d_device.Get());
         GizmosWireEffect::get().init(m_d3d_device.Get());
+        MultiScatteringPass::get().init(m_d3d_device.Get());
+        MultiScatteringPass::get().emit_render_pass(m_d3d_immediate_context.Get());
 
         // Initialize shadow manager
         CascadedShadowManager::get().init(m_d3d_device.Get());

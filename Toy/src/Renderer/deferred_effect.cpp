@@ -402,7 +402,7 @@ namespace toy
 
         XMMATRIX world_view = world * view;
         XMMATRIX world_view_proj = world_view * proj;
-        XMMATRIX world_inv_t_view = XMath::inverse_transpose(world) * view;
+        XMMATRIX world_inv_t_view = math::inverse_transpose(world) * view;
         XMMATRIX inv_view = XMMatrixInverse(nullptr, view);
         XMMATRIX view_proj = view * proj;
 

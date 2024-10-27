@@ -100,13 +100,6 @@ namespace toy
 		{ ShaderType::PixelShader | ShaderTargetProfile::ShaderModel_5_0, L"ps_5_0" },
 		{ ShaderType::ComputeShader | ShaderTargetProfile::ShaderModel_5_0, L"cs_5_0" },
 
-		{ ShaderType::VertexShader | ShaderTargetProfile::ShaderModel_5_1, L"vs_5_1" },
-		{ ShaderType::HullShader | ShaderTargetProfile::ShaderModel_5_1, L"hs_5_1" },
-		{ ShaderType::DomainShader | ShaderTargetProfile::ShaderModel_5_1, L"ds_5_1" },
-		{ ShaderType::GeometryShader | ShaderTargetProfile::ShaderModel_5_1, L"gs_5_1" },
-		{ ShaderType::PixelShader | ShaderTargetProfile::ShaderModel_5_1, L"ps_5_1" },
-		{ ShaderType::ComputeShader | ShaderTargetProfile::ShaderModel_5_1, L"cs_5_1" },
-
 		{ ShaderType::VertexShader | ShaderTargetProfile::ShaderModel_6_0, L"vs_6_0" },
 		{ ShaderType::HullShader | ShaderTargetProfile::ShaderModel_6_0, L"hs_6_0" },
 		{ ShaderType::DomainShader | ShaderTargetProfile::ShaderModel_6_0, L"ds_6_0" },
@@ -337,53 +330,23 @@ namespace toy
 	void ConstantBuffer::emit_constant_buffer(ID3D11DeviceContext *device_context)
 	{
 		if (shader_flag & ShaderType::VertexShader) {
-			bind_vs(device_context);
+			device_context->VSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
 		if (shader_flag & ShaderType::HullShader) {
-			bind_hs(device_context);
+			device_context->HSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
 		if (shader_flag & ShaderType::DomainShader) {
-			bind_ds(device_context);
+			device_context->DSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
 		if (shader_flag & ShaderType::GeometryShader) {
-			bind_gs(device_context);
+			device_context->GSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
 		if (shader_flag & ShaderType::PixelShader) {
-			bind_ps(device_context);
+			device_context->PSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
 		if (shader_flag & ShaderType::ComputeShader) {
-			bind_cs(device_context);
+			device_context->CSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 		}
-	}
-
-	void ConstantBuffer::bind_vs(ID3D11DeviceContext *device_context)
-	{
-		device_context->VSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
-	}
-
-	void ConstantBuffer::bind_hs(ID3D11DeviceContext *device_context)
-	{
-		device_context->HSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
-	}
-
-	void ConstantBuffer::bind_ds(ID3D11DeviceContext *device_context)
-	{
-		device_context->DSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
-	}
-
-	void ConstantBuffer::bind_gs(ID3D11DeviceContext *device_context)
-	{
-		device_context->GSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
-	}
-
-	void ConstantBuffer::bind_ps(ID3D11DeviceContext *device_context)
-	{
-		device_context->PSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
-	}
-
-	void ConstantBuffer::bind_cs(ID3D11DeviceContext *device_context)
-	{
-		device_context->CSSetConstantBuffers(binding_slot, 1, constant_buffer.GetAddressOf());
 	}
 
 	// Constant buffer accessor
@@ -723,6 +686,27 @@ namespace toy
 		}
 	}
 
+	void Effect::reset_pipeline(ID3D11DeviceContext *device_context)
+	{
+		for (auto &&shader_resource_info : shader_resource_manager)
+		{
+			shader_resource_info.second.srv = nullptr;
+			emit_shader_resource_view(shader_resource_info.second, device_context);
+		}
+
+		for (auto &&sampler_state_info : sampler_manager)
+		{
+			sampler_state_info.second.sampler = nullptr;
+			emit_sampler_state(sampler_state_info.second, device_context);
+		}
+
+		for (auto &&rw_resource_info : unordered_access_manager)
+		{
+			rw_resource_info.second.uav = nullptr;
+			emit_unordered_access_view(rw_resource_info.second, device_context);
+		}
+	}
+
 	// Graphics effect
 	GraphicsEffect::GraphicsEffect(const PipelineStateObject &pipeline_state_object, ID3D11Device *device)
 	{
@@ -843,6 +827,11 @@ namespace toy
 		device_context->OMSetBlendState(blend_state.Get(), blend_factor.data(), sample_mask);
 	}
 
+	void GraphicsEffect::reset_graphics_pipeline(ID3D11DeviceContext *device_context)
+	{
+		Effect::reset_pipeline(device_context);
+	}
+
 	// Compute pipeline
 	ComputeEffect::ComputeEffect(const PipelineStateObject &pipeline_state_object, ID3D11Device *device)
 	{
@@ -880,6 +869,10 @@ namespace toy
 		device_context->Dispatch(thread_group_count_x, thread_group_count_y, thread_group_count_z);
 	}
 
+	void ComputeEffect::reset_compute_pipeline(ID3D11DeviceContext *device_context)
+	{
+		Effect::reset_pipeline(device_context);
+	}
 }
 
 

@@ -39,14 +39,13 @@ namespace toy
 	enum class ShaderTargetProfile
 	{
 		ShaderModel_5_0 = 0x40,
-		ShaderModel_5_1 = 0x80,
-		ShaderModel_6_0 = 0x100,
-		ShaderModel_6_1 = 0x200,
-		ShaderModel_6_2 = 0x400,
-		ShaderModel_6_3 = 0x800,
-		ShaderModel_6_4 = 0x1000,
-		ShaderModel_6_5 = 0x2000,
-		ShaderModel_6_6 = 0x4000
+		ShaderModel_6_0 = 0x80,
+		ShaderModel_6_1 = 0x100,
+		ShaderModel_6_2 = 0x200,
+		ShaderModel_6_3 = 0x400,
+		ShaderModel_6_4 = 0x800,
+		ShaderModel_6_5 = 0x1000,
+		ShaderModel_6_6 = 0x2000
 	};
 
 	// Shader input parameter mask
@@ -171,18 +170,6 @@ namespace toy
 		void set_shader_flag(ShaderType shader_type);
 
 		void emit_constant_buffer(ID3D11DeviceContext *device_context);
-
-		void bind_vs(ID3D11DeviceContext *device_context);
-
-		void bind_hs(ID3D11DeviceContext *device_context);
-
-		void bind_ds(ID3D11DeviceContext *device_context);
-
-		void bind_gs(ID3D11DeviceContext *device_context);
-
-		void bind_ps(ID3D11DeviceContext *device_context);
-
-		void bind_cs(ID3D11DeviceContext *device_context);
 	};
 
 	struct ConstantBufferAccessor
@@ -318,13 +305,13 @@ namespace toy
 		std::wstring_view ds_path{};
 		std::wstring_view gs_path{};
 		std::wstring_view ps_path{};
-		ShaderTargetProfile shader_target_profile = ShaderTargetProfile::ShaderModel_5_1;
+		ShaderTargetProfile shader_target_profile = ShaderTargetProfile::ShaderModel_5_0;
 	};
 
 	struct ComputePipelineStateObject
 	{
 		std::wstring_view cs_path{};
-		ShaderTargetProfile shader_target_profile = ShaderTargetProfile::ShaderModel_5_1;
+		ShaderTargetProfile shader_target_profile = ShaderTargetProfile::ShaderModel_5_0;
 	};
 
 	using PipelineStateObject = std::variant<GraphicsPipelineStateObject, ComputePipelineStateObject>;
@@ -364,10 +351,16 @@ namespace toy
 
 		virtual void emit_compute_pipeline(ID3D11DeviceContext *device_context) {};
 
+		virtual void reset_graphics_pipeline(ID3D11DeviceContext *device_context) {}
+
+		virtual void reset_compute_pipeline(ID3D11DeviceContext *device_context) {}
+
 		virtual void dispatch(ID3D11DeviceContext *device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z) {};
 
 	protected:
 		void emit_pipeline(ID3D11DeviceContext *device_context);
+
+		void reset_pipeline(ID3D11DeviceContext *device_context);
 
 		void update_shader_reflection(std::wstring_view shader_name, ID3D11Device *device, const FxcShaderResult &shader_result);
 	};
@@ -397,6 +390,8 @@ namespace toy
 		void set_blend_factor(std::span<float> blend_value) override;
 
 		void emit_graphics_pipeline(ID3D11DeviceContext *device_context) override;
+
+		void reset_graphics_pipeline(ID3D11DeviceContext *device_context) override;
 	};
 
 	struct ComputeEffect final : Effect
@@ -414,6 +409,8 @@ namespace toy
 		ComputeEffect &operator=(ComputeEffect &&) = delete;
 
 		void emit_compute_pipeline(ID3D11DeviceContext *device_context) override;
+
+		void reset_compute_pipeline(ID3D11DeviceContext *device_context) override;
 
 		void dispatch(ID3D11DeviceContext *device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z) override;
 	};

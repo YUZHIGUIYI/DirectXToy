@@ -27,7 +27,9 @@ namespace toy::model
     func(Roughness)                      \
     func(IrradianceMap)                  \
     func(PrefilteredSpecularMap)         \
-    func(BRDFLUT)
+    func(BRDFLUT)                        \
+    func(TransmittanceLUT)               \
+    func(MultiScatteringLUT)
 
     enum class MaterialSemantics : uint8_t
     {

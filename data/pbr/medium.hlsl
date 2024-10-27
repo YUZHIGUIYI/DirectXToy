@@ -75,11 +75,11 @@ float3 eval_phase_function(float height, float u)
     return result;
 }
 
-float3 get_transmittance(Texture2D<float3> tex, SamplerState samp, float height, float theta)
+float3 get_transmittance(Texture2D<float4> tex, SamplerState samp, float height, float theta)
 {
     float u = height / (gAtmosphereRadius - gPlanetRadius);
     float v = 0.5f + 0.5f * sin(theta);
-    return tex.SampleLevel(samp, float2(u, v), 0.0f);
+    return tex.SampleLevel(samp, float2(u, v), 0.0f).xyz;
 }
 
 #endif

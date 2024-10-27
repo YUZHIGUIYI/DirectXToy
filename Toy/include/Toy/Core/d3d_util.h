@@ -42,18 +42,53 @@ namespace toy
             return { radians.x * static_cast<float>(inv_pi_div_180), radians.y * static_cast<float>(inv_pi_div_180),
                         radians.z * static_cast<float>(inv_pi_div_180) };
         }
-    }
 
-    // ------------------------------
-    // create_shader_from_file function
-    // ------------------------------
-    // [In]cso_file_name   Compiled binary cso-shader file, if specified, prioritize finding and reading the file
-    // [In]hlsl_file_name  HLSL shader code, if not specified cso file, try to compile this hlsl shader code
-    // [In]entry_point     Entry point of HLSL shader code
-    // [In]shader_model    Shader model, "*s_5_0" format, may be one of c, d, g, h, p, v
-    // [Out]blob_out_pp    Output shader binary information
-    HRESULT create_shader_from_file(const wchar_t* cso_file_name, const wchar_t* hlsl_file_name, const char* entry_point,
-                                    const char* shader_model, ID3DBlob** blob_out_pp);
+        inline DirectX::XMMATRIX XM_CALLCONV inverse_transpose(const DirectX::FXMMATRIX& M)
+        {
+            using namespace DirectX;
+            // The transposition of the inverse of the world matrix only applies to the normal vector
+            // Do not need displacement component
+            // Must remove
+            XMMATRIX A = M;
+            A.r[3] = g_XMIdentityR3;
+
+            return XMMatrixTranspose(XMMatrixInverse(nullptr, A));
+        }
+
+        // DirectX::XMFLOAT3 Operator * float
+        inline DirectX::XMFLOAT3 operator*(const float scale_factor, const DirectX::XMFLOAT3 &input)
+        {
+            return DirectX::XMFLOAT3{ scale_factor * input.x, scale_factor * input.y, scale_factor * input.z };
+        }
+
+        inline DirectX::XMFLOAT3 operator*(const DirectX::XMFLOAT3 &input, const float scale_factor)
+        {
+            return operator*(scale_factor, input);
+        }
+
+        // DirectX::XMFLOAT3 Operator / float
+        inline DirectX::XMFLOAT3 operator/(const DirectX::XMFLOAT3 &input, const float divisor)
+        {
+            return DirectX::XMFLOAT3{ input.x / divisor, input.y / divisor, input.z / divisor };
+        }
+
+        // DirectX::XMFLOAT3 Operator + float
+        inline DirectX::XMFLOAT3 operator+(const DirectX::XMFLOAT3 &input, const float addend)
+        {
+            return DirectX::XMFLOAT3{ input.x + addend, input.y + addend, input.z + addend };
+        }
+
+        inline DirectX::XMFLOAT3 operator+(const float addend, const DirectX::XMFLOAT3 &input)
+        {
+            return operator+(input, addend);
+        }
+
+        // DirectX::XMFLOAT3 Operator - float
+        inline DirectX::XMFLOAT3 operator-(const DirectX::XMFLOAT3 &input, const float subtrahend)
+        {
+            return DirectX::XMFLOAT3{ input.x - subtrahend, input.y - subtrahend, input.z - subtrahend };
+        }
+    }
 
 #pragma warning(push)
 #pragma warning(disable: 28251)
@@ -85,27 +120,7 @@ namespace toy
     using XID = size_t;
     inline XID string_to_id(std::string_view str)
     {
-        static std::hash<std::string_view> hash;
+        static std::hash<std::string_view> hash{};
         return hash(str);
-    }
-
-    namespace XMath
-    {
-        inline DirectX::XMMATRIX XM_CALLCONV inverse_transpose(const DirectX::FXMMATRIX& M)
-        {
-            using namespace DirectX;
-            // The transposition of the inverse of the world matrix only applies to the normal vector
-            // Do not need displacement component
-            // Must remove
-            XMMATRIX A = M;
-            A.r[3] = g_XMIdentityR3;
-
-            return XMMatrixTranspose(XMMatrixInverse(nullptr, A));
-        }
-
-        inline float lerp(float a, float b, float t)
-        {
-            return (1.0f - t) * a + t * b;
-        }
     }
 }

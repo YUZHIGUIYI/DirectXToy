@@ -11,23 +11,22 @@ namespace toy
     class Buffer
     {
     public:
-        Buffer(ID3D11Device* device, const CD3D11_BUFFER_DESC& buffer_desc);
+        Buffer(ID3D11Device* device, const CD3D11_BUFFER_DESC& buffer_desc, const void *raw_data = nullptr);
         Buffer(ID3D11Device* device, const CD3D11_BUFFER_DESC& buffer_desc,
                 const CD3D11_SHADER_RESOURCE_VIEW_DESC& srv_desc,
-                const CD3D11_UNORDERED_ACCESS_VIEW_DESC& uav_desc);
+                const CD3D11_UNORDERED_ACCESS_VIEW_DESC& uav_desc, const void *raw_data = nullptr);
 
         virtual ~Buffer() = default;
-
         Buffer(const Buffer&) = delete;
         Buffer& operator=(const Buffer&) = delete;
         Buffer(Buffer&&) = default;
         Buffer& operator=(Buffer&&) = default;
 
-        ID3D11Buffer* get_buffer() { return m_buffer.Get(); }
-        ID3D11UnorderedAccessView* get_unordered_access() { return m_unordered_access.Get(); }
-        ID3D11ShaderResourceView* get_shader_resource() { return m_shader_resource.Get(); }
+        [[nodiscard]] ID3D11Buffer* get_buffer() const { return m_buffer.Get(); }
+        [[nodiscard]] ID3D11UnorderedAccessView* get_unordered_access() const { return m_unordered_access.Get(); }
+        [[nodiscard]] ID3D11ShaderResourceView* get_shader_resource() const { return m_shader_resource.Get(); }
 
-        void* map_discard(ID3D11DeviceContext* device_context);
+        void *map(ID3D11DeviceContext* device_context);
         void unmap(ID3D11DeviceContext* device_context);
         [[nodiscard]] uint32_t get_byte_width() const { return m_byte_width; }
 
@@ -49,7 +48,8 @@ namespace toy
         StructureBuffer(ID3D11Device* device, uint32_t elements,
                         uint32_t bind_flags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE,
                         bool enable_counter = false,
-                        bool dynamic = false);
+                        bool dynamic = false,
+                        const void *raw_data = nullptr);
         ~StructureBuffer() override = default;
 
         StructureBuffer(const StructureBuffer&) = delete;
@@ -58,7 +58,7 @@ namespace toy
         StructureBuffer& operator=(StructureBuffer&&) = default;
 
         // Only support dynamic buffer
-        T* map_discard(ID3D11DeviceContext* device_context);
+        T* typed_map(ID3D11DeviceContext* device_context);
 
         [[nodiscard]] uint32_t get_num_elements() const { return m_elements; }
 
@@ -68,21 +68,21 @@ namespace toy
 
     template<typename T>
     StructureBuffer<T>::StructureBuffer(ID3D11Device *device, uint32_t elements, uint32_t bind_flags,
-                                        bool enable_counter, bool dynamic)
-    : m_elements(elements),
-    Buffer(device, CD3D11_BUFFER_DESC{ uint32_t(sizeof(T)) * elements, bind_flags,
+                                        bool enable_counter, bool dynamic, const void *raw_data)
+    : Buffer(device, CD3D11_BUFFER_DESC{ static_cast<uint32_t>(sizeof(T)) * elements, bind_flags,
                                     dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT,
-                                    dynamic ? D3D11_CPU_ACCESS_WRITE : uint32_t(0),
+                                    dynamic ? D3D11_CPU_ACCESS_WRITE : 0U,
                                     D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-                                    uint32_t(sizeof(T)) },
+                                    static_cast<uint32_t>(sizeof(T)) },
         CD3D11_SHADER_RESOURCE_VIEW_DESC{ D3D11_SRV_DIMENSION_BUFFER, DXGI_FORMAT_UNKNOWN, 0, elements },
-        CD3D11_UNORDERED_ACCESS_VIEW_DESC{ D3D11_UAV_DIMENSION_BUFFER, DXGI_FORMAT_UNKNOWN, 0, elements, 0, D3D11_BUFFER_UAV_FLAG_COUNTER })
+        CD3D11_UNORDERED_ACCESS_VIEW_DESC{ D3D11_UAV_DIMENSION_BUFFER, DXGI_FORMAT_UNKNOWN, 0, elements, 0, D3D11_BUFFER_UAV_FLAG_COUNTER },
+        raw_data), m_elements(elements)
     {
 
     }
 
     template<typename T>
-    T* StructureBuffer<T>::map_discard(ID3D11DeviceContext *device_context)
+    T* StructureBuffer<T>::typed_map(ID3D11DeviceContext *device_context)
     {
         D3D11_MAPPED_SUBRESOURCE mapped_resource{};
         device_context->Map(m_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);

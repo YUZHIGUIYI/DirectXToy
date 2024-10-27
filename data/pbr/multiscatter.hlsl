@@ -17,7 +17,7 @@ cbuffer CBCSParams : register(b1)
 }
 
 StructuredBuffer<float2> gRawDirSamples      : register(t0);
-Texture2D<float3>        gTransmittanceMap   : register(t1);
+Texture2D<float4>        gTransmittanceMap   : register(t1);
 
 RWTexture2D<float4>      gMultiScatteringMap : register(u0);
 SamplerState             gSamTransmittance   : register(s0);
@@ -39,7 +39,7 @@ void integrate(float3 world_ori, float3 world_dir, float sun_theta,
                         gPlanetRadius, end_t);
     if (!ground_inct)
     {
-        find_closest_intersection_with_sphere(world_ori, world_dir, gAtomsphereRadius, end_t);
+        find_closest_intersection_with_sphere(world_ori, world_dir, gAtmosphereRadius, end_t);
     }
 
     float dt = end_t / gRayMarchStepCount;
@@ -128,7 +128,7 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
     float sin_sun_theta = lerp(-1.0f, 1.0f, (thread_idx.y + 0.5f) / height);
     float sun_theta = asin(sin_sun_theta);
 
-    float h = lerp(0.0f, gAtomsphereRadius - gPlanetRadius, 
+    float h = lerp(0.0f, gAtmosphereRadius - gPlanetRadius, 
                 (thread_idx.x + 0.5f) / width);
     gMultiScatteringMap[thread_idx.xy] = float4(compute_m(h, sun_theta), 1.0f);
 }
