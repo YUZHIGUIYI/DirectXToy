@@ -28,11 +28,13 @@ cbuffer CBCSParams : register(b1)
     int    gEnableShadow;
 
     float4x4 gShadowViewProj;
+
     float    gWorldScale;
+    float3   gUselessPadding;
 }
 
-Texture2D<float3> gMultiScatteringMap : register(t0);
-Texture2D<float3> gTransmittanceMap   : register(t1);
+Texture2D<float4> gMultiScatteringMap : register(t0);
+Texture2D<float4> gTransmittanceMap   : register(t1);
 Texture2D<float>  gShadowMap          : register(t2);
 
 SamplerState      gSamMT              : register(s0);
@@ -72,7 +74,7 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
         dir, gPlanetRadius, max_t))
     {
         find_closest_intersection_with_sphere(ori + float3(0.0f, gPlanetRadius, 0.0f), 
-            dir, gAtomsphereRadius, max_t);
+            dir, gAtmosphereRadius, max_t);
     }
 
     float slice_depth = gMaxDistance / depth;
@@ -107,17 +109,17 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
 
             if (!has_intersection_with_sphere(pos_r, -gSunDirection, gPlanetRadius))
             {
-                float3 shadow_pos = gEyePosition + dir * mid_t / gWorldScale;
+                float3 shadow_pos  = gEyePosition + dir * mid_t / gWorldScale;
                 float4 shadow_clip = mul(float4(shadow_pos, 1.0f), gShadowViewProj);
-                float2 shadow_ndc = shadow_clip.xy / shadow_clip.w;
-                float2 shadow_uv = 0.5f + float2(0.5f, -0.5f) * shadow_ndc;
+                float2 shadow_ndc  = shadow_clip.xy / shadow_clip.w;
+                float2 shadow_uv   = 0.5f + float2(0.5f, -0.5f) * shadow_ndc;
 
                 bool in_shadow = gEnableShadow;
                 if (gEnableShadow && all(saturate(shadow_uv) == shadow_uv))
                 {
                     float ray_z = shadow_clip.z;
-                    float sm_z = gShadowMap.SampleLevel(gSamShadow, shadow_uv, 0.0f);
-                    in_shadow = ray_z >= sm_z;
+                    float sm_z  = gShadowMap.SampleLevel(gSamShadow, shadow_uv, 0.0f);
+                    in_shadow   = ray_z >= sm_z;
                 }
 
                 if (!in_shadow)
@@ -130,9 +132,9 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
 
             if (gEnableMultiScattering)
             {
-                float tx = h / (gAtomsphereRadius - gPlanetRadius);
+                float tx = h / (gAtmosphereRadius - gPlanetRadius);
                 float ty = 0.5f + 0.5f * sin(gSunTheta);
-                float3 ms = gMultiScatteringMap.SampleLevel(gSamMT, float2(tx, ty), 0.0f);
+                float3 ms = gMultiScatteringMap.SampleLevel(gSamMT, float2(tx, ty), 0.0f).xyz;
                 in_scatter += dt * eye_trans * sigma_s * ms;
             }
 
@@ -141,8 +143,7 @@ void CS(uint3 thread_idx : SV_DispatchThreadID)
         }
 
         float transmittance = relative_luminance(exp(-sum_sigma_t));
-        gAerialPerspectiveLUT[uint3(thread_idx.xy, z)] = 
-            float4(in_scatter, transmittance);
+        gAerialPerspectiveLUT[uint3(thread_idx.xy, z)] = float4(in_scatter, transmittance);
 
         t_beg = t_end;
         t_end = min(t_end + slice_depth, max_t);

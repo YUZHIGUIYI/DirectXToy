@@ -14,7 +14,6 @@
 #include <Toy/Renderer/texture_2d.h>
 #include <Toy/Renderer/buffer.h>
 #include <Toy/NewFramework/sampling.h>
-#include <Toy/NewFramework/transmittance_pass.h>
 
 namespace toy
 {

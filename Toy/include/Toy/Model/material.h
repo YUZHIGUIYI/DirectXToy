@@ -29,7 +29,9 @@ namespace toy::model
     func(PrefilteredSpecularMap)         \
     func(BRDFLUT)                        \
     func(TransmittanceLUT)               \
-    func(MultiScatteringLUT)
+    func(MultiScatteringLUT)             \
+    func(AerialPerspectiveLUT)           \
+    func(SkyLUT)
 
     enum class MaterialSemantics : uint8_t
     {

@@ -16,9 +16,27 @@ namespace toy
         // Convert degree to radian
         template <typename T>
         requires std::is_floating_point_v<T>
-        T radians(T degrees)
+        constexpr T radians(T degrees)
         {
             return degrees * static_cast<T>(pi_div_180);
+        }
+
+        inline DirectX::XMFLOAT3 normalized(const DirectX::XMFLOAT3 &input)
+        {
+            auto dx_vec3f = DirectX::XMLoadFloat3(std::addressof(input));
+            dx_vec3f = DirectX::XMVector3Normalize(dx_vec3f);
+            DirectX::XMFLOAT3 output{};
+            DirectX::XMStoreFloat3(std::addressof(output), dx_vec3f);
+            return output;
+        }
+
+        inline DirectX::XMFLOAT4 normalized(const DirectX::XMFLOAT4 &input)
+        {
+            auto dx_vec4f = DirectX::XMLoadFloat4(std::addressof(input));
+            dx_vec4f = DirectX::XMVector4Normalize(dx_vec4f);
+            DirectX::XMFLOAT4 output{};
+            DirectX::XMStoreFloat4(std::addressof(output), dx_vec4f);
+            return output;
         }
 
         // Convert float3 degree to float3 radian

@@ -807,6 +807,26 @@ namespace toy
 		}
 	}
 
+	void GraphicsEffect::set_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY in_topology)
+	{
+		topology = in_topology;
+	}
+
+	void GraphicsEffect::set_render_viewports(std::span<D3D11_VIEWPORT> in_viewports)
+	{
+		viewports = in_viewports;
+	}
+
+	void GraphicsEffect::set_render_target_views(std::span<ID3D11RenderTargetView *> in_render_target_views)
+	{
+		render_target_views = in_render_target_views;
+	}
+
+	void GraphicsEffect::set_depth_stencil_view(ID3D11DepthStencilView *in_depth_stencil_view)
+	{
+		depth_stencil_view = in_depth_stencil_view;
+	}
+
 	void GraphicsEffect::set_stencil_ref(uint32_t stencil_value)
 	{
 		stencil_ref = stencil_value;
@@ -818,18 +838,27 @@ namespace toy
 		std::memcpy(blend_factor.data(), blend_value.data(), size_in_bytes);
 	}
 
+	void GraphicsEffect::draw(ID3D11DeviceContext *device_context, uint32_t vertex_count, uint32_t start_vertex_location)
+	{
+		device_context->Draw(vertex_count, start_vertex_location);
+	}
+
 	void GraphicsEffect::emit_graphics_pipeline(ID3D11DeviceContext *device_context)
 	{
 		Effect::emit_pipeline(device_context);
 		device_context->IASetInputLayout(vertex_input_layout.Get());
+		device_context->IASetPrimitiveTopology(topology);
 		device_context->RSSetState(rasterizer_state.Get());
+		device_context->RSSetViewports(static_cast<uint32_t>(viewports.size()), viewports.data());
 		device_context->OMSetDepthStencilState(depth_stencil_state.Get(), stencil_ref);
 		device_context->OMSetBlendState(blend_state.Get(), blend_factor.data(), sample_mask);
+		device_context->OMSetRenderTargets(static_cast<uint32_t>(render_target_views.size()), render_target_views.data(), depth_stencil_view);
 	}
 
 	void GraphicsEffect::reset_graphics_pipeline(ID3D11DeviceContext *device_context)
 	{
 		Effect::reset_pipeline(device_context);
+		device_context->OMSetRenderTargets(0, nullptr, nullptr);
 	}
 
 	// Compute pipeline

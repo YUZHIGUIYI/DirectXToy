@@ -54,6 +54,18 @@ namespace toy
         return levels;
     }
 
+    template<typename T>
+    requires std::is_integral_v<T>
+    static constexpr T compute_mipmap_levels(T width, T height, T depth)
+    {
+        T levels = 1;
+        while ((width | height | depth) >> levels)
+        {
+            ++levels;
+        }
+        return levels;
+    }
+
     // Texture 2d base
     Texture2DBase::Texture2DBase(ID3D11Device *device, const CD3D11_TEXTURE2D_DESC &tex_desc,
                                     const CD3D11_SHADER_RESOURCE_VIEW_DESC &srv_desc)
@@ -213,6 +225,48 @@ namespace toy
     {
         // TODO
     }
+
+    // Texture3D
+    Texture3D::Texture3D(ID3D11Device *device, uint32_t width, uint32_t height, uint32_t depth, DXGI_FORMAT format, uint32_t mip_levels, uint32_t bind_flags)
+    {
+        CD3D11_TEXTURE3D_DESC texture_3d_desc{ format, width, height, depth, mip_levels, bind_flags };
+        if (mip_levels == 0U)
+        {
+            texture_3d_desc.MipLevels = compute_mipmap_levels(width, height, depth);
+            texture_3d_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+            texture_3d_desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        }
+        device->CreateTexture3D(&texture_3d_desc, nullptr, m_texture.GetAddressOf());
+        if (m_texture == nullptr)
+        {
+            DX_CORE_CRITICAL("Failed to create texture 3d");
+        }
+
+        if (bind_flags & D3D11_BIND_SHADER_RESOURCE)
+        {
+            CD3D11_SHADER_RESOURCE_VIEW_DESC shader_resource_view_desc{ D3D11_SRV_DIMENSION_TEXTURE3D, format };
+            device->CreateShaderResourceView(m_texture.Get(), &shader_resource_view_desc, m_texture_srv.GetAddressOf());
+        }
+    }
+
+    ID3D11UnorderedAccessView *Texture3D::create_unordered_access(ID3D11Device *device, uint32_t mip_slice, uint32_t array_slice, uint32_t array_size)
+    {
+        D3D11_TEXTURE3D_DESC texture_3d_desc{};
+        m_texture->GetDesc(&texture_3d_desc);
+        if ((texture_3d_desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS) == 0)
+        {
+            DX_CORE_ERROR("Texture 3d can not be bound to unordered access view, check bind flags");
+            return nullptr;
+        }
+        CD3D11_UNORDERED_ACCESS_VIEW_DESC unordered_access_view_desc{ D3D11_UAV_DIMENSION_TEXTURE3D, texture_3d_desc.Format, mip_slice, array_slice, array_size };
+        device->CreateUnorderedAccessView(m_texture.Get(), &unordered_access_view_desc, m_texture_uav.ReleaseAndGetAddressOf());
+        if (m_texture_uav == nullptr)
+        {
+            DX_CORE_CRITICAL("Failed to create texture 3d unordered access view");
+        }
+        return m_texture_uav.Get();
+    }
+
 
     // Texture 2d array
     Texture2DArray::Texture2DArray(ID3D11Device *device, uint32_t width, uint32_t height, DXGI_FORMAT format, uint32_t array_size, uint32_t mip_levels, uint32_t bind_flags)

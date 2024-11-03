@@ -74,6 +74,10 @@ namespace toy::runtime
         void on_file_drop(std::string_view filepath);
 
     private:
+        void sky_lut_pass(const Camera &camera);
+
+        void aerial_perspective_pass(const Camera &camera);
+
         void frustum_culling(const Camera &camera);
 
         void shadow_pass(const Camera &camera);
@@ -81,6 +85,8 @@ namespace toy::runtime
         void gbuffer_pass(const Camera &camera);
 
         void lighting_and_taa_pass(const Camera &camera);
+
+        void sky_pass(const Camera &camera);
 
         void skybox_pass(const Camera &camera);
 

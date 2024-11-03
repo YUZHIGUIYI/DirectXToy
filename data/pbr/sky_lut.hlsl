@@ -4,8 +4,8 @@
 #include "intersection.hlsl"
 #include "medium.hlsl"
 
-Texture2D<float3> gTransmittanceMap   : register(t0);
-Texture2D<float3> gMultiScatteringMap : register(t1);
+Texture2D<float4> gTransmittanceMap   : register(t0);
+Texture2D<float4> gMultiScatteringMap : register(t1);
 SamplerState gSamMT                   : register(s0);
 
 cbuffer CBPSParams : register(b1)
@@ -26,14 +26,29 @@ struct VertexShaderOutput
     float2 texcoord       : TEXCOORD;
 };
 
+// VertexShaderOutput VS(uint vertex_id : SV_VertexID)
+// {
+//     VertexShaderOutput vs_output;
+//     vs_output.texcoord = float2((vertex_id << 1) & 2, vertex_id & 2);
+//     vs_output.homog_position = float4(vs_output.texcoord * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.5f, 1.0f);
+//     return vs_output;
+// }
+// Use a triangle to cover the NDC space
+// (-1, 1)________ (3, 1)
+//        |   |  /
+// (-1,-1)|___|/ (1, -1)   
+//        |  /
+// (-1,-3)|/    
+
 VertexShaderOutput VS(uint vertex_id : SV_VertexID)
 {
     VertexShaderOutput vs_output;
-    vs_output.texcoord = float2((vertex_id << 1) & 2, vertex_id & 2);
-    vs_output.homog_position = float4(vs_output.texcoord * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.5f, 1.0f);
+    float2 grid = float2((vertex_id << 1) & 2, vertex_id & 2);
+    float2 xy = grid * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
+    vs_output.texcoord = grid * float2(1.0f, 1.0f);
+    vs_output.homog_position = float4(xy, 1.0f, 1.0f);
     return vs_output;
 }
-
 
 void march_step(float phase_u, float3 ori, float3 dir, float this_t, float next_t,
                 inout float3 sum_sigma_t, inout float3 in_scattering)
@@ -60,8 +75,8 @@ void march_step(float phase_u, float3 ori, float3 dir, float this_t, float next_
 
     if (gEnableMultiScattering)
     {
-        float tx = height / (gAtomsphereRadius - gPlanetRadius);
-        float ty = 0.5f + 0.5f * sin(sun_theta);
+        float tx  = height / (gAtmosphereRadius - gPlanetRadius);
+        float ty  = 0.5f + 0.5f * sin(sun_theta);
         float3 ms = gMultiScatteringMap.SampleLevel(gSamMT, float2(tx, ty), 0.0f);
         in_scattering += (next_t - this_t) * eye_trans * sigma_s * ms;
     }
@@ -72,7 +87,7 @@ void march_step(float phase_u, float3 ori, float3 dir, float this_t, float next_
 float4 PS(VertexShaderOutput ps_input) : SV_Target0
 {
     float phi = 2.0f * PI * ps_input.texcoord.x;
-    float vm = 2.0f * ps_input.texcoord.y - 1.0f;
+    float vm  = 2.0f * ps_input.texcoord.y - 1.0f;
     float theta = sign(vm) * (PI / 2.0f) * vm * vm;
     float sin_theta = sin(theta);
     float cos_theta = cos(theta);
@@ -87,8 +102,7 @@ float4 PS(VertexShaderOutput ps_input) : SV_Target0
     float end_t = 0.0f;
     if (!find_closest_intersection_with_circle(planet_ori, planet_dir, gPlanetRadius, end_t))
     {
-        find_closest_intersection_with_circle(planet_ori, planet_dir, 
-                                                gAtomsphereRadius, end_t);
+        find_closest_intersection_with_circle(planet_ori, planet_dir, gAtmosphereRadius, end_t);
     }
 
     // Phase function input

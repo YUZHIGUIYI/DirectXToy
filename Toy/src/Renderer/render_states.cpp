@@ -6,35 +6,7 @@
 
 namespace toy
 {
-    com_ptr<ID3D11RasterizerState> render_states_c::rs_wireframe = nullptr;
-    com_ptr<ID3D11RasterizerState> render_states_c::rs_no_cull = nullptr;
-    com_ptr<ID3D11RasterizerState> render_states_c::rs_cull_clock_wise = nullptr;
-    com_ptr<ID3D11RasterizerState> render_states_c::rs_shadow = nullptr;
-
-    com_ptr<ID3D11SamplerState> render_states_c::ss_point_clamp = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_linear_wrap = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_linear_clamp = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_anisotropic_wrap_16x = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_anisotropic_clamp_2x = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_anisotropic_clamp_4x = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_anisotropic_clamp_8x = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_anisotropic_clamp_16x = nullptr;
-    com_ptr<ID3D11SamplerState> render_states_c::ss_shadow_pcf = nullptr;
-
-    com_ptr<ID3D11BlendState> render_states_c::bs_alpha_weighted_additive = nullptr;
-    com_ptr<ID3D11BlendState> render_states_c::bs_transparent = nullptr;
-    com_ptr<ID3D11BlendState> render_states_c::bs_alpha_to_coverage = nullptr;
-    com_ptr<ID3D11BlendState> render_states_c::bs_additive = nullptr;
-
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_equal = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_less_equal = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_greater_equal = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_no_depth_write = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_no_depth_test = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_write_stencil = nullptr;
-    com_ptr<ID3D11DepthStencilState> render_states_c::dss_equal_stencil = nullptr;
-
-    void render_states_c::init(ID3D11Device *device)
+    void RenderStates::init(ID3D11Device *device)
     {
         // Initialize rasterizer state
         // Wire frame
@@ -82,6 +54,16 @@ namespace toy
         // 16x anisotropic filter and clamp mode
         sampler_desc.MaxAnisotropy = 16;
         device->CreateSamplerState(&sampler_desc, ss_anisotropic_clamp_16x.GetAddressOf());
+
+        // Linear filter, warp address mode for u, clamp address mode for v and w
+        sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampler_desc.MaxAnisotropy = 0;
+        sampler_desc.MinLOD = 0.0f;
+        sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+        device->CreateSamplerState(&sampler_desc, ss_linear_u_wrap_vw_clamp.GetAddressOf());
 
         // Linear filter and wrap mode
         sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -178,7 +160,7 @@ namespace toy
         // When draw transparent objects, use this state
         ds_desc.DepthEnable = true;
         ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-        ds_desc.DepthFunc = D3D11_COMPARISON_LESS;
+        ds_desc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
         ds_desc.StencilEnable = false;
         device->CreateDepthStencilState(&ds_desc, dss_no_depth_write.GetAddressOf());
 

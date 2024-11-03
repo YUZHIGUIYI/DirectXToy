@@ -343,10 +343,6 @@ namespace toy
 
 		void set_unordered_access_view(std::string_view uav_name, ID3D11UnorderedAccessView *uav);
 
-		virtual void set_stencil_ref(uint32_t stencil_value) {};
-
-		virtual void set_blend_factor(std::span<float> blend_value) {};
-
 		virtual void emit_graphics_pipeline(ID3D11DeviceContext *device_context) {};
 
 		virtual void emit_compute_pipeline(ID3D11DeviceContext *device_context) {};
@@ -354,8 +350,6 @@ namespace toy
 		virtual void reset_graphics_pipeline(ID3D11DeviceContext *device_context) {}
 
 		virtual void reset_compute_pipeline(ID3D11DeviceContext *device_context) {}
-
-		virtual void dispatch(ID3D11DeviceContext *device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z) {};
 
 	protected:
 		void emit_pipeline(ID3D11DeviceContext *device_context);
@@ -373,6 +367,10 @@ namespace toy
 		ComPtr<ID3D11BlendState> blend_state = nullptr;
 		ComPtr<ID3D11InputLayout> vertex_input_layout = nullptr;
 		std::array<float, 4> blend_factor{ 0.0f, 0.0f, 0.0f, 0.0f };
+		std::span<ID3D11RenderTargetView *> render_target_views{};
+		std::span<D3D11_VIEWPORT> viewports{};
+		ID3D11DepthStencilView* depth_stencil_view = nullptr;
+		D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		uint32_t sample_mask = 0xffffffff;
 		uint32_t stencil_ref = 0;
 
@@ -385,9 +383,19 @@ namespace toy
 		GraphicsEffect(GraphicsEffect &&) = delete;
 		GraphicsEffect &operator=(GraphicsEffect &&) = delete;
 
-		void set_stencil_ref(uint32_t stencil_value) override;
+		void set_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY in_topology);
 
-		void set_blend_factor(std::span<float> blend_value) override;
+		void set_render_viewports(std::span<D3D11_VIEWPORT> in_viewports);
+
+		void set_render_target_views(std::span<ID3D11RenderTargetView *> in_render_target_views);
+
+		void set_depth_stencil_view(ID3D11DepthStencilView *in_depth_stencil_view);
+
+		void set_stencil_ref(uint32_t stencil_value);
+
+		void set_blend_factor(std::span<float> blend_value);
+
+		void draw(ID3D11DeviceContext *device_context, uint32_t vertex_count, uint32_t start_vertex_location);
 
 		void emit_graphics_pipeline(ID3D11DeviceContext *device_context) override;
 
@@ -412,7 +420,7 @@ namespace toy
 
 		void reset_compute_pipeline(ID3D11DeviceContext *device_context) override;
 
-		void dispatch(ID3D11DeviceContext *device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z) override;
+		void dispatch(ID3D11DeviceContext *device_context, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z);
 	};
 }
 

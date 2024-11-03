@@ -89,7 +89,7 @@ namespace toy
 
         [[nodiscard]] uint32_t get_mip_levels() const { return m_mip_levels; }
 
-        ID3D11RenderTargetView* get_render_target() const { return m_texture_array_rtv.Get(); }
+        [[nodiscard]] ID3D11RenderTargetView* get_render_target() const { return m_texture_array_rtv.Get(); }
         ID3D11RenderTargetView* get_render_target(size_t array_idx) const { return m_render_target_elements[array_idx].Get(); }
 
         ID3D11UnorderedAccessView* get_unordered_access() const { return m_texture_array_uav.Get(); }
@@ -112,6 +112,26 @@ namespace toy
         std::vector<com_ptr<ID3D11ShaderResourceView>> m_shader_resource_elements;
     };
 
+    class Texture3D final
+    {
+    public:
+        Texture3D(ID3D11Device* device, uint32_t width, uint32_t height, uint32_t depth, DXGI_FORMAT format,
+                    uint32_t mip_levels = 1,
+                    uint32_t bind_flags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS);
+        ~Texture3D() = default;
+
+        [[nodiscard]] ID3D11ShaderResourceView *get_shader_resource() const { return m_texture_srv.Get(); }
+
+        [[nodiscard]] ID3D11Texture3D *get_texture() const { return m_texture.Get(); }
+
+        [[nodiscard]] ID3D11UnorderedAccessView *create_unordered_access(ID3D11Device *device, uint32_t mip_slice = 0U, uint32_t array_slice = 0U, uint32_t array_count = std::numeric_limits<uint32_t>::max());
+
+    private:
+        com_ptr<ID3D11Texture3D> m_texture = nullptr;
+        com_ptr<ID3D11ShaderResourceView> m_texture_srv = nullptr;
+        com_ptr<ID3D11UnorderedAccessView> m_texture_uav = nullptr;
+    };
+
     class Texture2DArray final : public Texture2DBase
     {
     public:
@@ -123,10 +143,10 @@ namespace toy
         [[nodiscard]] uint32_t get_mip_levels() const { return m_mip_levels; }
         [[nodiscard]] uint32_t get_array_size() const { return m_array_size; }
 
-        ID3D11RenderTargetView* get_render_target() const { return m_texture_array_rtv.Get(); }
-        ID3D11RenderTargetView* get_render_target(size_t array_idx) const { return m_render_target_elements[array_idx].Get(); }
+        [[nodiscard]] ID3D11RenderTargetView* get_render_target() const { return m_texture_array_rtv.Get(); }
+        [[nodiscard]] ID3D11RenderTargetView* get_render_target(size_t array_idx) const { return m_render_target_elements[array_idx].Get(); }
 
-        ID3D11UnorderedAccessView* get_unordered_access(size_t array_idx) const { return m_unordered_access_elements[array_idx].Get(); }
+        [[nodiscard]] ID3D11UnorderedAccessView* get_unordered_access(size_t array_idx) const { return m_unordered_access_elements[array_idx].Get(); }
 
         using Texture2DBase::get_shader_resource;
         ID3D11ShaderResourceView* get_shader_resource(size_t array_idx) const { return m_shader_resource_elements[array_idx].Get(); }

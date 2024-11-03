@@ -82,10 +82,8 @@ namespace toy
         if (reverse_z)
         {
             return DirectX::XMMatrixPerspectiveFovLH(m_fov_y, m_aspect, m_far_z, m_near_z);
-        } else
-        {
-            return DirectX::XMMatrixPerspectiveFovLH(m_fov_y, m_aspect, m_near_z, m_far_z);
         }
+        return DirectX::XMMatrixPerspectiveFovLH(m_fov_y, m_aspect, m_near_z, m_far_z);
     }
 
     DirectX::XMMATRIX Camera::get_view_proj_xm(bool reverse_z) const

@@ -9,13 +9,6 @@
 
 namespace toy
 {
-	struct Transform;
-
-	namespace model
-	{
-		struct Model;
-	}
-
 	struct TransmittancePass
 	{
 	public:

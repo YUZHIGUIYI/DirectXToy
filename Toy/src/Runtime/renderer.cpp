@@ -15,6 +15,9 @@
 #include <Toy/ECS/components.h>
 #include <Toy/NewFramework/transmittance_pass.h>
 #include <Toy/NewFramework/multi_scattering_pass.h>
+#include <Toy/NewFramework/aerial_perspective_pass.h>
+#include <Toy/NewFramework/sky_lut_pass.h>
+#include <Toy/NewFramework/sky_pass.h>
 
 namespace toy::runtime
 {
@@ -101,10 +104,13 @@ namespace toy::runtime
         auto&& scene_graph = core::get_subsystem<SceneGraph>();
         scene_graph.for_each<CameraComponent>([this] (CameraComponent &camera_component){
             auto&& camera = camera_component.camera;
+            this->sky_lut_pass(*camera);
+            this->aerial_perspective_pass(*camera);
             this->frustum_culling(*camera);
             this->shadow_pass(*camera);
             this->gbuffer_pass(*camera);
             this->lighting_and_taa_pass(*camera);
+            this->sky_pass(*camera);
             this->skybox_pass(*camera);
         });
     }
@@ -276,6 +282,9 @@ namespace toy::runtime
         GizmosWireEffect::get().init(m_d3d_device.Get());
         MultiScatteringPass::get().init(m_d3d_device.Get());
         MultiScatteringPass::get().emit_render_pass(m_d3d_immediate_context.Get());
+        SkyLUTPass::get().init(m_d3d_device.Get());
+        AerialPerspectivePass::get().init(m_d3d_device.Get());
+        SkyPass::get().init(m_d3d_device.Get());
 
         // Initialize shadow manager
         CascadedShadowManager::get().init(m_d3d_device.Get());
@@ -407,6 +416,40 @@ namespace toy::runtime
         m_shadow_texture = std::make_unique<Texture2D>(d3d_device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
     }
 
+    void Renderer::sky_lut_pass(const Camera &camera)
+    {
+        using namespace math;
+        auto &&sky_lut_pass_inst = SkyLUTPass::get();
+        constexpr float world_scale = 200.0f;
+        constexpr float sun_angle_x = 0.0f;
+        constexpr float sun_angle_y = 11.6f;
+        constexpr float sun_rad_x = math::radians(sun_angle_x);
+        constexpr float sun_rad_y = math::radians(-sun_angle_y);
+        DirectX::XMFLOAT3 non_normalized_sun_direction{ std::cos(sun_rad_x) * std::cos(sun_rad_y), std::sin(sun_rad_y), std::sin(sun_rad_x) * std::cos(sun_rad_y) };
+        auto normalized_sun_direction = math::normalized(non_normalized_sun_direction);
+        sky_lut_pass_inst.set_camera(world_scale * camera.get_position());
+        sky_lut_pass_inst.set_sun_params(normalized_sun_direction, DirectX::XMFLOAT3{ 10.0f, 10.0f, 10.0f });
+        sky_lut_pass_inst.set_world_scale(world_scale);
+        sky_lut_pass_inst.set_ray_marching(40);
+        sky_lut_pass_inst.emit_render_pass(m_d3d_immediate_context.Get());
+    }
+
+    void Renderer::aerial_perspective_pass(const Camera &camera)
+    {
+        auto &&aerial_perspective_pass_inst = AerialPerspectivePass::get();
+        constexpr float world_scale = 200.0f;
+        constexpr float sun_angle_x = 0.0f;
+        constexpr float sun_angle_y = 11.6f;
+        constexpr float sun_rad_x = math::radians(sun_angle_x);
+        constexpr float sun_rad_y = math::radians(-sun_angle_y);
+        DirectX::XMFLOAT3 non_normalized_sun_direction{ std::cos(sun_rad_x) * std::cos(sun_rad_y), std::sin(sun_rad_y), std::sin(sun_rad_x) * std::cos(sun_rad_y) };
+        auto normalized_sun_direction = math::normalized(non_normalized_sun_direction);
+        aerial_perspective_pass_inst.set_camera(camera, world_scale);
+        aerial_perspective_pass_inst.set_sun_direction(normalized_sun_direction);
+        aerial_perspective_pass_inst.set_marching_params(2000.0f, 1);
+        aerial_perspective_pass_inst.emit_render_pass(m_d3d_immediate_context.Get());
+    }
+
     void Renderer::frustum_culling(const toy::Camera &camera)
     {
         using namespace DirectX;
@@ -529,6 +572,8 @@ namespace toy::runtime
         m_d3d_immediate_context->ClearRenderTargetView(m_gbuffer.entity_id_buffer->get_render_target(), s_clear_color.data());
         m_d3d_immediate_context->ClearDepthStencilView(m_depth_texture->get_depth_stencil(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
+        DeferredPBREffect::get().set_proj_matrix(camera.get_proj_xm(true));
+        DeferredPBREffect::get().set_view_matrix(camera.get_view_xm());
         DeferredPBREffect::get().set_gbuffer_render();
         m_d3d_immediate_context->OMSetRenderTargets(static_cast<uint32_t>(gbuffer_rtvs.size()), gbuffer_rtvs.data(), m_depth_texture->get_depth_stencil());
         // scene_graph.render_static_mesh(m_d3d_immediate_context.Get(), DeferredPBREffect::get());
@@ -553,8 +598,6 @@ namespace toy::runtime
 
         m_d3d_immediate_context->ClearRenderTargetView(m_lighting_pass_texture->get_render_target(), s_clear_color.data());
         m_d3d_immediate_context->ClearRenderTargetView(m_taa_texture->get_render_target(), s_clear_color.data());
-        DeferredPBREffect::get().set_proj_matrix(camera.get_proj_xm(true));
-        DeferredPBREffect::get().set_view_matrix(camera.get_view_xm());
         DeferredPBREffect::get().set_camera_position(camera.get_position());
         DeferredPBREffect::get().set_camera_near_far(camera.get_near_z(), camera.get_far_z());
         DeferredPBREffect::get().set_viewer_size(m_dock_width, m_dock_height);
@@ -590,6 +633,15 @@ namespace toy::runtime
         }
 
         m_d3d_immediate_context->CopyResource(m_history_texture->get_texture(), m_taa_texture->get_texture());
+    }
+
+    void Renderer::sky_pass(const Camera &camera)
+    {
+        auto &&sky_pass = SkyPass::get();
+        sky_pass.set_camera(camera);
+        sky_pass.set_viewport(camera.get_viewport());
+        sky_pass.set_output_merger(m_taa_texture->get_render_target(), m_depth_texture->get_depth_stencil());
+        sky_pass.emit_render_pass(m_d3d_immediate_context.Get());
     }
 
     void Renderer::skybox_pass(const Camera &camera)
