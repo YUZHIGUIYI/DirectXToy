@@ -55,6 +55,11 @@ namespace toy::runtime
         m_selected_entity = entity_wrapper;
     }
 
+    void Renderer::reset_skybox_pass(bool enable)
+    {
+        m_enable_skybox = enable;
+    }
+
     void Renderer::release()
     {
         if (m_d3d_immediate_context)
@@ -94,6 +99,10 @@ namespace toy::runtime
                 } else if constexpr (std::is_same_v<event_type, DropEvent>)
                 {
                     this->on_file_drop(event.drop_filename);
+                } else if constexpr (std::is_same_v<event_type, RenderPassSelectEvent>)
+                {
+                    bool enable_skybox = event.pass_type == RenderPassType::SkyboxPass;
+                    this->reset_skybox_pass(enable_skybox);
                 }
             }, delegate_event);
         }
@@ -637,32 +646,35 @@ namespace toy::runtime
 
     void Renderer::sky_pass(const Camera &camera)
     {
+        if (m_enable_skybox)
+        {
+            return;
+        }
         auto &&sky_pass = SkyPass::get();
         sky_pass.set_camera(camera);
         sky_pass.set_viewport(camera.get_viewport());
         sky_pass.set_output_merger(m_taa_texture->get_render_target(), m_depth_texture->get_depth_stencil());
         sky_pass.emit_render_pass(m_d3d_immediate_context.Get());
+        m_d3d_immediate_context->CopyResource(m_view_texture->get_texture(), m_taa_texture->get_texture());
     }
 
     void Renderer::skybox_pass(const Camera &camera)
     {
+        if (!m_enable_skybox)
+        {
+            return;
+        }
         auto&& scene_graph = core::get_subsystem<SceneGraph>();
-        auto render_target_view = m_view_texture->get_render_target();
+        auto *render_target_view = m_taa_texture->get_render_target();
         D3D11_VIEWPORT viewport = camera.get_viewport();
-        viewport.MinDepth = 1.0f;
-        viewport.MaxDepth = 1.0f;
-
-        m_d3d_immediate_context->ClearRenderTargetView(render_target_view, s_clear_color.data());
         m_d3d_immediate_context->RSSetViewports(1, &viewport);
 
         SimpleSkyboxEffect::get().set_skybox_render();
         SimpleSkyboxEffect::get().set_view_matrix(camera.get_view_xm());
         SimpleSkyboxEffect::get().set_proj_matrix(camera.get_proj_xm(true));
-        SimpleSkyboxEffect::get().set_depth_texture(m_depth_texture->get_shader_resource());
-        SimpleSkyboxEffect::get().set_scene_texture(m_taa_texture->get_shader_resource());
         SimpleSkyboxEffect::get().apply(m_d3d_immediate_context.Get());
 
-        m_d3d_immediate_context->OMSetRenderTargets(1, &render_target_view, nullptr);
+        m_d3d_immediate_context->OMSetRenderTargets(1, &render_target_view, m_depth_texture->get_depth_stencil());
         // scene_graph.render_skybox(m_d3d_immediate_context.Get(), SimpleSkyboxEffect::get());
         auto &&skybox_effect = SimpleSkyboxEffect::get();
         auto *device_context = m_d3d_immediate_context.Get();
@@ -674,6 +686,7 @@ namespace toy::runtime
         SimpleSkyboxEffect::get().set_depth_texture(nullptr);
         SimpleSkyboxEffect::get().set_scene_texture(nullptr);
         m_d3d_immediate_context->OMSetRenderTargets(0, nullptr, nullptr);
+        m_d3d_immediate_context->CopyResource(m_view_texture->get_texture(), m_taa_texture->get_texture());
     }
 
     void Renderer::set_shadow_paras()

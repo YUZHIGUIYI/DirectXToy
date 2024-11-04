@@ -82,9 +82,9 @@ namespace toy::editor
         staging_data.clear();
         staging_data.resize(m_staging_width, 0);
 
-        D3D11_MAPPED_SUBRESOURCE mapped_subresource = {};
+        D3D11_MAPPED_SUBRESOURCE mapped_subresource{};
         device_context->Map(m_staging_texture.Get(), 0, D3D11_MAP_READ, 0, &mapped_subresource);
-        auto texture_data = reinterpret_cast<uint8_t *>(mapped_subresource.pData);
+        auto texture_data = static_cast<uint8_t *>(mapped_subresource.pData);
         auto reinterpret_staging_data = reinterpret_cast<uint8_t *>(staging_data.data());
         auto stride = mapped_subresource.RowPitch;
         auto multiple = sizeof(std::decay_t<decltype(staging_data)>::value_type) / sizeof(uint8_t);

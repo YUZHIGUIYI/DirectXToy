@@ -9,6 +9,12 @@
 
 namespace toy
 {
+    enum class RenderPassType
+    {
+        SkyPass,
+        SkyboxPass
+    };
+
     enum class EventType
     {
         None = 0,
@@ -16,7 +22,8 @@ namespace toy
         DockResize,
         KeyTyped,
         MouseMoved, MouseScrolled, MouseButton,
-        Drop
+        Drop,
+        RenderPassSelect
     };
 
     enum class EventPriority : uint8_t
@@ -42,8 +49,9 @@ namespace toy
     class MouseScrolledEvent;
     class MouseButtonEvent;
     class DropEvent;
+    class RenderPassSelectEvent;
 
     using EngineEventVariant = std::variant<NoneEvent, WindowCloseEvent, WindowResizeEvent, DockResizeEvent,
                                 KeyTypedEvent, MouseMovedEvent, MouseScrolledEvent,
-                                MouseButtonEvent, DropEvent>;
+                                MouseButtonEvent, DropEvent, RenderPassSelectEvent>;
 }

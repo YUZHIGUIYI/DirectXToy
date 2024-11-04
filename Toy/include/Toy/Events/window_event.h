@@ -150,6 +150,21 @@ namespace toy
         std::string drop_filename;
         EventPriority event_priority;
     };
+
+    class RenderPassSelectEvent
+    {
+    public:
+        explicit RenderPassSelectEvent(RenderPassType in_pass_type, EventPriority priority = EventPriority::Fourth)
+        : pass_type(in_pass_type), event_priority(priority)
+        {
+
+        }
+
+        EVENT_CLASS_TYPE(RenderPassSelect)
+
+        RenderPassType pass_type;
+        EventPriority event_priority;
+    };
 }
 
 

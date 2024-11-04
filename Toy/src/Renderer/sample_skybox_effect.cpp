@@ -88,7 +88,7 @@ namespace toy
         {
             auto pass = m_effect_impl->effect_helper->get_effect_pass(m_effect_impl->skybox_pass);
             pass->set_rasterizer_state(RenderStates::rs_no_cull.Get());
-            pass->set_depth_stencil_state(RenderStates::dss_less_equal.Get(), 0);
+            pass->set_depth_stencil_state(RenderStates::dss_no_depth_write.Get(), 0);
         }
 
         // Set sampler state

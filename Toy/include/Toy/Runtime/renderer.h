@@ -67,6 +67,9 @@ namespace toy::runtime
 
         void init_effects();
 
+        // Disable/enable skybox
+        void reset_skybox_pass(bool enable);
+
         void on_framebuffer_resize(int32_t width, int32_t height);
 
         void on_render_target_resize(int32_t width, int32_t height);
@@ -137,5 +140,6 @@ namespace toy::runtime
         bool m_is_dxgi_flip_model = false;                                      // Use DXGI flip model
         bool m_window_minimized = false;                                        // Renderer minimized
         bool m_has_released = false;                                            // Whether renderer has been reset
+        bool m_enable_skybox = true;                                           // Disable/enable skybox
     };
 }

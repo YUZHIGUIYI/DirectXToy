@@ -66,6 +66,8 @@ namespace toy::editor
         auto&& input_controller = core::get_subsystem<runtime::InputController>();
         auto&& render_window = core::get_subsystem<runtime::RenderWindow>();
         auto&& task_system = core::get_subsystem<runtime::TaskSystem>();
+        static bool enable_skybox_pass = true;
+        bool select_pass = false;
         bool load_file = false;
         bool exit = false;
         if (input_controller.is_key_pressed_with_mod(key::Q, key::LeftControl))
@@ -88,6 +90,16 @@ namespace toy::editor
                 }
                 ImGui::EndMenu();
             }
+
+            if (ImGui::BeginMenu("Settings"))
+            {
+                if (ImGui::Checkbox("Enable skybox", &enable_skybox_pass))
+                {
+                    select_pass = true;
+                }
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMainMenuBar();
         }
 
@@ -102,6 +114,18 @@ namespace toy::editor
             auto filepath = FileDialog::window_open_file_dialog(render_window.get_native_window(), "Load glTF | HDR | FBX",
                                                                 "glTF(.gltf, .glb), HDR(.hdr), FBX(.fbx)|*.gltf;*.hdr;*.fbx");
             task_system.push(DropEvent{ filepath });
+        }
+
+        if (!select_pass)
+        {
+            return;
+        }
+        if (enable_skybox_pass)
+        {
+            task_system.push(RenderPassSelectEvent{ RenderPassType::SkyboxPass });
+        } else
+        {
+            task_system.push(RenderPassSelectEvent{ RenderPassType::SkyPass });
         }
     }
 
